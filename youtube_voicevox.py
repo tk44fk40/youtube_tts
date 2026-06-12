@@ -187,13 +187,51 @@ def reload_config():
 
 
 def load_credentials():
-    creds = Credentials.from_authorized_user_file(
-        TOKEN_FILE,
-        SCOPES
-    )
+    if not Path(TOKEN_FILE).exists():
+        raise RuntimeError(
+            "token.json was not found. "
+            "Run oauth_test.py to create OAuth credentials."
+        )
 
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+    try:
+        creds = Credentials.from_authorized_user_file(
+            TOKEN_FILE,
+            SCOPES
+        )
+    except Exception as e:
+        try:
+            os.remove(TOKEN_FILE)
+        except OSError:
+            pass
+
+        raise RuntimeError(
+            "Failed to load token.json because it is invalid or corrupted. "
+            "Deleted token.json. Run oauth_test.py to recreate credentials."
+        ) from e
+
+    if creds.expired:
+        if creds.refresh_token:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                raise RuntimeError(
+                    "OAuth token refresh failed. "
+                    "Delete token.json and reauthenticate with oauth_test.py."
+                ) from e
+
+            with open(
+                TOKEN_FILE,
+                "w",
+                encoding="utf-8"
+            ) as token:
+                token.write(
+                    creds.to_json()
+                )
+        else:
+            raise RuntimeError(
+                "OAuth credentials are expired and no refresh token is available. "
+                "Delete token.json and run oauth_test.py to recreate credentials."
+            )
 
     return creds
 
