@@ -9,6 +9,7 @@ import threading
 import time
 import unicodedata
 import wave
+import signal
 
 from collections import deque
 from pathlib import Path
@@ -63,6 +64,9 @@ MAX_PROCESSED_MESSAGE_IDS = 1000
 comment_queue = queue.Queue(
     maxsize=QUEUE_MAXSIZE
 )
+
+# Graceful shutdown event
+stop_event = threading.Event()
 
 REPLACEMENTS = {}
 NG_WORDS = set()
@@ -513,6 +517,38 @@ def resample_audio(
     return resampled_audio
 
 
+def cleanup(playback_thread=None, wait_seconds=5):
+    print("[INFO] Cleaning up...")
+    stop_event.set()
+
+    # Stop any ongoing playback
+    try:
+        sd.stop()
+    except Exception as e:
+        print(f"[WARN] sounddevice stop failed: {e}")
+
+    # Wait briefly for playback thread to finish processing queue
+    end_time = time.time() + wait_seconds
+    while time.time() < end_time and not comment_queue.empty():
+        time.sleep(0.1)
+
+    # If still items, drain the queue to avoid blocking
+    while True:
+        try:
+            comment_queue.get_nowait()
+            comment_queue.task_done()
+        except queue.Empty:
+            break
+
+    if playback_thread is not None:
+        try:
+            playback_thread.join(timeout=wait_seconds)
+        except Exception:
+            pass
+
+    print("[INFO] Cleanup complete")
+
+
 def normalize_author(author):
     # 全角半角正規化
     author = normalize_text(
@@ -656,10 +692,13 @@ def speak(text):
 
 
 def playback_worker():
-    while True:
-        author, message = (
-            comment_queue.get()
-        )
+    while not stop_event.is_set():
+        try:
+            author, message = (
+                comment_queue.get(timeout=1)
+            )
+        except queue.Empty:
+            continue
 
         text = f"{author} {message}"
 
@@ -699,8 +738,11 @@ def youtube_worker(video_id):
     processed_message_ids = set()
     processed_message_queue = deque()
     max_processed_message_ids = MAX_PROCESSED_MESSAGE_IDS
+    # Check video/stream status every N polling iterations to detect end
+    status_check_interval = 2
+    status_check_counter = 0
 
-    while True:
+    while not stop_event.is_set():
         reload_config()
 
         try:
@@ -715,6 +757,8 @@ def youtube_worker(video_id):
                 print("\n[ERROR] YouTube API quota exceeded")
                 print("        Please wait 24 hours before running again")
                 print(f"        Error: {e}")
+                # Stop the worker on quota errors
+                stop_event.set()
                 return
             raise
 
@@ -788,6 +832,36 @@ def youtube_worker(video_id):
             "nextPageToken"
         )
 
+        # Periodically check if the live stream is still active.
+        status_check_counter += 1
+        if status_check_counter % status_check_interval == 0:
+            try:
+                vresp = youtube.videos().list(
+                    part="liveStreamingDetails",
+                    id=video_id
+                ).execute()
+            except HttpError as e:
+                # If API returns quota or other errors, stop gracefully
+                if e.resp.status == 403 and "quotaExceeded" in str(e):
+                    print("\n[ERROR] YouTube API quota exceeded while checking stream status")
+                    stop_event.set()
+                    return
+                # For other HttpErrors, print and continue polling
+                print(f"[WARN] Error checking video status: {e}")
+            else:
+                items = vresp.get("items", [])
+                if not items:
+                    print("[INFO] Video not found; assuming stream ended")
+                    stop_event.set()
+                    return
+
+                details = items[0].get("liveStreamingDetails", {})
+                active_chat = details.get("activeLiveChatId")
+                if not active_chat:
+                    print("[INFO] activeLiveChatId missing; stream likely ended")
+                    stop_event.set()
+                    return
+
         # YouTube API の推奨するポーリング間隔を尊重しつつ、
         # 最低3秒は空けるようにする
         polling_interval_min = 3000
@@ -846,14 +920,25 @@ def main():
         chat_url
     )
 
+    def handle_signal(signum, frame):
+        print("[INFO] Signal received, shutting down...")
+        stop_event.set()
+
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
+
     playback_thread = threading.Thread(
-        target=playback_worker,
-        daemon=True
+        target=playback_worker
     )
 
     playback_thread.start()
 
-    youtube_worker(video_id)
+    try:
+        youtube_worker(video_id)
+    except Exception as e:
+        print(f"[ERROR] Unexpected error: {e}")
+    finally:
+        cleanup(playback_thread=playback_thread, wait_seconds=5)
 
 
 
