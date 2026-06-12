@@ -311,8 +311,7 @@ def get_current_live_video_id(
     try:
         response = youtube.liveBroadcasts().list(
             part="id,status",
-            mine=True,
-            broadcastStatus="active"
+            mine=True
         ).execute()
     except HttpError as e:
         if e.resp.status == 403 and "quotaExceeded" in str(e):
