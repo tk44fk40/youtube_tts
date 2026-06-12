@@ -311,7 +311,8 @@ def get_current_live_video_id(
     try:
         response = youtube.liveBroadcasts().list(
             part="id,status",
-            mine=True
+            mine=True,
+            broadcastStatus="active"
         ).execute()
     except HttpError as e:
         if e.resp.status == 403 and "quotaExceeded" in str(e):
@@ -707,7 +708,8 @@ def youtube_worker(video_id):
             response = youtube.liveChatMessages().list(
                 liveChatId=live_chat_id,
                 part="snippet,authorDetails",
-                pageToken=next_page_token
+                pageToken=next_page_token,
+                maxResults=200
             ).execute()
         except HttpError as e:
             if e.resp.status == 403 and "quotaExceeded" in str(e):
