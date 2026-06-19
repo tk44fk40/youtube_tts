@@ -13,10 +13,7 @@ import signal
 
 from collections import deque
 from pathlib import Path
-from urllib.parse import (
-    parse_qs,
-    urlparse
-)
+from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 import requests
@@ -28,22 +25,16 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 
-SCOPES = [
-    "https://www.googleapis.com/auth/youtube.readonly"
-]
+SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
 TOKEN_FILE = "token.json"
 
 VOICEVOX_URL = "http://127.0.0.1:50021"
 SPEAKER_ID = 3
 
-DICTIONARY_FILE = Path(
-    "dictionary.txt"
-)
+DICTIONARY_FILE = Path("dictionary.txt")
 
-NG_WORD_FILE = Path(
-    "ng_words.txt"
-)
+NG_WORD_FILE = Path("ng_words.txt")
 
 # PipeWire の既定出力を使用
 sd.default.device = "pipewire"
@@ -61,9 +52,7 @@ QUEUE_MAXSIZE = 50
 # 避けつつ、再読み上げを防ぎます。
 MAX_PROCESSED_MESSAGE_IDS = 1000
 
-comment_queue = queue.Queue(
-    maxsize=QUEUE_MAXSIZE
-)
+comment_queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
 
 # Graceful shutdown event
 stop_event = threading.Event()
@@ -76,10 +65,7 @@ ng_word_mtime = None
 
 
 def normalize_text(text):
-    return unicodedata.normalize(
-        "NFKC",
-        text
-    )
+    return unicodedata.normalize("NFKC", text)
 
 
 def load_replacements():
@@ -88,12 +74,7 @@ def load_replacements():
     if not DICTIONARY_FILE.exists():
         return replacements
 
-    with open(
-        DICTIONARY_FILE,
-        "r",
-        encoding="utf-8"
-    ) as f:
-
+    with open(DICTIONARY_FILE, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
 
@@ -103,18 +84,11 @@ def load_replacements():
             if "=" not in line:
                 continue
 
-            src, dst = line.split(
-                "=",
-                1
-            )
+            src, dst = line.split("=", 1)
 
-            normalized_src = normalize_text(
-                src.strip()
-            ).lower()
+            normalized_src = normalize_text(src.strip()).lower()
 
-            replacements[
-                normalized_src
-            ] = dst.strip()
+            replacements[normalized_src] = dst.strip()
 
     return replacements
 
@@ -125,25 +99,16 @@ def load_ng_words():
     if not NG_WORD_FILE.exists():
         return ng_words
 
-    with open(
-        NG_WORD_FILE,
-        "r",
-        encoding="utf-8"
-    ) as f:
-
+    with open(NG_WORD_FILE, "r", encoding="utf-8") as f:
         for line in f:
             word = line.strip()
 
             if not word:
                 continue
 
-            normalized_word = normalize_text(
-                word
-            ).lower()
+            normalized_word = normalize_text(word).lower()
 
-            ng_words.add(
-                normalized_word
-            )
+            ng_words.add(normalized_word)
 
     return ng_words
 
@@ -157,51 +122,35 @@ def reload_config():
 
     # dictionary.txt
     if DICTIONARY_FILE.exists():
-        current_mtime = os.path.getmtime(
-            DICTIONARY_FILE
-        )
+        current_mtime = os.path.getmtime(DICTIONARY_FILE)
 
         if current_mtime != dictionary_mtime:
             dictionary_mtime = current_mtime
 
-            REPLACEMENTS = (
-                load_replacements()
-            )
+            REPLACEMENTS = load_replacements()
 
-            print(
-                "[CONFIG] dictionary reloaded"
-            )
+            print("[CONFIG] dictionary reloaded")
 
     # ng_words.txt
     if NG_WORD_FILE.exists():
-        current_mtime = os.path.getmtime(
-            NG_WORD_FILE
-        )
+        current_mtime = os.path.getmtime(NG_WORD_FILE)
 
         if current_mtime != ng_word_mtime:
             ng_word_mtime = current_mtime
 
-            NG_WORDS = (
-                load_ng_words()
-            )
+            NG_WORDS = load_ng_words()
 
-            print(
-                "[CONFIG] ng words reloaded"
-            )
+            print("[CONFIG] ng words reloaded")
 
 
 def load_credentials():
     if not Path(TOKEN_FILE).exists():
         raise RuntimeError(
-            "token.json was not found. "
-            "Run oauth_test.py to create OAuth credentials."
+            "token.json was not found. Run oauth_test.py to create OAuth credentials."
         )
 
     try:
-        creds = Credentials.from_authorized_user_file(
-            TOKEN_FILE,
-            SCOPES
-        )
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
     except Exception as e:
         try:
             os.remove(TOKEN_FILE)
@@ -223,14 +172,8 @@ def load_credentials():
                     "Delete token.json and reauthenticate with oauth_test.py."
                 ) from e
 
-            with open(
-                TOKEN_FILE,
-                "w",
-                encoding="utf-8"
-            ) as token:
-                token.write(
-                    creds.to_json()
-                )
+            with open(TOKEN_FILE, "w", encoding="utf-8") as token:
+                token.write(creds.to_json())
         else:
             raise RuntimeError(
                 "OAuth credentials are expired and no refresh token is available. "
@@ -243,8 +186,7 @@ def load_credentials():
 def extract_video_id(value):
     # URLでない場合は
     # そのまま video_id とみなす
-    if "youtube.com" not in value \
-    and "youtu.be" not in value:
+    if "youtube.com" not in value and "youtu.be" not in value:
         return value
 
     parsed = urlparse(value)
@@ -267,56 +209,31 @@ def extract_video_id(value):
         if len(parts) >= 3:
             return parts[2]
 
-    raise RuntimeError(
-        "failed to extract video id"
-    )
+    raise RuntimeError("failed to extract video id")
 
 
-def get_live_chat_id(
-    youtube,
-    video_id
-):
-    response = youtube.videos().list(
-        part="liveStreamingDetails",
-        id=video_id
-    ).execute()
+def get_live_chat_id(youtube, video_id):
+    response = youtube.videos().list(part="liveStreamingDetails", id=video_id).execute()
 
-    items = response.get(
-        "items",
-        []
-    )
+    items = response.get("items", [])
 
     if not items:
-        raise RuntimeError(
-            "video not found"
-        )
+        raise RuntimeError("video not found")
 
-    details = items[0].get(
-        "liveStreamingDetails",
-        {}
-    )
+    details = items[0].get("liveStreamingDetails", {})
 
-    live_chat_id = details.get(
-        "activeLiveChatId"
-    )
+    live_chat_id = details.get("activeLiveChatId")
 
     if not live_chat_id:
-        raise RuntimeError(
-            "activeLiveChatId not found"
-        )
+        raise RuntimeError("activeLiveChatId not found")
 
     return live_chat_id
 
 
-def get_current_live_video_id(
-    youtube
-):
+def get_current_live_video_id(youtube):
     # Fetch own channel's live broadcasts via authenticated API
     try:
-        response = youtube.liveBroadcasts().list(
-            part="id,status",
-            mine=True
-        ).execute()
+        response = youtube.liveBroadcasts().list(part="id,status", mine=True).execute()
     except HttpError as e:
         if e.resp.status == 403 and "quotaExceeded" in str(e):
             print("\n[ERROR] YouTube API quota exceeded")
@@ -325,18 +242,10 @@ def get_current_live_video_id(
             sys.exit(1)
         raise
 
-    items = response.get(
-        "items",
-        []
-    )
+    items = response.get("items", [])
 
     for item in items:
-        status = item.get(
-            "status",
-            {}
-        ).get(
-            "lifeCycleStatus"
-        )
+        status = item.get("status", {}).get("lifeCycleStatus")
 
         if status == "live":
             vid = item.get("id")
@@ -349,38 +258,21 @@ def get_current_live_video_id(
     )
 
 
-def update_obs_browser_source(
-    chat_url
-):
-    source_name = os.getenv(
-        "OBS_BROWSER_SOURCE_NAME"
-        ,"チャット"
-    )
+def update_obs_browser_source(chat_url):
+    source_name = os.getenv("OBS_BROWSER_SOURCE_NAME", "チャット")
 
     if not source_name:
         return
 
-    obs_password = os.getenv(
-        "OBS_WEBSOCKET_PASSWORD"
-    )
+    obs_password = os.getenv("OBS_WEBSOCKET_PASSWORD")
 
     if not obs_password:
-        print(
-            "[OBS] OBS_WEBSOCKET_PASSWORD is not set; skipping OBS update"
-        )
+        print("[OBS] OBS_WEBSOCKET_PASSWORD is not set; skipping OBS update")
         return
 
-    obs_host = os.getenv(
-        "OBS_WEBSOCKET_HOST",
-        "localhost"
-    )
+    obs_host = os.getenv("OBS_WEBSOCKET_HOST", "localhost")
 
-    obs_port = int(
-        os.getenv(
-            "OBS_WEBSOCKET_PORT",
-            "4455"
-        )
-    )
+    obs_port = int(os.getenv("OBS_WEBSOCKET_PORT", "4455"))
 
     try:
         from obswebsocket import obsws, requests as obs_requests
@@ -391,128 +283,66 @@ def update_obs_browser_source(
         return
 
     try:
-        ws = obsws(
-            obs_host,
-            obs_port,
-            obs_password
-        )
+        ws = obsws(obs_host, obs_port, obs_password)
         ws.connect()
         ws.call(
             obs_requests.SetSourceSettings(
-                sourceName=source_name,
-                sourceSettings={"url": chat_url}
+                sourceName=source_name, sourceSettings={"url": chat_url}
             )
         )
         ws.disconnect()
-        print(
-            "[OBS] ✓ チャットURL設定成功"
-        )
-        print(
-            f"      URL: {chat_url}"
-        )
+        print("[OBS] ✓ チャットURL設定成功")
+        print(f"      URL: {chat_url}")
     except Exception as e:
-        print(
-            f"[OBS] ✗ チャットURL設定失敗: {e}"
-        )
+        print(f"[OBS] ✗ チャットURL設定失敗: {e}")
 
 
 def synthesize_voice(text):
     audio_query = requests.post(
-        f"{VOICEVOX_URL}/audio_query",
-        params={
-            "text": text,
-            "speaker": SPEAKER_ID
-        }
+        f"{VOICEVOX_URL}/audio_query", params={"text": text, "speaker": SPEAKER_ID}
     )
 
     audio_query.raise_for_status()
 
     synthesis = requests.post(
         f"{VOICEVOX_URL}/synthesis",
-        params={
-            "speaker": SPEAKER_ID
-        },
+        params={"speaker": SPEAKER_ID},
         data=audio_query.text,
-        headers={
-            "Content-Type": "application/json"
-        }
+        headers={"Content-Type": "application/json"},
     )
 
     synthesis.raise_for_status()
 
-    wav_io = io.BytesIO(
-        synthesis.content
-    )
+    wav_io = io.BytesIO(synthesis.content)
 
-    with wave.open(
-        wav_io,
-        "rb"
-    ) as wav_file:
+    with wave.open(wav_io, "rb") as wav_file:
+        sample_rate = wav_file.getframerate()
 
-        sample_rate = (
-            wav_file.getframerate()
-        )
+        channels = wav_file.getnchannels()
 
-        channels = (
-            wav_file.getnchannels()
-        )
+        pcm_data = wav_file.readframes(wav_file.getnframes())
 
-        pcm_data = wav_file.readframes(
-            wav_file.getnframes()
-        )
-
-    audio = np.frombuffer(
-        pcm_data,
-        dtype=np.int16
-    )
+    audio = np.frombuffer(pcm_data, dtype=np.int16)
 
     if channels > 1:
-        audio = audio.reshape(
-            -1,
-            channels
-        )
+        audio = audio.reshape(-1, channels)
 
-    return (
-        audio,
-        sample_rate
-    )
+    return (audio, sample_rate)
 
 
-def resample_audio(
-    audio,
-    source_sample_rate,
-    target_sample_rate
-):
+def resample_audio(audio, source_sample_rate, target_sample_rate):
     if source_sample_rate == target_sample_rate:
         return audio
 
-    duration = (
-        len(audio)
-        / source_sample_rate
-    )
+    duration = len(audio) / source_sample_rate
 
-    old_time = np.linspace(
-        0,
-        duration,
-        num=len(audio)
-    )
+    old_time = np.linspace(0, duration, num=len(audio))
 
-    new_length = int(
-        duration
-        * target_sample_rate
-    )
+    new_length = int(duration * target_sample_rate)
 
-    new_time = np.linspace(
-        0,
-        duration,
-        num=new_length
-    )
+    new_time = np.linspace(0, duration, num=new_length)
 
-    resampled_audio = np.interp(
-        new_time,
-        old_time,
-        audio
-    ).astype(np.int16)
+    resampled_audio = np.interp(new_time, old_time, audio).astype(np.int16)
 
     return resampled_audio
 
@@ -551,9 +381,7 @@ def cleanup(playback_thread=None, wait_seconds=5):
 
 def normalize_author(author):
     # 全角半角正規化
-    author = normalize_text(
-        author
-    )
+    author = normalize_text(author)
 
     # 先頭の @ を除去
     author = author.lstrip("@")
@@ -571,28 +399,18 @@ def normalize_author(author):
 
 
 def replace_words(message):
-    normalized_message = normalize_text(
-        message
-    )
+    normalized_message = normalize_text(message)
 
     for src, dst in REPLACEMENTS.items():
-        pattern = re.compile(
-            re.escape(src),
-            re.IGNORECASE
-        )
+        pattern = re.compile(re.escape(src), re.IGNORECASE)
 
-        normalized_message = pattern.sub(
-            dst,
-            normalized_message
-        )
+        normalized_message = pattern.sub(dst, normalized_message)
 
     return normalized_message
 
 
 def contains_ng_word(message):
-    normalized_message = normalize_text(
-        message
-    ).lower()
+    normalized_message = normalize_text(message).lower()
 
     for word in NG_WORDS:
         if word in normalized_message:
@@ -603,50 +421,25 @@ def contains_ng_word(message):
 
 def normalize_message(message):
     # 全角半角正規化
-    message = normalize_text(
-        message
-    )
+    message = normalize_text(message)
 
     # URL除去
-    message = re.sub(
-        r"https?:\S+",
-        "",
-        message
-    )
+    message = re.sub(r"https?:\S+", "", message)
 
     # 草を圧縮
-    message = re.sub(
-        r"[wｗ]{3,}",
-        " わら ",
-        message,
-        flags=re.IGNORECASE
-    )
+    message = re.sub(r"[wｗ]{3,}", " わら ", message, flags=re.IGNORECASE)
 
     # ! を圧縮
-    message = re.sub(
-        r"[!！]{2,}",
-        "！",
-        message
-    )
+    message = re.sub(r"[!！]{2,}", "！", message)
 
     # ? を圧縮
-    message = re.sub(
-        r"[?？]{2,}",
-        "？",
-        message
-    )
+    message = re.sub(r"[?？]{2,}", "？", message)
 
     # 絵文字除去
-    message = re.sub(
-        r"[\U00010000-\U0010ffff]",
-        "",
-        message
-    )
+    message = re.sub(r"[\U00010000-\U0010ffff]", "", message)
 
     # 読み上げ辞書
-    message = replace_words(
-        message
-    )
+    message = replace_words(message)
 
     # 前後空白除去
     message = message.strip()
@@ -654,39 +447,20 @@ def normalize_message(message):
     return message
 
 
-def normalize_comment(
-    author,
-    message
-):
-    normalized_author = (
-        normalize_author(author)
-    )
+def normalize_comment(author, message):
+    normalized_author = normalize_author(author)
 
-    normalized_message = (
-        normalize_message(message)
-    )
+    normalized_message = normalize_message(message)
 
-    return (
-        normalized_author,
-        normalized_message
-    )
+    return (normalized_author, normalized_message)
 
 
 def speak(text):
-    audio, source_sample_rate = (
-        synthesize_voice(text)
-    )
+    audio, source_sample_rate = synthesize_voice(text)
 
-    audio = resample_audio(
-        audio,
-        source_sample_rate,
-        target_sample_rate
-    )
+    audio = resample_audio(audio, source_sample_rate, target_sample_rate)
 
-    sd.play(
-        audio,
-        samplerate=target_sample_rate
-    )
+    sd.play(audio, samplerate=target_sample_rate)
 
     sd.wait()
 
@@ -694,17 +468,13 @@ def speak(text):
 def playback_worker():
     while not stop_event.is_set():
         try:
-            author, message = (
-                comment_queue.get(timeout=1)
-            )
+            author, message = comment_queue.get(timeout=1)
         except queue.Empty:
             continue
 
         text = f"{author} {message}"
 
-        print(
-            f"[READ] {text}"
-        )
+        print(f"[READ] {text}")
 
         try:
             speak(text)
@@ -718,20 +488,11 @@ def playback_worker():
 def youtube_worker(video_id):
     creds = load_credentials()
 
-    youtube = build(
-        "youtube",
-        "v3",
-        credentials=creds
-    )
+    youtube = build("youtube", "v3", credentials=creds)
 
-    live_chat_id = get_live_chat_id(
-        youtube,
-        video_id
-    )
+    live_chat_id = get_live_chat_id(youtube, video_id)
 
-    print(
-        f"liveChatId: {live_chat_id}"
-    )
+    print(f"liveChatId: {live_chat_id}")
 
     next_page_token = None
 
@@ -746,12 +507,16 @@ def youtube_worker(video_id):
         reload_config()
 
         try:
-            response = youtube.liveChatMessages().list(
-                liveChatId=live_chat_id,
-                part="snippet,authorDetails",
-                pageToken=next_page_token,
-                maxResults=200
-            ).execute()
+            response = (
+                youtube.liveChatMessages()
+                .list(
+                    liveChatId=live_chat_id,
+                    part="snippet,authorDetails",
+                    pageToken=next_page_token,
+                    maxResults=200,
+                )
+                .execute()
+            )
         except HttpError as e:
             if e.resp.status == 403 and "quotaExceeded" in str(e):
                 print("\n[ERROR] YouTube API quota exceeded")
@@ -762,88 +527,55 @@ def youtube_worker(video_id):
                 return
             raise
 
-        for item in response.get(
-            "items",
-            []
-        ):
+        for item in response.get("items", []):
             message_id = item["id"]
 
             if message_id in processed_message_ids:
                 continue
 
-            processed_message_ids.add(
-                message_id
-            )
-            processed_message_queue.append(
-                message_id
-            )
+            processed_message_ids.add(message_id)
+            processed_message_queue.append(message_id)
             if len(processed_message_queue) > max_processed_message_ids:
                 oldest_message_id = processed_message_queue.popleft()
-                processed_message_ids.discard(
-                    oldest_message_id
-                )
+                processed_message_ids.discard(oldest_message_id)
 
-            author = item[
-                "authorDetails"
-            ]["displayName"]
+            author = item["authorDetails"]["displayName"]
 
-            message = item[
-                "snippet"
-            ]["displayMessage"]
+            message = item["snippet"]["displayMessage"]
 
-            if contains_ng_word(
-                message
-            ):
-                print(
-                    f"[SKIP(NG)] "
-                    f"{author}: {message}"
-                )
+            if contains_ng_word(message):
+                print(f"[SKIP(NG)] {author}: {message}")
 
                 continue
 
-            print(
-                f"[CHAT] "
-                f"{author}: {message}"
-            )
+            print(f"[CHAT] {author}: {message}")
 
-            author, message = (
-                normalize_comment(
-                    author,
-                    message
-                )
-            )
+            author, message = normalize_comment(author, message)
 
             if comment_queue.full():
-                print(
-                    f"[SKIP(QUEUE)] "
-                    f"{author}: {message}"
-                )
+                print(f"[SKIP(QUEUE)] {author}: {message}")
 
                 continue
 
-            comment_queue.put(
-                (
-                    author,
-                    message
-                )
-            )
+            comment_queue.put((author, message))
 
-        next_page_token = response.get(
-            "nextPageToken"
-        )
+        next_page_token = response.get("nextPageToken")
 
         # Periodically check if the live stream is still active.
         status_check_counter += 1
         if status_check_counter % status_check_interval == 0:
             try:
-                vresp = youtube.videos().list(
-                    part="liveStreamingDetails",
-                    id=video_id
-                ).execute()
+                vresp = (
+                    youtube.videos()
+                    .list(part="liveStreamingDetails", id=video_id)
+                    .execute()
+                )
             except HttpError as e:
                 # If API returns quota or other errors, stop gracefully
                 if e.resp.status == 403 and "quotaExceeded" in str(e):
-                    print("\n[ERROR] YouTube API quota exceeded while checking stream status")
+                    print(
+                        "\n[ERROR] YouTube API quota exceeded while checking stream status"
+                    )
                     stop_event.set()
                     return
                 # For other HttpErrors, print and continue polling
@@ -866,59 +598,36 @@ def youtube_worker(video_id):
         # 最低3秒は空けるようにする
         polling_interval_min = 3000
         polling_interval = max(
-            response.get(
-                "pollingIntervalMillis",
-                polling_interval_min
-            ),
-            polling_interval_min
+            response.get("pollingIntervalMillis", polling_interval_min),
+            polling_interval_min,
         )
 
-        time.sleep(
-            polling_interval / 1000
-        )
+        time.sleep(polling_interval / 1000)
 
 
 def main():
     reload_config()
 
     if len(sys.argv) >= 2:
-        video_id = extract_video_id(
-            sys.argv[1]
-        )
-        chat_url = (
-            f"https://www.youtube.com/live_chat?v={video_id}&is_popout=1"
-        )
+        video_id = extract_video_id(sys.argv[1])
+        chat_url = f"https://www.youtube.com/live_chat?v={video_id}&is_popout=1"
 
     else:
         creds = load_credentials()
-        youtube = build(
-            "youtube",
-            "v3",
-            credentials=creds
-        )
+        youtube = build("youtube", "v3", credentials=creds)
 
         try:
-            video_id, chat_url = get_current_live_video_id(
-                youtube
-            )
+            video_id, chat_url = get_current_live_video_id(youtube)
         except RuntimeError as e:
             print(f"[ERROR] {e}")
             sys.exit(1)
 
-        print(
-            f"auto-detected current live video_id: {video_id}"
-        )
-        print(
-            f"chat URL: {chat_url}"
-        )
+        print(f"auto-detected current live video_id: {video_id}")
+        print(f"chat URL: {chat_url}")
 
-    print(
-        f"video_id: {video_id}"
-    )
+    print(f"video_id: {video_id}")
 
-    update_obs_browser_source(
-        chat_url
-    )
+    update_obs_browser_source(chat_url)
 
     def handle_signal(signum, frame):
         print("[INFO] Signal received, shutting down...")
@@ -927,9 +636,7 @@ def main():
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
-    playback_thread = threading.Thread(
-        target=playback_worker
-    )
+    playback_thread = threading.Thread(target=playback_worker)
 
     playback_thread.start()
 
@@ -939,7 +646,6 @@ def main():
         print(f"[ERROR] Unexpected error: {e}")
     finally:
         cleanup(playback_thread=playback_thread, wait_seconds=5)
-
 
 
 if __name__ == "__main__":
