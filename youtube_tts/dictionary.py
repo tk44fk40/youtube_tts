@@ -64,11 +64,29 @@ class TextProcessor:
         各置換処理が互いに干渉するのを防ぐため、以下の順序で処理する。
         （例: 先に読み上げ辞書を適用すると、辞書内の変換ルールがURL除去や草の変換に影響を及ぼす可能性があるため）
         
-        URL除去 → 草圧縮 → 記号圧縮 → 絵文字除去 → 読み上げ辞書適用 の順に処理する。
+        URL除去 → スタンプ除去 → 顔文字除去 → 草圧縮 → 記号圧縮 → 絵文字除去 → 読み上げ辞書適用 の順に処理する。
         """
         message = normalize_nfkc(message)
         # URL 除去
         message = re.sub(r"https?:\S+", "", message)
+        
+        # スタンプ（YouTubeカスタム絵文字コロン表記 :emoji_name:）の除去
+        message = re.sub(r":[^:\s]+:", "", message)
+
+        # 括弧なし・特定の代表的な顔文字の除去
+        message = re.sub(r"m\([\s_]+\)m|m\(\._\.\)m", "", message)
+        message = re.sub(r"(?<![a-zA-Z0-9])[tT]_[tT](?![a-zA-Z0-9])", "", message)
+        message = re.sub(r"(?<![a-zA-Z0-9])orz(?![a-zA-Z0-9])", "", message, flags=re.IGNORECASE)
+
+        # 括弧付き顔文字の除去
+        # 括弧（半角・全角）で囲まれており、かつ中に日本語の通常文字（ひらがな、カタカナ、漢字）、英数字、スペース、
+        # 一般的な句読点・長音記号（ー）以外の文字（記号など）が1文字以上含まれるものを除去
+        message = re.sub(
+            r"(\(|（)[^)\n（）]*?[^ぁ-んァ-ヶ一-龠々a-zA-Z0-9\s!！?？、。，．・ー][^)\n（）]*?(\)|）)",
+            "",
+            message
+        )
+
         # 1文字または2文字の w/W だけのメッセージの場合、「わら」に変換
         # (3文字以上の w は後続の処理で「わら」に変換される)
         if re.match(r"^[wW]{1,2}$", message):
@@ -87,8 +105,9 @@ class TextProcessor:
         # 連続する感嘆符・疑問符を1文字に圧縮
         message = re.sub(r"[!！]{2,}", "！", message)
         message = re.sub(r"[?？]{2,}", "？", message)
-        # サロゲートペア領域（絵文字等）を除去
+        # サロゲートペア領域（絵文字等）およびBMP領域の絵文字・記号を除去
         message = re.sub(r"[\U00010000-\U0010ffff]", "", message)
+        message = re.sub(r"[\u2600-\u27BF\u2300-\u23FF\u2B00-\u2BFF\u25A0-\u25FF]", "", message)
         # 読み上げ辞書適用
         message = self.replace_words(message)
         return message.strip()

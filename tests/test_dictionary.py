@@ -148,3 +148,34 @@ def test_normalize_message_grass(mock_config):
     assert processor.normalize_message("w hello") == "w hello"
 
 
+def test_normalize_message_stamps_and_kaomoji(mock_config):
+    processor = TextProcessor(mock_config)
+    
+    # YouTubeスタンプ (コロン表記) の除去
+    assert processor.normalize_message(":face-purple-crying:") == ""
+    assert processor.normalize_message("こんにちは！:custom_stamp:") == "こんにちは!"
+    assert processor.normalize_message(":emoji-1: 元気？ :emoji-2:") == "元気?"
+    
+    # 括弧付き顔文字の除去
+    assert processor.normalize_message("よろしく！(^-^)") == "よろしく!"
+    assert processor.normalize_message("(´・ω・｀) つかれた") == "つかれた"
+    assert processor.normalize_message("どうしたの？(>_<)") == "どうしたの?"
+    assert processor.normalize_message("おめでとう(*^-^*)") == "おめでとう"
+    
+    # 通常の括弧表記は残る
+    assert processor.normalize_message("りんご(林檎)を食べる") == "りんご(林檎)を食べる"
+    assert processor.normalize_message("会議は水曜日(水)です") == "会議は水曜日(水)です"
+    assert processor.normalize_message("これはテストです(笑)") == "これはテストです(笑)"
+    assert processor.normalize_message("通常コメント(Taro)") == "通常コメント(Taro)"
+    
+    # 括弧なしの顔文字の除去
+    assert processor.normalize_message("すみませんm(_ _)m") == "すみません"
+    assert processor.normalize_message("ごめんm(__)m") == "ごめん"
+    assert processor.normalize_message("悲しいT_T") == "悲しい"
+    assert processor.normalize_message("もう駄目だorz") == "もう駄目だ"
+    
+    # BMP領域の絵文字・記号の除去
+    assert processor.normalize_message("星空✨きれい⭐") == "星空きれい"
+
+
+
