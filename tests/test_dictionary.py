@@ -73,11 +73,14 @@ def test_normalize_message_grass(mock_config):
     processor = TextProcessor(mock_config)
     
     # --- 変換されるパターン ---
-    # 文章全体が w または ww のみ
+    # 文章全体が w または ww のみ（大文字・小文字、全角・半角問わず）
     assert processor.normalize_message("w") == "わら"
     assert processor.normalize_message("ww") == "わら"
     assert processor.normalize_message("W") == "わら"
     assert processor.normalize_message("WW") == "わら"
+    assert processor.normalize_message("ｗ") == "わら"
+    assert processor.normalize_message("ｗｗ") == "わら"
+    assert processor.normalize_message("Ww") == "わら"
     
     # 日本語の直後
     assert processor.normalize_message("こんにちはw") == "こんにちは わら"
@@ -92,6 +95,35 @@ def test_normalize_message_grass(mock_config):
     # 閉じ括弧の直後
     assert processor.normalize_message("(笑)w") == "(笑) わら"
     assert processor.normalize_message("「テスト」w") == "「テスト」 わら"
+
+    # ホワイトリスト指定の直前文字種（全種類）の網羅テスト
+    # 1. 日本語文字: ぁ-ん, ァ-ヶ, 一-龠々
+    assert processor.normalize_message("あw") == "あ わら"
+    assert processor.normalize_message("アw") == "ア わら"
+    assert processor.normalize_message("漢w") == "漢 わら"
+    assert processor.normalize_message("々w") == "々 わら"
+    # 2. 句読点・記号: 、。，．・
+    assert processor.normalize_message("、w") == "、 わら"
+    assert processor.normalize_message("。w") == "。 わら"
+    assert processor.normalize_message("，w") == ", わら"  # ， は NFKC で , になる
+    assert processor.normalize_message("．w") == ". わら"  # ． は NFKC で . になる
+    assert processor.normalize_message("・w") == "・ わら"
+    # 3. 感嘆符・疑問符: !！?？
+    assert processor.normalize_message("!w") == "! わら"
+    assert processor.normalize_message("！w") == "! わら"
+    assert processor.normalize_message("?w") == "? わら"
+    assert processor.normalize_message("？w") == "? わら"
+    # 4. 閉じ括弧類: ) ） ] ］ } ｝ > ＞ 」 』
+    assert processor.normalize_message(")w") == ") わら"
+    assert processor.normalize_message("）w") == ") わら"
+    assert processor.normalize_message("]w") == "] わら"
+    assert processor.normalize_message("］w") == "] わら"
+    assert processor.normalize_message("}w") == "} わら"
+    assert processor.normalize_message("｝w") == "} わら"
+    assert processor.normalize_message(">w") == "> わら"
+    assert processor.normalize_message("＞w") == "> わら"
+    assert processor.normalize_message("」w") == "」 わら"
+    assert processor.normalize_message("』w") == "』 わら"
     
     # --- 変換されない（安全な）パターン ---
     # 英単語の一部
