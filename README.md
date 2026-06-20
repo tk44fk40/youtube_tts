@@ -85,16 +85,16 @@ uv run python3 youtube_voicevox.py https://www.youtube.com/watch?v=YOUR_VIDEO_ID
 uv run python3 youtube_voicevox.py YOUR_VIDEO_ID
 ```
 
-#### 再生オーディオデバイスを指定して起動する場合
-音声を出力するサウンドデバイス（例: デバイスID 6）を指定して起動することができます。
-```bash
-uv run python3 youtube_voicevox.py -d 6 YOUR_VIDEO_ID
-```
-
 #### 配信中の自チャンネルの配信を自動検出して起動する場合
 `client_secret.json` と `token.json` に設定されたチャンネルが現在配信中である場合、引数なしで起動し、Live配信・チャットを自動検出できます。
 ```bash
 uv run python3 youtube_voicevox.py
+```
+
+#### 再生オーディオデバイスを指定して起動する場合
+音声を出力するサウンドデバイス（例: デバイスID 6）を指定して起動することができます。
+```bash
+uv run python3 youtube_voicevox.py -d 6
 ```
 
 #### コマンドラインオプション一覧 (`youtube_voicevox.py`)
@@ -103,9 +103,11 @@ uv run python3 youtube_voicevox.py
 | :--- | :--- | :--- | :--- |
 | `--device` | `-d` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) |
 | `--quota-check` | `-q` | デバッグ用のクォータ情報確認機能を有効にします（定期的にコンソールへ出力）。 | `False` |
-| `--quota-talk` | (なし) | クォータ使用量の音声読上げを有効にします（値が変化した時のみ。有効にすると自動で `--quota-check` も有効になります）。 | `False` |
-| `--chat-interval` | (なし) | コメント取得の最短時間（秒）。 | `5.0` |
-| `--quota-interval` | (なし) | クォータ使用量を取得・表示する最短時間（秒）。 | `60.0` |
+| `--quota-talk` | (なし) | クォータ使用量の音声読上げを有効にします（値が変化した時のみ。「ぴんぽーん！」というお知らせ発声の後にクォータ値を読み上げます。有効にすると自動で `--quota-check` も有効になります）。 | `False` |
+| `--chat-interval` | (なし) | コメント取得の最短時間（秒）。 | `20.0` |
+| `--quota-interval` | (なし) | クォータ使用量を取得・表示する最短時間（秒）。 | `180.0` |
+| `--stream-check-interval` | (なし) | 配信のアクティブ状態をチェックする時間間隔（秒）。 | `180.0` |
+| `--verbose` | `-v` | 詳細ログ（DEBUGログ）をコンソールに出力します。 | `False` |
 
 ### その他のスクリプトとコマンドラインオプション
 
