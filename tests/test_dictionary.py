@@ -68,3 +68,45 @@ def test_normalize_author_custom_suffix(mock_config, monkeypatch):
     processor2 = TextProcessor(mock_config)
     assert processor2.normalize_author("Taro") == "Taro"
 
+
+def test_normalize_message_grass(mock_config):
+    processor = TextProcessor(mock_config)
+    
+    # --- 変換されるパターン ---
+    # 文章全体が w または ww のみ
+    assert processor.normalize_message("w") == "わら"
+    assert processor.normalize_message("ww") == "わら"
+    assert processor.normalize_message("W") == "わら"
+    assert processor.normalize_message("WW") == "わら"
+    
+    # 日本語の直後
+    assert processor.normalize_message("こんにちはw") == "こんにちは わら"
+    assert processor.normalize_message("こんにちはww") == "こんにちは わら"
+    
+    # 句読点・感嘆符・疑問符の直後
+    assert processor.normalize_message("おーい！w") == "おーい! わら"
+    assert processor.normalize_message("どうした？ww") == "どうした? わら"
+    assert processor.normalize_message("はい、w") == "はい、 わら"
+    assert processor.normalize_message("そうです。ww") == "そうです。 わら"
+    
+    # 閉じ括弧の直後
+    assert processor.normalize_message("(笑)w") == "(笑) わら"
+    assert processor.normalize_message("「テスト」w") == "「テスト」 わら"
+    
+    # --- 変換されない（安全な）パターン ---
+    # 英単語の一部
+    assert processor.normalize_message("show") == "show"
+    assert processor.normalize_message("now") == "now"
+    
+    # 数字＋w
+    assert processor.normalize_message("10w") == "10w"
+    assert processor.normalize_message("50W") == "50W"
+    
+    # 開き括弧の直後（単一の文字としてのwの言及など）
+    assert processor.normalize_message("「w」") == "「w」"
+    assert processor.normalize_message("(w)") == "(w)"
+    
+    # 文字列の先頭（ただし複数語ある場合）
+    assert processor.normalize_message("w hello") == "w hello"
+
+

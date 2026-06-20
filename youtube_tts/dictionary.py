@@ -69,8 +69,21 @@ class TextProcessor:
         message = normalize_nfkc(message)
         # URL 除去
         message = re.sub(r"https?:\S+", "", message)
+        # 1文字または2文字の w/W だけのメッセージの場合、「わら」に変換
+        # (3文字以上の w は後続の処理で「わら」に変換される)
+        if re.match(r"^[wW]{1,2}$", message):
+            message = "わら"
+        else:
+            # 直前が日本語、句読点、感嘆符、または閉じ括弧類である 1〜2文字の w/W を「わら」に変換
+            # (かつ、直後に英数字が続かないこと)
+            message = re.sub(
+                r"(?<=[ぁ-んァ-ヶ一-龠々!！?？、。，．・)）\]］}｝>＞」』])([wW]{1,2})(?!\w)",
+                " わら ",
+                message,
+                flags=re.IGNORECASE
+            )
         # 「www」「ｗｗｗ」など3文字以上の草を「わら」に変換
-        message = re.sub(r"[wｗ]{3,}", " わら ", message, flags=re.IGNORECASE)
+        message = re.sub(r"[wW]{3,}", " わら ", message, flags=re.IGNORECASE)
         # 連続する感嘆符・疑問符を1文字に圧縮
         message = re.sub(r"[!！]{2,}", "！", message)
         message = re.sub(r"[?？]{2,}", "？", message)
