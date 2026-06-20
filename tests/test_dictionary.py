@@ -124,6 +124,12 @@ def test_normalize_message_grass(mock_config):
     assert processor.normalize_message("＞w") == "> わら"
     assert processor.normalize_message("」w") == "」 わら"
     assert processor.normalize_message("』w") == "』 わら"
+    # 5. 長音記号・波ダッシュ: ー〜～~
+    assert processor.normalize_message("そっかーw") == "そっかー わら"
+    assert processor.normalize_message("はぃーーww") == "はぃーー わら"
+    assert processor.normalize_message("〜w") == "〜 わら"  # 〜 は NFKC で変換されずそのまま
+    assert processor.normalize_message("～w") == "~ わら"  # ～ は NFKC で ~ になる
+    assert processor.normalize_message("~w") == "~ わら"
     
     # --- 変換されない（安全な）パターン ---
     # 英単語の一部
