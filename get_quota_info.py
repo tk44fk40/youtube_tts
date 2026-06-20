@@ -2,14 +2,12 @@
 # YouTube Data API クォータ使用量・使用率確認スクリプト
 
 import json
-import os
+import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.cloud import monitoring_v3
+from youtube_tts import YouTubeAuthenticator
 
 # 認証スコープ。YouTubeの読み取りに加え、Cloud Monitoring APIの読み取り権限を追加
 SCOPES = [
@@ -34,46 +32,6 @@ def get_project_id():
             return data[key]["project_id"]
 
     raise RuntimeError("client_secret.json から project_id を取得できませんでした。")
-
-
-def load_credentials():
-    """OAuth認証情報の読み込みおよび更新。必要に応じて再認証を行う"""
-    creds = None
-
-    # token.json が存在する場合は読み込む
-    if Path(TOKEN_FILE).exists():
-        try:
-            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-        except Exception:
-            pass
-
-    # トークンが存在しない、または無効な場合
-    if not creds or not creds.valid:
-        # 有効期限切れでリフレッシュトークンがある場合は更新
-        if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-            except Exception:
-                creds = None
-
-        # リフレッシュも失敗したか、初回認証またはスコープ変更時
-        if not creds:
-            if not Path(CLIENT_SECRET_FILE).exists():
-                raise RuntimeError(
-                    f"{CLIENT_SECRET_FILE} が見つかりません。Google Cloud Console からダウンロードして配置してください。"
-                )
-
-            print(
-                "[INFO] 認証スコープの変更、または初回認証のためブラウザで認証を行います..."
-            )
-            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-
-        # 新しいトークンを保存
-        with open(TOKEN_FILE, "w", encoding="utf-8") as token:
-            token.write(creds.to_json())
-
-    return creds
 
 
 def get_quota_info(creds, project_id):
@@ -122,7 +80,12 @@ def main():
     try:
         project_id = get_project_id()
         print("認証情報を確認中...")
-        creds = load_credentials()
+        authenticator = YouTubeAuthenticator(
+            client_secret_path=CLIENT_SECRET_FILE,
+            token_path=TOKEN_FILE,
+            scopes=SCOPES
+        )
+        creds = authenticator.get_credentials()
 
         print("クォータ情報を取得中...")
         used, limit = get_quota_info(creds, project_id)

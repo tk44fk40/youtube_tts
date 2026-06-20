@@ -1,0 +1,79 @@
+import pytest
+import io
+import wave
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+from youtube_tts import AppConfig, TextProcessor, VoicevoxClient, AudioPlayer
+
+@pytest.fixture
+def dummy_wav_bytes():
+    wav_io = io.BytesIO()
+    with wave.open(wav_io, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(24000)
+        wav_file.writeframes(b"\x00" * 4800)
+    return wav_io.getvalue()
+
+@patch("youtube_tts.audio.sd")
+@patch("requests.post")
+def test_tts_pipeline_integration(mock_post, mock_sd, tmp_path, dummy_wav_bytes):
+    # 1. Setup config files in a temporary directory
+    dict_file = tmp_path / "dictionary.txt"
+    ng_file = tmp_path / "ng_words.txt"
+    vol_file = tmp_path / "volume.txt"
+
+    dict_file.write_text("apple = 林檎", encoding="utf-8")
+    ng_file.write_text("spam", encoding="utf-8")
+    vol_file.write_text("1.2", encoding="utf-8")
+
+    # 2. Initialize classes
+    config = AppConfig(
+        dictionary_path=dict_file,
+        ng_words_path=ng_file,
+        volume_path=vol_file
+    )
+    processor = TextProcessor(config)
+    vox_client = VoicevoxClient(base_url="http://mock-vox", speaker_id=3)
+    player = AudioPlayer()
+
+    # 3. Setup mocks
+    mock_query_resp = MagicMock()
+    mock_query_resp.json.return_value = {"outputSamplingRate": 24000, "volumeScale": 1.0}
+    mock_synth_resp = MagicMock()
+    mock_synth_resp.content = dummy_wav_bytes
+    mock_post.side_effect = [mock_query_resp, mock_synth_resp]
+
+    mock_sd.query_devices.return_value = {"name": "default", "default_samplerate": 24000}
+
+    # 4. Execute pipeline: Chat retrieval -> Normalization -> Synthesis -> Playback
+    author = "@Taro"
+    message = "I like apple"
+
+    # A. Normalization (TextProcessor)
+    normalized_author, normalized_msg = processor.normalize_comment(author, message)
+    assert normalized_author == "Taroさん"
+    assert normalized_msg == "I like 林檎"
+    assert processor.contains_ng_word(normalized_msg) is False
+
+    # B. Synthesis (VoicevoxClient)
+    talk_text = f"{normalized_author} {normalized_msg}"
+    wav_data = vox_client.synthesize(
+        text=talk_text,
+        volume_scale=config.volume_scale,
+        target_sample_rate=player.target_sample_rate
+    )
+    assert wav_data == dummy_wav_bytes
+
+    # C. Playback (AudioPlayer)
+    player.play_wav(wav_data)
+
+    # 5. Assertions
+    # Synthesis requested volume scale should be 1.2
+    assert mock_post.call_count == 2
+    synthesis_call_json = mock_post.call_args_list[1][1]["json"]
+    assert synthesis_call_json["volumeScale"] == 1.2
+
+    # sounddevice calls
+    mock_sd.play.assert_called_once()
+    mock_sd.wait.assert_called_once()

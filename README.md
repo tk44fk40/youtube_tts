@@ -1,0 +1,220 @@
+# YouTube Live Chat TTS with VOICEVOX
+
+YouTube Live のチャット（コメント）をリアルタイムで取得し、VOICEVOX を使用して読み上げる Python スクリプトです。
+
+---
+
+## 1. 概要と使い方
+
+### 概要
+本ツールは、YouTube Live配信のチャットからコメントをリアルタイムに取得し、VOICEVOXの音声合成エンジンを経由してスピーカーから再生する読み上げツールです。
+実行中の設定動的リロードや、OBSの指定ブラウザソースのURL設定自動更新に対応しています。
+
+### 前提条件
+本ツールを使用するにあたり、以下の環境・サービスの準備が必要です。
+
+1. **VOICEVOX**
+   - 音声合成用のエンジンとして、事前に VOICEVOX が起動しており、デフォルトポート `50021` でAPIが利用可能な状態である必要があります。
+2. **OBS (Open Broadcaster Software) とブラウザソース**
+   - 配信画面上にチャットを表示するため、OBS でチャットを表示するブラウザソースが設定されている必要があります。
+   - OBS上のソース一覧で「ブラウザソース」（外部のWebページを配信用にキャプチャ・配置する機能）を追加しておきます。
+   - 本ツールは、配信開始時に自動生成される配信・チャットURL（`https://www.youtube.com/live_chat?v=...`）を取得し、OBS WebSocket経由で指定したブラウザソースのURLを自動的に最新の値に更新します。これにより、配信開始時の手動設定の手間を省けます。
+3. **Google Cloud Console & YouTube Data API v3**
+   - YouTube Liveのチャット情報をAPI経由で取得するため、Google Cloudプロジェクトの作成、「YouTube Data API v3」の有効化、および OAuth 2.0 クライアント認証情報（`client_secret.json`）の作成が必要です。
+
+### セットアップ手順
+
+#### 1. 依存関係のインストール
+本プロジェクトは `uv` をパッケージ管理に使用しています。以下のコマンドで依存関係をインストールします。
+```bash
+uv sync
+```
+
+#### 2. Google OAuth 認証キーの配置
+1. [Google Cloud Console](https://console.cloud.google.com/) から **YouTube Data API v3** を有効化します。
+2. OAuth 2.0 クライアント ID を作成し、JSONファイルをダウンロードします。
+3. ダウンロードしたファイルを `client_secret.json` にリネームし、プロジェクトのルートディレクトリに配置します。
+
+#### 3. 初回認証の実行
+以下のスクリプトを実行し、ブラウザでログインして認証を完了します。実行後、ルートディレクトリに `token.json` が生成されます。
+```bash
+uv run python3 oauth_test.py
+```
+
+#### 4. VOICEVOX の起動
+VOICEVOX（デスクトップ版、または Docker版など）を起動し、デフォルトのポート `50021` でAPIが利用可能な状態にしておきます。
+
+### 実行方法
+
+#### 配信URLまたは配信IDを直接指定して起動する場合
+```bash
+uv run python3 youtube_voicevox.py https://www.youtube.com/watch?v=YOUR_VIDEO_ID
+# または
+uv run python3 youtube_voicevox.py YOUR_VIDEO_ID
+```
+
+#### 配信中の自チャンネルの配信を自動検出して起動する場合
+`client_secret.json` と `token.json` に設定されたチャンネルが現在配信中である場合、引数なしで起動し、Live配信・チャットを自動検出できます。
+```bash
+uv run python3 youtube_voicevox.py
+```
+
+### その他のスクリプトとコマンドラインオプション
+
+メインスクリプトの他に、認証、APIクォータ確認、および単体発声テスト用のスクリプトが用意されています。
+
+#### 1. OAuth 初回認証テスト (`oauth_test.py`)
+- **概要**: YouTube API 接続のための初回認証を実行し、アクセストークンファイル（`token.json`）を生成・保存します。
+- **実行方法**:
+  ```bash
+  uv run python3 oauth_test.py
+  ```
+
+#### 2. YouTube API クォータ使用量確認 (`get_quota_info.py`)
+- **概要**: 過去24時間の YouTube Data API のクォータ消費量および本日の残量を集計して表示します。
+- **実行方法**:
+  ```bash
+  uv run python3 get_quota_info.py
+  ```
+  *(※Cloud Monitoring API 経由で取得するため、GCPプロジェクトの課金設定が必要です)*
+
+#### 3. VOICEVOX 発声テスト (`voicevox_test.py`)
+- **概要**: VOICEVOX を用いた単体の発声テストを行います。音声合成、WAVファイル保存、サウンドデバイス再生が機能するか検証できます。
+- **実行方法**:
+  ```bash
+  uv run python3 voicevox_test.py [オプション]
+  ```
+- **コマンドラインオプション**:
+  | オプション名 | 短縮形 | 役割・設定内容 | デフォルト値 |
+  | :--- | :--- | :--- | :--- |
+  | `--text` | `-t` | 発声させる日本語のテキスト。 | `"これは、ボイスボックスの発声テストです。"` |
+  | `--speaker` | `-s` | VOICEVOXの話者スタイルID。 | `3` (ずんだもん・ノーマル) |
+  | `--volume` | `-v` | 音量比の倍率（`0.0` 〜 `2.0`）。 | `1.0` |
+  | `--output` | `-o` | 合成したWAV音声ファイルの保存先パス。 | `"test.wav"` |
+  | `--host` | `-H` | VOICEVOX の接続URL。 | `"http://127.0.0.1:50021"` |
+  | `--device` | `-d` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) |
+  | `--samplerate` | `-r` | 音声の生成・再生サンプリングレート(Hz)。 | (デバイスの既定値) |
+  | `--list-speakers` | (なし) | 利用可能な話者（キャラクター）とスタイルIDの一覧を出力して終了。 | (なし) |
+  | `--list-devices` | (なし) | システムで認識されているオーディオ出力デバイス一覧を出力して終了。 | (なし) |
+  | `--no-play` | (なし) | スピーカー再生を行わず、WAVファイルの生成・保存のみ実行。 | (なし) |
+
+### 実行時のコンソール出力
+
+起動後、コンソールには動作状態を示す以下のプレフィックス付きのログが出力されます。
+
+- **`[CONFIG]`**: 設定ファイル（音量、辞書、NGワード）がロード、または変更を検知して自動リロードされた際に出力されます。
+  - 例: `[CONFIG] volume scale updated: 0.5`
+- **`[CHAT]`**: YouTube Live から新しくチャットコメントを受信した際に出力される受信ログです。
+  - 例: `[CHAT] Taro: こんにちは`
+- **`[TALK]`**: VOICEVOXによる音声合成・読み上げ再生が開始される際に出力されるログです（さん付けや辞書置換が適用された後の文言）。
+  - 例: `[TALK] Taroさん こんにちは`
+- **`[SKIP(NG)]`**: NGワード判定により、読み上げがスキップされたコメントのログです。
+  - 例: `[SKIP(NG)] Taro: 広告はこちら`
+- **`[SKIP(QUEUE)]`**: コメント再生待ちキューが最大数（50件）に達したため、読み上げがスキップされたログです。
+- **`[OBS]`**: OBS WebSocket経由でブラウザソースのチャットURL設定を更新した結果が出力されます。
+  - 例: `[OBS] ✓ チャットURL設定成功`
+- **`[INFO] / [WARN] / [ERROR]`**: システムの起動情報、接続切断時の警告、APIエラーなどのシステム稼働ログです。
+
+### 環境変数設定
+
+以下の環境変数を設定することで、プログラムの初期設定や挙動をカスタマイズできます。
+
+| 環境変数名 | 役割 | デフォルト値 | 設定例 / 補足 |
+| :--- | :--- | :--- | :--- |
+| `VOICEVOX_AUTHOR_SUFFIX` | 送信者名（ユーザー名）の末尾に付加する敬称。空に設定した場合は敬称付加が無効化されます。 | `さん` | `ちゃん`, `様`, `""`（敬称なし） |
+| `VOICEVOX_URL` | VOICEVOX サーバーの接続先URL。 | `http://127.0.0.1:50021` | `http://localhost:50021` |
+| `VOICEVOX_SPEAKER_ID` | VOICEVOX で生成する音声のキャラクター（話者スタイル）のID。 | `3` (ずんだもん) | `2` (四国めたん), `8` (春日部つむぎ) |
+| `VOICEVOX_VOLUME_SCALE` | `volume.txt` が存在しない場合、またはこの環境変数が設定されている場合の音量初期値。 | `1.0` | `0.5` (音量50%) |
+| `OBS_WEBSOCKET_PASSWORD` | OBS の WebSocket 接続用認証パスワード。未設定時はOBS連携機能がスキップされます。 | (なし) | `your_obs_websocket_password` |
+| `OBS_WEBSOCKET_HOST` | OBS WebSocket が動作しているホスト名。 | `localhost` | `127.0.0.1` |
+| `OBS_WEBSOCKET_PORT` | OBS WebSocket の通信ポート。 | `4455` | `4455` |
+| `OBS_BROWSER_SOURCE_NAME` | チャットURLを動的に更新したい、OBS上のブラウザソースのソース名。 | `チャット` | `LiveChatUrl` |
+
+### 設定ファイル
+
+起動すると、以下の設定ファイルが自動で読み込まれ、変更があればプログラムを停止せずにリアルタイムにリロードされます。
+
+#### 音量設定ファイル (`volume.txt`)
+- **書式**: `0.0` 〜 `2.0` の範囲の浮動小数点数を1行記述します（デフォルト値は `1.0`）。
+- **記載例（読上げ音量を５０％に設定）**:
+  ```text
+  0.5
+  ```
+
+#### 読み替え辞書ファイル (`dictionary.txt`)
+- **書式**: `置換前 = 置換後` の形式で1行ずつ記述します（全角半角の揺れは内部で自動正規化されます）。
+- **記載例**:
+  ```text
+  google = グーグル
+  w = わら
+  初見 = しょけん
+  ```
+
+#### NGワードファイル (`ng_words.txt`)
+- **書式**: 読み上げをスキップしたい単語を1行に1語ずつ記述します。空行やスペースだけの行は自動的に無視されます。
+- **記載例**:
+  ```text
+  スパムワード
+  広告
+  ```
+
+---
+
+## 2. ライブラリの概要
+
+ツールを構成する処理は、役割ごとに `youtube_tts` パッケージ配下のモジュール及びクラスとして実装されています。
+
+### ディレクトリ構成
+```text
+youtube_tts/
+├── __init__.py           # パッケージのエントリポイント
+├── auth.py               # Google API 認証管理 (YouTubeAuthenticator)
+├── youtube.py            # YouTubeチャット取得・配信監視 (YouTubeChatClient)
+├── voicevox.py           # VOICEVOX連携 (VoicevoxClient)
+├── audio.py              # 音声デコード・再生・リサンプリング (AudioPlayer)
+├── config.py             # 設定ファイル動的読み込み (AppConfig)
+├── dictionary.py         # コメントの正規化・置換・NGワード適用 (TextProcessor)
+└── obs.py                # OBS WebSocket連携 (ObsClient)
+```
+
+### 各クラスの説明
+- **`AppConfig`** (モジュール: `youtube_tts/config.py`):
+  `volume.txt`、`dictionary.txt`、`ng_words.txt` などの設定ファイルを監視し、ファイルのタイムスタンプに変更があった際に自動で再ロードします。
+- **`TextProcessor`** (モジュール: `youtube_tts/dictionary.py`):
+  チャットの送信者名への「さん」付け、URLの除去、顔文字などの絵文字除去、「草」表現（wwww）の圧縮、および登録された辞書やNGワードの適用によるテキストの正規化とフィルタリングを担います。
+- **`YouTubeAuthenticator`** (モジュール: `youtube_tts/auth.py`):
+  `token.json` のロード、期限切れ時のリフレッシュ、新規OAuth認証（InstalledAppFlow）など、Google API のトークンライフサイクル管理を行います。
+- **`YouTubeChatClient`** (モジュール: `youtube_tts/youtube.py`):
+  配信IDの抽出、YouTube Data APIを使用したアクティブチャットIDの取得、定期的なチャットメッセージの取得、配信ステータスの継続チェックを管理します。
+- **`VoicevoxClient`** (モジュール: `youtube_tts/voicevox.py`):
+  VOICEVOX API（`/audio_query`、`/synthesis`）と接続し、指定話者による音声の合成を制御します。
+- **`AudioPlayer`** (モジュール: `youtube_tts/audio.py`):
+  合成されたWAVのデコード、オーディオデバイスの管理、サンプリングレートが異なる場合のリサンプリング処理、`sounddevice` による再生・停止制御を担当します。
+- **`ObsClient`** (モジュール: `youtube_tts/obs.py`):
+  OBS WebSocket（4455ポート）経由でOBSと通信し、配信チャットが埋め込まれたブラウザソースのURLを自動で同期更新します。
+
+---
+
+## 3. テストに関する記述
+
+本ツールには、外部APIやハードウェアに依存しないモックベースのテスト環境が同梱されています。
+
+### テスト環境の構成
+`tests/` ディレクトリに各クラスの単体テスト、および一連のパイプライン処理を確認する簡易統合テストを配置しています。
+
+- **`test_config.py`**: ファイル変更時の再読み込み、破損ファイルや範囲外の値（音量）が書き込まれた際のフォールバック挙動の検証。
+- **`test_dictionary.py`**: Unicode正規化、辞書置換、NGワード検知、不正または極端な入力時の安定した文字列生成の検証。
+- **`test_auth.py`**: 有効なキャッシュのロード、リフレッシュ失敗時のOAuthフォールバック、ファイル破損時の自動削除等の検証。
+- **`test_youtube.py`**: URL解析、API制限（403 Quota Exceeded）や未検出時のエラー制御、配信監視メソッドの動作検証。
+- **`test_voicevox.py`**: VOICEVOXサーバー未起動等の通信例外やHTTPエラーのハンドリングの検証。
+- **`test_audio.py`**: 音声の再生・リサンプリング、ステレオ音声の変換、物理出力デバイスがない環境（CI環境等）でのサンプリングレートの自動フォールバックの検証。
+- **`test_obs.py`**: OBS websocketの認証、タイムアウト、およびソース名未指定時の早期リターンの検証。
+- **`test_integration.py`**: 複数モジュールを組み合わせ、コメント受信から読み上げ再生までのデータパイプラインが正しく機能するかを検証する統合テスト。
+
+### テストの実行方法
+`pytest` およびカバレッジ測定用の `pytest-cov` を使用してテストを実行できます。
+
+```bash
+# テストの実行とカバレッジ（コード網羅率）の測定
+uv run pytest --cov=youtube_tts --cov-report=term-missing
+```

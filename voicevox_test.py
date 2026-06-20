@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 import argparse
-import io
 import sys
-import wave
-import numpy as np
-import requests
-import sounddevice as sd
+from youtube_tts import VoicevoxClient, AudioPlayer
 
 DEFAULT_HOST = "http://127.0.0.1:50021"
 DEFAULT_SPEAKER = 3
@@ -13,18 +9,14 @@ DEFAULT_TEXT = "これは、ボイスボックスの発声テストです。"
 DEFAULT_OUTPUT = "test.wav"
 DEFAULT_VOLUME = 1.0
 
-def get_speakers(host):
+
+def list_speakers(client: VoicevoxClient):
     try:
-        response = requests.get(f"{host}/speakers")
-        response.raise_for_status()
-        return response.json()
+        speakers = client.get_speakers()
     except Exception as e:
-        print(f"[ERROR] VOICEVOXサーバーへの接続に失敗しました: {e}", file=sys.stderr)
-        print("VOICEVOXが起動しているか、ホストURLが正しいか確認してください。", file=sys.stderr)
+        print(f"[ERROR] {e}", file=sys.stderr)
         sys.exit(1)
 
-def list_speakers(host):
-    speakers = get_speakers(host)
     print(f"{'ID':<6} | {'話者名':<15} | {'スタイル':<15}")
     print("-" * 45)
     for spk in speakers:
@@ -34,80 +26,6 @@ def list_speakers(host):
             style_id = style.get("id", "")
             print(f"{style_id:<6} | {name:<15} | {style_name:<15}")
 
-def list_devices():
-    print(sd.query_devices())
-
-def synthesize_voice(text, speaker_id, host, target_sample_rate=None, volume_scale=None):
-    print(f"[INFO] 音声合成中: 「{text}」 (話者ID: {speaker_id})")
-    
-    # 1. 音声クエリの作成
-    try:
-        query_response = requests.post(
-            f"{host}/audio_query",
-            params={"text": text, "speaker": speaker_id}
-        )
-        query_response.raise_for_status()
-        query_data = query_response.json()
-    except Exception as e:
-        print(f"[ERROR] 音声クエリの作成に失敗しました: {e}", file=sys.stderr)
-        sys.exit(1)
-        
-    # 必要に応じてVOICEVOXに生成サンプリングレートを指定
-    if target_sample_rate:
-        print(f"[INFO] VOICEVOXでの生成サンプリングレートを指定: {target_sample_rate}Hz")
-        query_data["outputSamplingRate"] = target_sample_rate
-
-    # 音量比を指定
-    if volume_scale is not None:
-        print(f"[INFO] 音量比（volumeScale）を指定: {volume_scale}")
-        query_data["volumeScale"] = volume_scale
-
-    # 2. 音声合成の実行
-    try:
-        synthesis_response = requests.post(
-            f"{host}/synthesis",
-            params={"speaker": speaker_id},
-            json=query_data
-        )
-        synthesis_response.raise_for_status()
-        return synthesis_response.content
-    except Exception as e:
-        print(f"[ERROR] 音声合成の実行に失敗しました: {e}", file=sys.stderr)
-        sys.exit(1)
-
-def play_audio(wav_content, device=None):
-    wav_io = io.BytesIO(wav_content)
-    with wave.open(wav_io, "rb") as wav_file:
-        sample_rate = wav_file.getframerate()
-        channels = wav_file.getnchannels()
-        pcm_data = wav_file.readframes(wav_file.getnframes())
-    
-    audio = np.frombuffer(pcm_data, dtype=np.int16)
-    if channels > 1:
-        audio = audio.reshape(-1, channels)
-        
-    # デバイスの設定
-    dev_id = None
-    if device is not None:
-        try:
-            dev_id = int(device)
-        except ValueError:
-            dev_id = device
-
-    print(f"[INFO] 再生中... (サンプリングレート: {sample_rate}Hz, チャンネル数: {channels})")
-    
-    try:
-        if dev_id is not None:
-            sd.default.device = dev_id
-            
-        sd.play(audio, samplerate=sample_rate)
-        sd.wait()
-        print("[INFO] 再生完了")
-    except Exception as e:
-        print(f"[ERROR] 再生に失敗しました: {e}", file=sys.stderr)
-        print("\n利用可能なオーディオデバイス一覧:", file=sys.stderr)
-        list_devices()
-        print("\nヒント: --device 引数で適切なデバイス名またはIDを指定して実行してください。", file=sys.stderr)
 
 def main():
     parser = argparse.ArgumentParser(description="VOICEVOX 発声テストスクリプト")
@@ -124,31 +42,37 @@ def main():
     
     args = parser.parse_args()
     
+    client = VoicevoxClient(base_url=args.host, speaker_id=args.speaker)
+    player = AudioPlayer(default_device=args.device or "default")
+
     if args.list_speakers:
-        list_speakers(args.host)
+        list_speakers(client)
         return
         
     if args.list_devices:
-        list_devices()
+        print(player.query_devices())
         return
         
     # 出力デバイスの規定サンプリングレートを調べる
     target_sample_rate = args.samplerate
     if target_sample_rate is None and not args.no_play:
-        dev_id = None
-        if args.device is not None:
-            try:
-                dev_id = int(args.device)
-            except ValueError:
-                dev_id = args.device
         try:
-            device_info = sd.query_devices(dev_id, 'output')
+            device_info = player.query_devices(args.device, 'output')
             target_sample_rate = int(device_info['default_samplerate'])
             print(f"[INFO] 出力デバイス: {device_info['name']} (ID: {device_info['index']})")
         except Exception as e:
             print(f"[WARN] デバイスのサンプリングレート取得に失敗しました: {e}", file=sys.stderr)
             
-    wav_content = synthesize_voice(args.text, args.speaker, args.host, target_sample_rate, args.volume)
+    try:
+        print(f"[INFO] 音声合成中: 「{args.text}」 (話者ID: {args.speaker})")
+        wav_content = client.synthesize(
+            text=args.text,
+            volume_scale=args.volume,
+            target_sample_rate=target_sample_rate
+        )
+    except Exception as e:
+        print(f"[ERROR] 音声合成に失敗しました: {e}", file=sys.stderr)
+        sys.exit(1)
     
     # WAVファイル保存
     try:
@@ -159,7 +83,16 @@ def main():
         print(f"[ERROR] ファイルの保存に失敗しました: {e}", file=sys.stderr)
         
     if not args.no_play:
-        play_audio(wav_content, args.device)
+        print(f"[INFO] 再生中... (サンプリングレート: {target_sample_rate or player.target_sample_rate}Hz)")
+        try:
+            player.play_wav(wav_content, device=args.device, target_sample_rate=target_sample_rate)
+            print("[INFO] 再生完了")
+        except Exception as e:
+            print(f"[ERROR] 再生に失敗しました: {e}", file=sys.stderr)
+            print("\n利用可能なオーディオデバイス一覧:", file=sys.stderr)
+            print(player.query_devices())
+            print("\nヒント: --device 引数で適切なデバイス名またはIDを指定して実行してください。", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()
