@@ -31,16 +31,21 @@ TOKEN_FILE = "token.json"
 
 VOICEVOX_URL = "http://127.0.0.1:50021"
 SPEAKER_ID = 3
+VOLUME_SCALE = float(os.getenv("VOICEVOX_VOLUME_SCALE", "1.0"))
 
 DICTIONARY_FILE = Path("dictionary.txt")
 
 NG_WORD_FILE = Path("ng_words.txt")
 
-# PipeWire の既定出力を使用
-sd.default.device = "pipewire"
+# 既定出力を使用
+sd.default.device = "default"
 
 # ターゲットサンプリングレート
-target_sample_rate = 24000
+try:
+    device_info = sd.query_devices(None, 'output')
+    target_sample_rate = int(device_info['default_samplerate'])
+except Exception:
+    target_sample_rate = 24000
 
 sd.default.samplerate = target_sample_rate
 
@@ -62,6 +67,16 @@ NG_WORDS = set()
 
 dictionary_mtime = None
 ng_word_mtime = None
+
+VOLUME_FILE = Path("volume.txt")
+volume_mtime = None
+
+# 初期値の書き出し、または環境変数の優先適用
+if "VOICEVOX_VOLUME_SCALE" in os.environ or not VOLUME_FILE.exists():
+    try:
+        VOLUME_FILE.write_text(str(VOLUME_SCALE), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def normalize_text(text):
@@ -116,9 +131,11 @@ def load_ng_words():
 def reload_config():
     global REPLACEMENTS
     global NG_WORDS
+    global VOLUME_SCALE
 
     global dictionary_mtime
     global ng_word_mtime
+    global volume_mtime
 
     # dictionary.txt
     if DICTIONARY_FILE.exists():
@@ -141,6 +158,24 @@ def reload_config():
             NG_WORDS = load_ng_words()
 
             print("[CONFIG] ng words reloaded")
+
+    # volume.txt
+    if VOLUME_FILE.exists():
+        current_mtime = os.path.getmtime(VOLUME_FILE)
+
+        if current_mtime != volume_mtime:
+            volume_mtime = current_mtime
+
+            try:
+                with open(VOLUME_FILE, "r", encoding="utf-8") as f:
+                    val = float(f.read().strip())
+                    if 0.0 <= val <= 2.0:
+                        VOLUME_SCALE = val
+                        print(f"[CONFIG] volume scale updated: {VOLUME_SCALE}")
+                    else:
+                        print(f"[CONFIG] volume scale out of range (0.0 - 2.0): {val}")
+            except Exception as e:
+                print(f"[WARN] Failed to reload volume.txt: {e}")
 
 
 def load_credentials():
@@ -304,11 +339,14 @@ def synthesize_voice(text):
 
     audio_query.raise_for_status()
 
+    query_data = audio_query.json()
+    query_data["outputSamplingRate"] = target_sample_rate
+    query_data["volumeScale"] = VOLUME_SCALE
+
     synthesis = requests.post(
         f"{VOICEVOX_URL}/synthesis",
         params={"speaker": SPEAKER_ID},
-        data=audio_query.text,
-        headers={"Content-Type": "application/json"},
+        json=query_data,
     )
 
     synthesis.raise_for_status()
@@ -474,7 +512,7 @@ def playback_worker():
 
         text = f"{author} {message}"
 
-        print(f"[READ] {text}")
+        print(f"[TALK] {text}")
 
         try:
             speak(text)
