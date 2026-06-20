@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # YouTube Live のチャットを VOICEVOX で読み上げる
 
+import argparse
 import os
 import queue
 import signal
@@ -9,6 +10,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
+
 
 from youtube_tts import (
     AppConfig,
@@ -177,7 +179,40 @@ def cleanup(playback_thread=None, wait_seconds=5):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="YouTube Live Chat TTS with VOICEVOX")
+    parser.add_argument(
+        "video_url_or_id",
+        nargs="?",
+        default=None,
+        help="YouTube Live配信のURLまたは動画ID"
+    )
+    parser.add_argument(
+        "-d",
+        "--device",
+        default=os.getenv("VOICEVOX_DEVICE"),
+        help="出力オーディオデバイス名またはID"
+    )
+    args = parser.parse_args()
+
     config.reload_if_changed()
+
+    # オーディオデバイスの適用
+    device = args.device
+    if device is not None:
+        try:
+            dev_id = int(device)
+        except ValueError:
+            dev_id = device
+
+        try:
+            import sounddevice as sd
+            device_info = sd.query_devices(dev_id, 'output')
+            print(f"[INFO] 出力デバイス: {device_info['name']} (ID: {device_info['index']})")
+        except Exception as e:
+            print(f"[WARN] デバイス情報の取得に失敗しました: {e}", file=sys.stderr)
+
+        global audio_player
+        audio_player = AudioPlayer(default_device=dev_id)
 
     # 認証情報の初期化
     authenticator = YouTubeAuthenticator(
@@ -192,8 +227,8 @@ def main():
 
     chat_client = YouTubeChatClient(creds)
 
-    if len(sys.argv) >= 2:
-        video_id = chat_client.extract_video_id(sys.argv[1])
+    if args.video_url_or_id:
+        video_id = chat_client.extract_video_id(args.video_url_or_id)
         chat_url = f"https://www.youtube.com/live_chat?v={video_id}&is_popout=1"
     else:
         try:

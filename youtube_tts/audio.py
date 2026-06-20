@@ -5,6 +5,28 @@ import sounddevice as sd
 
 class AudioPlayer:
     def __init__(self, default_device=None):
+        if default_device is None:
+            # Try to auto-detect a sound server device (pipewire or pulse)
+            try:
+                devices = sd.query_devices()
+                if isinstance(devices, dict):
+                    devices = [devices]
+                preferred_keywords = ["pipewire", "pulse"]
+                found_device = None
+                for keyword in preferred_keywords:
+                    for i, dev in enumerate(devices):
+                        if dev.get('max_output_channels', 0) > 0:
+                            name = dev.get('name', '').lower()
+                            if keyword in name:
+                                found_device = i
+                                break
+                    if found_device is not None:
+                        break
+                if found_device is not None:
+                    default_device = found_device
+            except Exception:
+                pass
+
         self.default_device = default_device
         if default_device is not None:
             sd.default.device = default_device

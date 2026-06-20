@@ -85,6 +85,12 @@ uv run python3 youtube_voicevox.py https://www.youtube.com/watch?v=YOUR_VIDEO_ID
 uv run python3 youtube_voicevox.py YOUR_VIDEO_ID
 ```
 
+#### 再生オーディオデバイスを指定して起動する場合
+音声を出力するサウンドデバイス（例: デバイスID 6）を指定して起動することができます。
+```bash
+uv run python3 youtube_voicevox.py -d 6 YOUR_VIDEO_ID
+```
+
 #### 配信中の自チャンネルの配信を自動検出して起動する場合
 `client_secret.json` と `token.json` に設定されたチャンネルが現在配信中である場合、引数なしで起動し、Live配信・チャットを自動検出できます。
 ```bash
@@ -157,6 +163,7 @@ uv run python3 youtube_voicevox.py
 | `VOICEVOX_URL` | VOICEVOX サーバーの接続先URL。 | `http://127.0.0.1:50021` | `http://localhost:50021` |
 | `VOICEVOX_SPEAKER_ID` | VOICEVOX で生成する音声のキャラクター（話者スタイル）のID。 | `3` (ずんだもん) | `2` (四国めたん), `8` (春日部つむぎ) |
 | `VOICEVOX_VOLUME_SCALE` | `volume.txt` が存在しない場合、またはこの環境変数が設定されている場合の音量初期値。 | `1.0` | `0.5` (音量50%) |
+| `VOICEVOX_DEVICE` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) | `6` または `pipewire` |
 | `OBS_WEBSOCKET_PASSWORD` | OBS の WebSocket 接続用認証パスワード。未設定時はOBS連携機能がスキップされます。 | (なし) | `your_obs_websocket_password` |
 | `OBS_WEBSOCKET_HOST` | OBS WebSocket が動作しているホスト名。 | `localhost` | `127.0.0.1` |
 | `OBS_WEBSOCKET_PORT` | OBS WebSocket の通信ポート。 | `4455` | `4455` |

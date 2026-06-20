@@ -41,6 +41,34 @@ def test_audio_initialization_no_device(mock_sd):
     # Fallback sampling rate in headless or CI environments
     assert player.target_sample_rate == 24000
 
+@patch("youtube_tts.audio.sd")
+def test_audio_initialization_autodetect_pipewire(mock_sd):
+    mock_sd.query_devices.side_effect = [
+        [
+            {"name": "HDMI 1", "max_output_channels": 8},
+            {"name": "pipewire, ALSA", "max_output_channels": 128},
+        ],
+        {"name": "pipewire, ALSA", "default_samplerate": 44100}
+    ]
+    mock_sd.default = MagicMock()
+    player = AudioPlayer()
+    assert mock_sd.default.device == 1
+    assert player.target_sample_rate == 44100
+
+@patch("youtube_tts.audio.sd")
+def test_audio_initialization_autodetect_pulse(mock_sd):
+    mock_sd.query_devices.side_effect = [
+        [
+            {"name": "HDMI 1", "max_output_channels": 8},
+            {"name": "pulse, ALSA", "max_output_channels": 32},
+        ],
+        {"name": "pulse, ALSA", "default_samplerate": 48000}
+    ]
+    mock_sd.default = MagicMock()
+    player = AudioPlayer()
+    assert mock_sd.default.device == 1
+    assert player.target_sample_rate == 48000
+
 def test_resample_audio():
     player = AudioPlayer()
     audio = np.array([100, 200, 300, 400], dtype=np.int16)
