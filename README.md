@@ -109,6 +109,8 @@ uv run python3 youtube_voicevox.py -d 6
 | `--quota-interval` | (なし) | クォータ使用量を取得・表示する最短時間（秒）。 | `180.0` |
 | `--stream-check-interval` | (なし) | 配信のアクティブ状態をチェックする時間間隔（秒）。 | `180.0` |
 | `--speed` | (なし) | 読み上げスピード（デフォルト: `1.0`）。値が大きいほど早くなります。環境変数 `VOICEVOX_SPEED_SCALE` でも指定可能です。 | `1.0` |
+| `--auto-speed-boost` | (なし) | キュー滞留時に読上げスピードを自動でブーストする機能を有効にします。環境変数 `VOICEVOX_AUTO_SPEED_BOOST` でも指定可能です。 | `False` |
+| `--max-speed` | (なし) | 自動スピードブースト時の最大速度（デフォルト: `2.2`、絶対上限: `2.2`）。環境変数 `VOICEVOX_MAX_SPEED` でも指定可能です。 | `2.2` |
 | `--verbose` | `-v` | 詳細ログ（DEBUGログ）をコンソールに出力します。 | `False` |
 
 ### その他のスクリプトとコマンドラインオプション
@@ -181,6 +183,8 @@ uv run python3 youtube_voicevox.py -d 6
 | `VOICEVOX_SPEAKER_ID` | VOICEVOX で生成する音声のキャラクター（話者スタイル）のID。 | `3` (ずんだもん) | `2` (四国めたん), `8` (春日部つむぎ) |
 | `VOICEVOX_VOLUME_SCALE` | `volume.txt` が存在しない場合、またはこの環境変数が設定されている場合の音量初期値。 | `1.0` | `0.5` (音量50%) |
 | `VOICEVOX_SPEED_SCALE` | VOICEVOX の読み上げスピード（話速）の初期値。 | `1.0` | `1.5` (1.5倍速) |
+| `VOICEVOX_AUTO_SPEED_BOOST` | キュー滞留時に読上げスピードを自動でブーストする機能の有効化設定。 | `false` | `true` (ブーストを有効化) |
+| `VOICEVOX_MAX_SPEED` | 自動スピードブースト時の最大速度。絶対上限は `2.2`。 | `2.2` | `2.0` (上限を2.0倍速に制限) |
 | `VOICEVOX_DEVICE` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) | `6` または `pipewire` |
 | `OBS_WEBSOCKET_PASSWORD` | OBS の WebSocket 接続用認証パスワード。未設定時はOBS連携機能がスキップされます。 | (なし) | `your_obs_websocket_password` |
 | `OBS_WEBSOCKET_HOST` | OBS WebSocket が動作しているホスト名。 | `localhost` | `127.0.0.1` |

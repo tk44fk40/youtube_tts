@@ -38,6 +38,13 @@ QUEUE_MAXSIZE = 50
 MAX_PROCESSED_MESSAGE_IDS = 1000
 
 
+class CommentItem(tuple):
+    def __new__(cls, author, message, char_count):
+        return super().__new__(cls, (author, message))
+    def __init__(self, author, message, char_count):
+        self.char_count = char_count
+
+
 class YouTubeTtsApp:
     """YouTube Live チャット読み上げツール全体の実行状態・ライフサイクルを管理するクラス"""
 
@@ -68,15 +75,19 @@ class YouTubeTtsApp:
         self.processed_message_queue = deque()
         self.max_processed_message_ids = MAX_PROCESSED_MESSAGE_IDS
         self.last_spoken_used = None
+        self.queued_char_count = 0
+        self.queue_lock = threading.Lock()
 
-    def speak(self, text: str):
+    def speak(self, text: str, speed_scale: float = None):
         """指定されたテキストを VOICEVOX で音声合成し再生する"""
+        if speed_scale is None:
+            speed_scale = self.config.speed_scale
         try:
             # 音声合成
             wav_bytes = self.voicevox_client.synthesize(
                 text=text,
                 volume_scale=self.config.volume_scale,
-                speed_scale=self.config.speed_scale,
+                speed_scale=speed_scale,
                 target_sample_rate=self.audio_player.target_sample_rate
             )
             # 音声再生
@@ -89,14 +100,42 @@ class YouTubeTtsApp:
         """コメント再生キューを監視し、順次再生するスレッドワーカー"""
         while not self.stop_event.is_set():
             try:
-                author, message = self.comment_queue.get(timeout=1)
+                item = self.comment_queue.get(timeout=1)
+                author, message = item
+                char_count = getattr(item, "char_count", None)
+                if char_count is None:
+                    char_count = len(author) + len(message)
+                
+                with self.queue_lock:
+                    self.queued_char_count = max(0, self.queued_char_count - char_count)
+                    remaining_chars = self.queued_char_count
             except queue.Empty:
                 continue
 
             text = f"{author} {message}"
-            self.logger.info(f"[TALK] {text}")
+            
+            base_speed = self.config.speed_scale
+            speed = base_speed
+            
+            if self.config.auto_speed_boost and remaining_chars > 0:
+                rate_at_base = 6.0 * base_speed
+                estimated_duration = remaining_chars / rate_at_base if rate_at_base > 0 else 0
+                max_speed = min(getattr(self.config, "max_speed", 2.2), 2.2)
+                
+                if base_speed < max_speed:
+                    if estimated_duration <= 10.0:
+                        speed = base_speed
+                    elif estimated_duration >= 40.0:
+                        speed = max_speed
+                    else:
+                        ratio = (estimated_duration - 10.0) / (40.0 - 10.0)
+                        speed = base_speed + (max_speed - base_speed) * ratio
+                
+                self.logger.info(f"[TALK] {text} (Speed: {speed:.2f}x)")
+            else:
+                self.logger.info(f"[TALK] {text}")
 
-            self.speak(text)
+            self.speak(text, speed_scale=speed)
             self.comment_queue.task_done()
 
     def youtube_worker(
@@ -189,7 +228,10 @@ class YouTubeTtsApp:
                     self.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
                     continue
 
-                self.comment_queue.put((author, message))
+                char_count = len(author) + len(message)
+                with self.queue_lock:
+                    self.queued_char_count += char_count
+                self.comment_queue.put(CommentItem(author, message, char_count))
 
             # 配信ステータスとクォータのチェックは共通のタイムスタンプで評価する
             now = time.time()
@@ -218,7 +260,12 @@ class YouTubeTtsApp:
 
                     if quota_talk and used != self.last_spoken_used:
                         if not self.comment_queue.full():
-                            self.comment_queue.put(("", f"ぴんぽーん！クォータ使用量は {used} ユニットです。"))
+                            quota_author = ""
+                            quota_message = f"ぴんぽーん！クォータ使用量は {used} ユニットです。"
+                            char_count = len(quota_author) + len(quota_message)
+                            with self.queue_lock:
+                                self.queued_char_count += char_count
+                            self.comment_queue.put(CommentItem(quota_author, quota_message, char_count))
                             self.last_spoken_used = used
                 except Exception as e:
                     self.logger.warning(f"Failed to fetch quota info: {e}")
@@ -314,12 +361,32 @@ def main():
         except ValueError:
             pass
 
+    env_auto_boost = os.getenv("VOICEVOX_AUTO_SPEED_BOOST", "false").lower() in ("true", "1", "yes")
+    env_max_speed = 2.2
+    if "VOICEVOX_MAX_SPEED" in os.environ:
+        try:
+            env_max_speed = float(os.environ["VOICEVOX_MAX_SPEED"])
+        except ValueError:
+            pass
+
     parser = argparse.ArgumentParser(description="YouTube Live Chat TTS with VOICEVOX")
     parser.add_argument(
         "--speed",
         type=float,
         default=env_speed,
         help="読み上げスピード（デフォルト: 1.0）。環境変数 VOICEVOX_SPEED_SCALE でも指定可能です。"
+    )
+    parser.add_argument(
+        "--auto-speed-boost",
+        action="store_true",
+        default=env_auto_boost,
+        help="キュー滞留時に読上げスピードを自動でブーストする機能を有効にする"
+    )
+    parser.add_argument(
+        "--max-speed",
+        type=float,
+        default=env_max_speed,
+        help="自動スピードブースト時の最大速度（デフォルト: 2.2）。最大2.2までに制限されます。"
     )
     parser.add_argument(
         "video_url_or_id",
@@ -397,6 +464,8 @@ def main():
 
     config.reload_if_changed()
     config.speed_scale = args.speed
+    config.auto_speed_boost = args.auto_speed_boost
+    config.max_speed = min(args.max_speed, 2.2)
 
     # オーディオデバイスの適用
     dev_id = None

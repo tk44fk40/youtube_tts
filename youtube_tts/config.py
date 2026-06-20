@@ -20,6 +20,8 @@ class AppConfig:
 
         self.volume_scale = 1.0
         self.speed_scale = 1.0
+        self.auto_speed_boost = False
+        self.max_speed = 2.2
         self.replacements = {}
         self.ng_words = set()
 

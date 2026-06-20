@@ -356,3 +356,78 @@ def test_cli_speed_env_var_invalid(mock_audio_player, mock_app_class, mock_chat_
             
     args, kwargs = mock_app_class.call_args
     assert kwargs["config"].speed_scale == 1.0
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_speed_boost_options(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    # 引数を指定
+    with patch("sys.argv", ["youtube_voicevox.py", "--auto-speed-boost", "--max-speed", "1.8", "video123"]):
+        main()
+        
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].auto_speed_boost is True
+    assert kwargs["config"].max_speed == 1.8
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_speed_boost_env_vars(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    # 環境変数を指定
+    with patch.dict(os.environ, {"VOICEVOX_AUTO_SPEED_BOOST": "true", "VOICEVOX_MAX_SPEED": "2.0"}):
+        with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
+            main()
+            
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].auto_speed_boost is True
+    assert kwargs["config"].max_speed == 2.0
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_max_speed_clip(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    # 限界値を超える値を指定
+    with patch("sys.argv", ["youtube_voicevox.py", "--max-speed", "3.0", "video123"]):
+        main()
+        
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].max_speed == 2.2

@@ -102,13 +102,13 @@ def test_playback_worker(app):
 
     with patch.object(app, "speak") as mock_speak:
         # speak 実行後にスレッドを終了させるためにストップイベントをセット
-        def side_effect(text):
+        def side_effect(text, *args, **kwargs):
             app.stop_event.set()
         mock_speak.side_effect = side_effect
 
         app.playback_worker()
 
-        mock_speak.assert_called_once_with("User1 こんにちは")
+        mock_speak.assert_called_once_with("User1 こんにちは", speed_scale=1.0)
 
 
 # ==============================================================================
@@ -577,3 +577,47 @@ def test_youtube_worker_quota_verbose(mock_get_quota_info, app):
         )
 
     mock_debug.assert_any_call("Fetching quota info...")
+
+
+def test_playback_worker_dynamic_speed_boost(app):
+    app.config.auto_speed_boost = True
+    app.config.speed_scale = 1.0
+    app.config.max_speed = 2.2
+
+    # キューと文字数カウンタにコメントをセット
+    # Comment 1: "User1 Hello"
+    # Comment 2: "User2 AAAAA..." (180 chars)
+    # Total chars = 11 + 180 = 191
+    from youtube_voicevox import CommentItem
+    app.comment_queue.put(CommentItem("User1", "Hello", 11))
+    app.comment_queue.put(CommentItem("User2", "A" * 175, 180))
+    app.queued_char_count = 191
+
+    with patch.object(app, "speak") as mock_speak:
+        # speak 完了後にスレッドを終了させるためにストップイベントをセット
+        def side_effect(text, speed_scale=None):
+            app.stop_event.set()
+        mock_speak.side_effect = side_effect
+
+        app.playback_worker()
+
+        # 191文字から今回消費した11文字を引いて、残りは180文字になること
+        assert app.queued_char_count == 180
+        mock_speak.assert_called_once_with("User1 Hello", speed_scale=1.8)
+
+
+def test_playback_worker_backward_compatibility(app):
+    # 2要素タプルをキューに投入 (旧仕様テストケースのシミュレーション)
+    app.comment_queue.put(("UserOld", "HelloOld"))
+    app.queued_char_count = 15  # "UserOld" (7) + "HelloOld" (8) = 15文字
+
+    with patch.object(app, "speak") as mock_speak:
+        def side_effect(text, speed_scale=None):
+            app.stop_event.set()
+        mock_speak.side_effect = side_effect
+
+        app.playback_worker()
+
+        # 無事にアンパックされ、文字数が引かれていること
+        assert app.queued_char_count == 0
+        mock_speak.assert_called_once_with("UserOld HelloOld", speed_scale=1.0)
