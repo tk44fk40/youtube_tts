@@ -20,6 +20,9 @@ from youtube_tts import (
     VoicevoxClient,
     YouTubeAuthenticator,
     YouTubeChatClient,
+    QUOTA_SCOPES,
+    get_project_id,
+    get_quota_info,
 )
 
 # 定数定義
@@ -84,7 +87,16 @@ def playback_worker():
         comment_queue.task_done()
 
 
-def youtube_worker(chat_client: YouTubeChatClient, video_id: str):
+def youtube_worker(
+    chat_client: YouTubeChatClient,
+    video_id: str,
+    creds=None,
+    quota_check: bool = False,
+    quota_talk: bool = False,
+    chat_interval: float = 5.0,
+    quota_interval: float = 60.0,
+    project_id: str = None
+):
     live_chat_id = chat_client.get_live_chat_id(video_id)
     print(f"liveChatId: {live_chat_id}")
 
@@ -96,6 +108,10 @@ def youtube_worker(chat_client: YouTubeChatClient, video_id: str):
     # 配信終了判定のためのカウンタ
     status_check_interval = 2
     status_check_counter = 0
+
+    # クォータチェック用状態
+    last_quota_check_time = 0
+    last_spoken_used = None
 
     while not stop_event.is_set():
         # 設定の自動更新チェック
@@ -147,7 +163,24 @@ def youtube_worker(chat_client: YouTubeChatClient, video_id: str):
                 stop_event.set()
                 return
 
-        time.sleep(polling_interval / 1000)
+        # コメント取得の直後にクォータを取得
+        now = time.time()
+        if quota_check and creds and project_id and (now - last_quota_check_time >= quota_interval):
+            try:
+                used, limit = get_quota_info(creds, project_id)
+                remaining = max(0, limit - used)
+                usage_percent = (used / limit) * 100 if limit > 0 else 0
+                print(f"[QUOTA] Used: {used:,} / {limit:,} ({usage_percent:.2f}%), Remaining: {remaining:,}")
+
+                if quota_talk and used != last_spoken_used:
+                    if not comment_queue.full():
+                        comment_queue.put(("", f"クォータ使用量は {used} ユニットです。"))
+                        last_spoken_used = used
+            except Exception as e:
+                print(f"[WARN] Failed to fetch quota info: {e}")
+            last_quota_check_time = now
+
+        time.sleep(max(polling_interval / 1000, chat_interval))
 
 
 def cleanup(playback_thread=None, wait_seconds=5):
@@ -192,7 +225,33 @@ def main():
         default=os.getenv("VOICEVOX_DEVICE"),
         help="出力オーディオデバイス名またはID"
     )
+    parser.add_argument(
+        "-q",
+        "--quota-check",
+        action="store_true",
+        help="デバッグ用のクォータ情報確認機能を有効にする"
+    )
+    parser.add_argument(
+        "--quota-talk",
+        action="store_true",
+        help="クォータ使用量の読上げ機能を有効にする"
+    )
+    parser.add_argument(
+        "--chat-interval",
+        type=float,
+        default=5.0,
+        help="コメント取得の最短時間（秒）。デフォルトは5秒。"
+    )
+    parser.add_argument(
+        "--quota-interval",
+        type=float,
+        default=60.0,
+        help="使用量の取得の最短時間（秒）。デフォルトは60秒。"
+    )
     args = parser.parse_args()
+
+    if args.quota_talk:
+        args.quota_check = True
 
     config.reload_if_changed()
 
@@ -215,9 +274,11 @@ def main():
         audio_player = AudioPlayer(default_device=dev_id)
 
     # 認証情報の初期化
+    scopes = QUOTA_SCOPES if args.quota_check else None
     authenticator = YouTubeAuthenticator(
         client_secret_path=CLIENT_SECRET_FILE,
-        token_path=TOKEN_FILE
+        token_path=TOKEN_FILE,
+        scopes=scopes
     )
     try:
         creds = authenticator.get_credentials()
@@ -262,8 +323,27 @@ def main():
     playback_thread = threading.Thread(target=playback_worker)
     playback_thread.start()
 
+    # クォータチェックに必要な情報を準備
+    project_id = None
+    if args.quota_check:
+        try:
+            project_id = get_project_id()
+        except Exception as e:
+            print(f"[WARN] クォータチェックを有効にできませんでした (project_id 取得失敗): {e}")
+            args.quota_check = False
+            args.quota_talk = False
+
     try:
-        youtube_worker(chat_client, video_id)
+        youtube_worker(
+            chat_client,
+            video_id,
+            creds=creds,
+            quota_check=args.quota_check,
+            quota_talk=args.quota_talk,
+            chat_interval=args.chat_interval,
+            quota_interval=args.quota_interval,
+            project_id=project_id,
+        )
     except Exception as e:
         print(f"[ERROR] Unexpected error: {e}")
     finally:

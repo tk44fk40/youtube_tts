@@ -5,6 +5,7 @@ from .audio import AudioPlayer
 from .config import AppConfig
 from .dictionary import TextProcessor
 from .obs import ObsClient
+from .quota import QUOTA_SCOPES, get_project_id, get_quota_info
 
 __all__ = [
     "YouTubeAuthenticator",
@@ -14,4 +15,7 @@ __all__ = [
     "AppConfig",
     "TextProcessor",
     "ObsClient",
+    "QUOTA_SCOPES",
+    "get_project_id",
+    "get_quota_info",
 ]
