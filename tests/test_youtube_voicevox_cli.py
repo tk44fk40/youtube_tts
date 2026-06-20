@@ -281,3 +281,78 @@ def test_cli_unexpected_error_in_worker(mock_app_class, mock_chat_client, mock_a
         with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
             main()
         mock_logger.error.assert_called_with("Unexpected error: Worker Unexpected Crash")
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_speed_option(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    # speed 引数を指定
+    with patch("sys.argv", ["youtube_voicevox.py", "--speed", "1.5", "video123"]):
+        main()
+        
+    # app が初期化された際、その config.speed_scale が 1.5 であることを確認する
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].speed_scale == 1.5
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_speed_env_var(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    # 環境変数 VOICEVOX_SPEED_SCALE を指定
+    with patch.dict(os.environ, {"VOICEVOX_SPEED_SCALE": "1.8"}):
+        with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
+            main()
+            
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].speed_scale == 1.8
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_speed_env_var_invalid(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    # 無効な環境変数 VOICEVOX_SPEED_SCALE を指定（フォールバックしてデフォルト1.0になること）
+    with patch.dict(os.environ, {"VOICEVOX_SPEED_SCALE": "invalid"}):
+        with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
+            main()
+            
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].speed_scale == 1.0

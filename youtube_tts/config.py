@@ -19,6 +19,7 @@ class AppConfig:
         self.volume_file = Path(volume_path)
 
         self.volume_scale = 1.0
+        self.speed_scale = 1.0
         self.replacements = {}
         self.ng_words = set()
 

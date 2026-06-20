@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import os
 import sys
 from youtube_tts import VoicevoxClient, AudioPlayer
 
@@ -28,6 +29,13 @@ def list_speakers(client: VoicevoxClient):
 
 
 def main():
+    env_speed = 1.0
+    if "VOICEVOX_SPEED_SCALE" in os.environ:
+        try:
+            env_speed = float(os.environ["VOICEVOX_SPEED_SCALE"])
+        except ValueError:
+            pass
+
     parser = argparse.ArgumentParser(description="VOICEVOX 発声テストスクリプト")
     parser.add_argument("-t", "--text", default=DEFAULT_TEXT, help="発声させるテキスト")
     parser.add_argument("-s", "--speaker", type=int, default=DEFAULT_SPEAKER, help="話者スタイルID")
@@ -36,6 +44,7 @@ def main():
     parser.add_argument("-d", "--device", default=None, help="出力オーディオデバイス名またはID")
     parser.add_argument("-r", "--samplerate", type=int, default=None, help="生成サンプリングレート（未指定時はデバイスの既定値を使用）")
     parser.add_argument("-v", "--volume", type=float, default=DEFAULT_VOLUME, help="音量比（デフォルト: 1.0）")
+    parser.add_argument("--speed", type=float, default=env_speed, help="読み上げスピード（デフォルト: 1.0）。環境変数 VOICEVOX_SPEED_SCALE でも指定可能です。")
     parser.add_argument("--list-speakers", action="store_true", help="利用可能な話者スタイル一覧を表示")
     parser.add_argument("--list-devices", action="store_true", help="オーディオデバイス一覧を表示")
     parser.add_argument("--no-play", action="store_true", help="再生をスキップしてファイル保存のみ行う")
@@ -68,6 +77,7 @@ def main():
         wav_content = client.synthesize(
             text=args.text,
             volume_scale=args.volume,
+            speed_scale=args.speed,
             target_sample_rate=target_sample_rate
         )
     except Exception as e:

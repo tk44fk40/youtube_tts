@@ -16,7 +16,7 @@ class VoicevoxClient:
                 "VOICEVOXが起動しているか、ホストURLが正しいか確認してください。"
             ) from e
 
-    def synthesize(self, text, volume_scale=1.0, target_sample_rate=None) -> bytes:
+    def synthesize(self, text, volume_scale=1.0, speed_scale=1.0, target_sample_rate=None) -> bytes:
         # 1. 音声クエリを作成する
         query_response = requests.post(
             f"{self.base_url}/audio_query",
@@ -31,6 +31,9 @@ class VoicevoxClient:
 
         # 音量比を設定する
         query_data["volumeScale"] = volume_scale
+
+        # 読上げスピードを設定する
+        query_data["speedScale"] = speed_scale
 
         # 2. 音声合成を実行する
         synthesis_response = requests.post(

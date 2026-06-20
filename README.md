@@ -108,6 +108,7 @@ uv run python3 youtube_voicevox.py -d 6
 | `--backlog-seconds` | (なし) | 起動時に読み上げる過去コメントの遡り時間（秒）。`-1` を指定した場合は過去コメントをすべて読み上げます。 | `10` |
 | `--quota-interval` | (なし) | クォータ使用量を取得・表示する最短時間（秒）。 | `180.0` |
 | `--stream-check-interval` | (なし) | 配信のアクティブ状態をチェックする時間間隔（秒）。 | `180.0` |
+| `--speed` | (なし) | 読み上げスピード（デフォルト: `1.0`）。値が大きいほど早くなります。環境変数 `VOICEVOX_SPEED_SCALE` でも指定可能です。 | `1.0` |
 | `--verbose` | `-v` | 詳細ログ（DEBUGログ）をコンソールに出力します。 | `False` |
 
 ### その他のスクリプトとコマンドラインオプション
@@ -141,6 +142,7 @@ uv run python3 youtube_voicevox.py -d 6
   | `--text` | `-t` | 発声させる日本語のテキスト。 | `"これは、ボイスボックスの発声テストです。"` |
   | `--speaker` | `-s` | VOICEVOXの話者スタイルID。 | `3` (ずんだもん・ノーマル) |
   | `--volume` | `-v` | 音量比の倍率（`0.0` 〜 `2.0`）。 | `1.0` |
+  | `--speed` | (なし) | 読み上げスピード。環境変数 `VOICEVOX_SPEED_SCALE` でも指定可能です。 | `1.0` |
   | `--output` | `-o` | 合成したWAV音声ファイルの保存先パス。 | `"test.wav"` |
   | `--host` | `-H` | VOICEVOX の接続URL。 | `"http://127.0.0.1:50021"` |
   | `--device` | `-d` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) |
@@ -178,6 +180,7 @@ uv run python3 youtube_voicevox.py -d 6
 | `VOICEVOX_URL` | VOICEVOX サーバーの接続先URL。 | `http://127.0.0.1:50021` | `http://localhost:50021` |
 | `VOICEVOX_SPEAKER_ID` | VOICEVOX で生成する音声のキャラクター（話者スタイル）のID。 | `3` (ずんだもん) | `2` (四国めたん), `8` (春日部つむぎ) |
 | `VOICEVOX_VOLUME_SCALE` | `volume.txt` が存在しない場合、またはこの環境変数が設定されている場合の音量初期値。 | `1.0` | `0.5` (音量50%) |
+| `VOICEVOX_SPEED_SCALE` | VOICEVOX の読み上げスピード（話速）の初期値。 | `1.0` | `1.5` (1.5倍速) |
 | `VOICEVOX_DEVICE` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) | `6` または `pipewire` |
 | `OBS_WEBSOCKET_PASSWORD` | OBS の WebSocket 接続用認証パスワード。未設定時はOBS連携機能がスキップされます。 | (なし) | `your_obs_websocket_password` |
 | `OBS_WEBSOCKET_HOST` | OBS WebSocket が動作しているホスト名。 | `localhost` | `127.0.0.1` |

@@ -76,6 +76,7 @@ class YouTubeTtsApp:
             wav_bytes = self.voicevox_client.synthesize(
                 text=text,
                 volume_scale=self.config.volume_scale,
+                speed_scale=self.config.speed_scale,
                 target_sample_rate=self.audio_player.target_sample_rate
             )
             # 音声再生
@@ -306,7 +307,20 @@ class YouTubeTtsApp:
 
 
 def main():
+    env_speed = 1.0
+    if "VOICEVOX_SPEED_SCALE" in os.environ:
+        try:
+            env_speed = float(os.environ["VOICEVOX_SPEED_SCALE"])
+        except ValueError:
+            pass
+
     parser = argparse.ArgumentParser(description="YouTube Live Chat TTS with VOICEVOX")
+    parser.add_argument(
+        "--speed",
+        type=float,
+        default=env_speed,
+        help="読み上げスピード（デフォルト: 1.0）。環境変数 VOICEVOX_SPEED_SCALE でも指定可能です。"
+    )
     parser.add_argument(
         "video_url_or_id",
         nargs="?",
@@ -382,6 +396,7 @@ def main():
             pass
 
     config.reload_if_changed()
+    config.speed_scale = args.speed
 
     # オーディオデバイスの適用
     dev_id = None

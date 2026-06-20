@@ -31,7 +31,7 @@ def test_synthesize_success():
     with patch("requests.post") as mock_post:
         # audio_query に対するレスポンス
         mock_query_resp = MagicMock()
-        mock_query_resp.json.return_value = {"outputSamplingRate": 24000, "volumeScale": 1.0}
+        mock_query_resp.json.return_value = {"outputSamplingRate": 24000, "volumeScale": 1.0, "speedScale": 1.0}
         
         # synthesis に対するレスポンス
         mock_synth_resp = MagicMock()
@@ -39,7 +39,7 @@ def test_synthesize_success():
 
         mock_post.side_effect = [mock_query_resp, mock_synth_resp]
 
-        wav_data = client.synthesize("こんにちは", volume_scale=1.5, target_sample_rate=48000)
+        wav_data = client.synthesize("こんにちは", volume_scale=1.5, speed_scale=1.2, target_sample_rate=48000)
         assert wav_data == b"fake_wav_data"
         
         assert mock_post.call_count == 2
@@ -52,6 +52,7 @@ def test_synthesize_success():
         assert second_call[0][0] == "http://fake-vox/synthesis"
         assert second_call[1]["params"] == {"speaker": 3}
         assert second_call[1]["json"]["volumeScale"] == 1.5
+        assert second_call[1]["json"]["speedScale"] == 1.2
         assert second_call[1]["json"]["outputSamplingRate"] == 48000
 
 def test_synthesize_http_error():

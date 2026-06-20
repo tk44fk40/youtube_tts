@@ -81,6 +81,7 @@ def test_speak_success(app):
     app.voicevox_client.synthesize.assert_called_with(
         text="テストテキスト",
         volume_scale=0.5,
+        speed_scale=1.0,
         target_sample_rate=app.audio_player.target_sample_rate
     )
     app.audio_player.play_wav.assert_called_with(b"mock_wav")
