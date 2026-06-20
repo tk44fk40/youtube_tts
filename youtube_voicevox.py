@@ -110,10 +110,18 @@ class YouTubeTtsApp:
         stream_check_interval: float = 180.0,
         project_id: str = None,
         verbose: bool = False,
+        backlog_seconds: int = 10,
     ):
         """YouTube チャットコメントの定期取得を行い、キューへ送るスレッドワーカー"""
         live_chat_id = chat_client.get_live_chat_id(video_id)
         self.logger.info(f"liveChatId: {live_chat_id}")
+
+        # しきい値時刻の算出
+        from datetime import datetime, timezone, timedelta
+        if backlog_seconds >= 0:
+            threshold_time = datetime.now(timezone.utc) - timedelta(seconds=backlog_seconds)
+        else:
+            threshold_time = None
 
         next_page_token = None
         last_quota_check_time = 0
@@ -150,6 +158,20 @@ class YouTubeTtsApp:
                 if len(self.processed_message_queue) > self.max_processed_message_ids:
                     oldest_message_id = self.processed_message_queue.popleft()
                     self.processed_message_ids.discard(oldest_message_id)
+
+                # 投稿時刻のチェックによる過去コメントの除外
+                if threshold_time is not None:
+                    published_at_str = item.get("snippet", {}).get("publishedAt")
+                    if published_at_str:
+                        try:
+                            # タイムゾーン対応の比較のために Z を +00:00 に置換
+                            published_at = datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+                            if published_at < threshold_time:
+                                if verbose:
+                                    self.logger.debug(f"[SKIP(PAST)] {item['authorDetails']['displayName']}: {item['snippet']['displayMessage']} (published at {published_at_str})")
+                                continue
+                        except ValueError as e:
+                            self.logger.warning(f"Failed to parse publishedAt: {published_at_str}, error: {e}")
 
                 author = item["authorDetails"]["displayName"]
                 message = item["snippet"]["displayMessage"]
@@ -246,6 +268,7 @@ class YouTubeTtsApp:
         stream_check_interval: float = 180.0,
         project_id: str = None,
         verbose: bool = False,
+        backlog_seconds: int = 10,
     ):
         """スレッドの起動、シグナルハンドラ設定、および実行中のエラー処理をハンドリングする"""
         def handle_signal(signum, frame):
@@ -274,6 +297,7 @@ class YouTubeTtsApp:
                 stream_check_interval=stream_check_interval,
                 project_id=project_id,
                 verbose=verbose,
+                backlog_seconds=backlog_seconds,
             )
         except Exception as e:
             self.logger.error(f"Unexpected error: {e}")
@@ -311,6 +335,12 @@ def main():
         type=float,
         default=20.0,
         help="コメント取得の最短時間（秒）。デフォルトは20秒。"
+    )
+    parser.add_argument(
+        "--backlog-seconds",
+        type=int,
+        default=10,
+        help="起動時に読み上げる過去コメントの遡り時間（秒）。-1を指定した場合は過去コメントをすべて読み上げます。デフォルトは10秒。"
     )
     parser.add_argument(
         "--quota-interval",
@@ -441,6 +471,7 @@ def main():
             stream_check_interval=args.stream_check_interval,
             project_id=project_id,
             verbose=args.verbose,
+            backlog_seconds=args.backlog_seconds,
         )
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

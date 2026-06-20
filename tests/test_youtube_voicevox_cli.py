@@ -113,7 +113,8 @@ def test_cli_quota_options(mock_get_project_id, mock_app_class, mock_chat_client
         quota_interval=30.0,
         stream_check_interval=180.0,
         project_id="test-project-123",
-        verbose=False
+        verbose=False,
+        backlog_seconds=10
     )
 
     # --verbose およびカスタムの --stream-check-interval を指定してテスト
@@ -131,7 +132,8 @@ def test_cli_quota_options(mock_get_project_id, mock_app_class, mock_chat_client
         quota_interval=30.0,
         stream_check_interval=120.0,
         project_id="test-project-123",
-        verbose=True
+        verbose=True,
+        backlog_seconds=10
     )
 
 

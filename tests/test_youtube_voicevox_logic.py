@@ -171,6 +171,110 @@ def test_youtube_worker_normal_flow(app):
     assert msg == "こんにちは!"
 
 
+def test_youtube_worker_backlog_seconds_filter(app):
+    from datetime import datetime, timezone, timedelta
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
+
+    now = datetime.now(timezone.utc)
+    # 古いメッセージ（20秒前）
+    old_time_str = (now - timedelta(seconds=20)).isoformat().replace("+00:00", "Z")
+    # 新しいメッセージ（5秒前）
+    new_time_str = (now - timedelta(seconds=5)).isoformat().replace("+00:00", "Z")
+
+    def fetch_side_effect(live_chat_id, page_token=None):
+        if page_token is None:
+            items = [
+                {
+                    "id": "msg_old",
+                    "authorDetails": {"displayName": "視聴者A"},
+                    "snippet": {
+                        "displayMessage": "古いメッセージ",
+                        "publishedAt": old_time_str
+                    }
+                },
+                {
+                    "id": "msg_new",
+                    "authorDetails": {"displayName": "視聴者B"},
+                    "snippet": {
+                        "displayMessage": "新しいメッセージ",
+                        "publishedAt": new_time_str
+                    }
+                }
+            ]
+            return items, "next_token_123", 1000
+        else:
+            app.stop_event.set()
+            return [], "next_token_456", 1000
+
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_side_effect
+
+    # 10秒前までを遡る設定
+    app.youtube_worker(
+        chat_client=mock_chat_client,
+        video_id="video_abc",
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+        backlog_seconds=10,
+    )
+
+    # 新しいメッセージのみがキューに入っていることを確認
+    assert app.comment_queue.qsize() == 1
+    author, msg = app.comment_queue.get()
+    assert author == "視聴者Bさん"
+    assert msg == "新しいメッセージ"
+
+    # 重複防止IDには両方追加されていることを確認
+    assert "msg_old" in app.processed_message_ids
+    assert "msg_new" in app.processed_message_ids
+
+
+def test_youtube_worker_backlog_seconds_all(app):
+    from datetime import datetime, timezone, timedelta
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
+
+    now = datetime.now(timezone.utc)
+    old_time_str = (now - timedelta(seconds=20)).isoformat().replace("+00:00", "Z")
+
+    def fetch_side_effect(live_chat_id, page_token=None):
+        if page_token is None:
+            items = [
+                {
+                    "id": "msg_old",
+                    "authorDetails": {"displayName": "視聴者A"},
+                    "snippet": {
+                        "displayMessage": "古いメッセージ",
+                        "publishedAt": old_time_str
+                    }
+                }
+            ]
+            return items, "next_token_123", 1000
+        else:
+            app.stop_event.set()
+            return [], "next_token_456", 1000
+
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_side_effect
+
+    # 制限なし（-1）の設定
+    app.youtube_worker(
+        chat_client=mock_chat_client,
+        video_id="video_abc",
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+        backlog_seconds=-1,
+    )
+
+    # 古いメッセージもキューに入っていることを確認
+    assert app.comment_queue.qsize() == 1
+    author, msg = app.comment_queue.get()
+    assert author == "視聴者Aさん"
+    assert msg == "古いメッセージ"
+
+
+
 def test_youtube_worker_ng_word(app):
     mock_chat_client = MagicMock(spec=YouTubeChatClient)
     mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
