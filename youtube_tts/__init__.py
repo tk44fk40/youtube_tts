@@ -6,6 +6,7 @@ from .config import AppConfig
 from .dictionary import TextProcessor
 from .obs import ObsClient
 from .quota import QUOTA_SCOPES, get_project_id, get_quota_info
+from .logger import setup_logger, get_logger
 
 __all__ = [
     "YouTubeAuthenticator",
@@ -18,4 +19,6 @@ __all__ = [
     "QUOTA_SCOPES",
     "get_project_id",
     "get_quota_info",
+    "setup_logger",
+    "get_logger",
 ]

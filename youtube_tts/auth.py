@@ -16,12 +16,13 @@ class YouTubeAuthenticator:
             try:
                 creds = Credentials.from_authorized_user_file(str(self.token_path), self.scopes)
             except Exception:
+                # キャッシュファイルが破損している、またはパースできない場合に、一旦ファイルを削除して再認証を促す
                 try:
                     self.token_path.unlink()
                 except OSError:
                     pass
 
-        # If token does not exist or is invalid
+        # トークンファイルが存在しない、または無効な場合
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 try:
@@ -35,13 +36,13 @@ class YouTubeAuthenticator:
                         f"{self.client_secret_path.name} was not found. "
                         "Please download it from Google Cloud Console and place it in the workspace."
                     )
-                # First time or token refreshed failed
+                # 初回認証、またはトークンの更新に失敗した場合
                 flow = InstalledAppFlow.from_client_secrets_file(
                     str(self.client_secret_path), self.scopes
                 )
                 creds = flow.run_local_server(port=0)
 
-            # Save the credentials
+            # 取得した認証情報を保存する
             with open(self.token_path, "w", encoding="utf-8") as token_file:
                 token_file.write(creds.to_json())
 

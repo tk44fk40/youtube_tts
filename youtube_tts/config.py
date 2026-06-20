@@ -1,6 +1,16 @@
 import os
-from pathlib import Path
 import unicodedata
+from pathlib import Path
+
+
+def normalize_nfkc(text: str) -> str:
+    """Unicode NFKC 正規化を行うユーティリティ関数。
+    
+    全角/半角の統一、互換文字の正規化を行う。
+    AppConfig と TextProcessor の両方で使用されるため、モジュールレベルで定義している。
+    """
+    return unicodedata.normalize("NFKC", text)
+
 
 class AppConfig:
     def __init__(self, dictionary_path="dictionary.txt", ng_words_path="ng_words.txt", volume_path="volume.txt"):
@@ -16,36 +26,42 @@ class AppConfig:
         self._ng_word_mtime = None
         self._volume_mtime = None
 
-        # Initial load
+        # 起動時に一度ロードする
         self.reload_if_changed()
 
-    def _normalize_text(self, text):
-        return unicodedata.normalize("NFKC", text)
-
     def _load_replacements(self):
+        """dictionary.txt を読み込んで {正規化済みキー: 置換後文字列} の辞書を返す。"""
         replacements = {}
-        with open(self.dictionary_file, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or "=" not in line:
-                    continue
-                src, dst = line.split("=", 1)
-                normalized_src = self._normalize_text(src.strip()).lower()
-                replacements[normalized_src] = dst.strip()
+        try:
+            with open(self.dictionary_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or "=" not in line:
+                        continue
+                    src, dst = line.split("=", 1)
+                    normalized_src = normalize_nfkc(src.strip()).lower()
+                    replacements[normalized_src] = dst.strip()
+        except OSError as e:
+            print(f"[WARN] Failed to load dictionary: {e}")
         return replacements
 
     def _load_ng_words(self):
+        """ng_words.txt を読み込んで {正規化済みNGワード} の集合を返す。"""
         ng_words = set()
-        with open(self.ng_word_file, "r", encoding="utf-8") as f:
-            for line in f:
-                word = line.strip()
-                if not word:
-                    continue
-                normalized_word = self._normalize_text(word).lower()
-                ng_words.add(normalized_word)
+        try:
+            with open(self.ng_word_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    word = line.strip()
+                    if not word:
+                        continue
+                    normalized_word = normalize_nfkc(word).lower()
+                    ng_words.add(normalized_word)
+        except OSError as e:
+            print(f"[WARN] Failed to load ng_words: {e}")
         return ng_words
 
     def reload_if_changed(self):
+        """各設定ファイルのタイムスタンプを確認し、変更があれば再ロードする。"""
         # dictionary.txt
         if self.dictionary_file.exists():
             current_mtime = os.path.getmtime(self.dictionary_file)
@@ -70,10 +86,12 @@ class AppConfig:
                 try:
                     with open(self.volume_file, "r", encoding="utf-8") as f:
                         val = float(f.read().strip())
-                        if 0.0 <= val <= 2.0:
-                            self.volume_scale = val
-                            print(f"[CONFIG] volume scale updated: {self.volume_scale}")
-                        else:
-                            print(f"[CONFIG] volume scale out of range (0.0 - 2.0): {val}")
-                except Exception as e:
-                    print(f"[WARN] Failed to reload volume.txt: {e}")
+                    if 0.0 <= val <= 2.0:
+                        self.volume_scale = val
+                        print(f"[CONFIG] volume scale updated: {self.volume_scale}")
+                    else:
+                        print(f"[CONFIG] volume scale out of range (0.0 - 2.0): {val}")
+                except OSError as e:
+                    print(f"[WARN] Failed to read volume.txt: {e}")
+                except ValueError as e:
+                    print(f"[WARN] Invalid volume value in volume.txt: {e}")

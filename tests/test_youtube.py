@@ -10,12 +10,12 @@ def mock_creds():
 
 def test_extract_video_id(mock_creds):
     client = YouTubeChatClient(mock_creds)
-    # Normal cases
+    # 正常なケース
     assert client.extract_video_id("dQw4w9WgXcQ") == "dQw4w9WgXcQ"
     assert client.extract_video_id("https://www.youtube.com/watch?v=dQw4w9WgXcQ") == "dQw4w9WgXcQ"
     assert client.extract_video_id("https://youtu.be/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
     assert client.extract_video_id("https://www.youtube.com/live/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
-    # Exception case
+    # 例外が発生するケース
     with pytest.raises(RuntimeError) as excinfo:
         client.extract_video_id("https://www.youtube.com/invalid_path")
     assert "failed to extract video id" in str(excinfo.value)

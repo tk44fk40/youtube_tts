@@ -6,7 +6,9 @@ import sounddevice as sd
 class AudioPlayer:
     def __init__(self, default_device=None):
         if default_device is None:
-            # Try to auto-detect a sound server device (pipewire or pulse)
+            # サウンドサーバーデバイス（pipewire または pulse）の自動検出を試みる。
+            # Linux環境におけるオーディオサーバーの競合を回避し、接続の安定性を高めるために、
+            # pipewire や pulse などのモダンなサウンドサーバーを優先する。
             try:
                 devices = sd.query_devices()
                 if isinstance(devices, dict):
@@ -31,7 +33,7 @@ class AudioPlayer:
         if default_device is not None:
             sd.default.device = default_device
 
-        # Query default sample rate for output device
+        # 出力デバイスのデフォルトサンプリングレートを問い合わせる
         try:
             device_info = sd.query_devices(None, 'output')
             self.target_sample_rate = int(device_info['default_samplerate'])
@@ -43,6 +45,8 @@ class AudioPlayer:
     def query_devices(self, device=None, kind=None):
         return sd.query_devices(device, kind)
 
+    # 簡易的な線形補間によるリサンプリング処理。
+    # 高音質化や複雑なオーディオ変換用ではなく、簡易的な再生用レート変換に使用される。
     def resample_audio(self, audio, source_sample_rate, target_sample_rate):
         if source_sample_rate == target_sample_rate:
             return audio
@@ -58,26 +62,27 @@ class AudioPlayer:
         wav_io = io.BytesIO(wav_content)
         with wave.open(wav_io, "rb") as wav_file:
             sample_rate = wav_file.getframerate()
-            channels = wav_file.getnchannels()
             pcm_data = wav_file.readframes(wav_file.getnframes())
 
         audio = np.frombuffer(pcm_data, dtype=np.int16)
-        if channels > 1:
-            audio = audio.reshape(-1, channels)
 
-        # Switch to specified device if provided
+        # デバイスが指定された場合は、sd.play の引数に渡すために play_device を特定する。
+        # デバイス未指定の場合は self.default_device (None または初期化時のもの) を使用する。
+        play_device = None
         if device is not None:
             try:
-                dev_id = int(device)
+                play_device = int(device)
             except ValueError:
-                dev_id = device
-            sd.default.device = dev_id
+                play_device = device
+        else:
+            play_device = self.default_device
 
-        # Determine sampling rate for playback
+        # 再生時のサンプリングレートを決定する
         play_rate = target_sample_rate or self.target_sample_rate
         audio = self.resample_audio(audio, sample_rate, play_rate)
 
-        sd.play(audio, samplerate=play_rate)
+        # sd.play に直接デバイスを渡すことで、グローバルな sd.default.device の書き換えを防ぐ
+        sd.play(audio, samplerate=play_rate, device=play_device)
         sd.wait()
 
     def stop(self):

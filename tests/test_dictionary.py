@@ -28,42 +28,42 @@ def test_contains_ng_word(mock_config):
 def test_normalize_comment(mock_config):
     processor = TextProcessor(mock_config)
     
-    # Author normalization (san appending)
+    # 投稿者の正規化（「さん」の付与）
     assert processor.normalize_author("Taro") == "Taroさん"
     assert processor.normalize_author("Taroさん") == "Taroさん"
     assert processor.normalize_author("@Taro") == "Taroさん"
 
-    # Message normalization
+    # メッセージの正規化
     msg = "こんにちは！ http://example.com/test 😄 wwwww youtubeでgoogleを見よう"
-    # URLs removed, 😄 removed, wwwww replaced with ' わら ', google replaced with 'グーグル'
-    # 'こんにちは！' is normalized to 'こんにちは!'
+    # URLの除去、😄（絵文字）の除去、wwwwwを ' わら ' に変換、googleを 'グーグル' に変換
+    # 「こんにちは！」は「こんにちは!」に正規化される
     expected = "こんにちは!    わら  youtubeでグーグルを見よう"
     assert processor.normalize_message(msg) == expected
 
 def test_normalize_comment_invalid_input(mock_config):
     processor = TextProcessor(mock_config)
     
-    # Empty string handling
+    # 空文字列のハンドリング
     assert processor.normalize_author("") == ""
     assert processor.normalize_author("   ") == ""
     
     assert processor.normalize_message("") == ""
     assert processor.normalize_message("   ") == ""
     
-    # Author with spaces
+    # スペースを含む投稿者名
     assert processor.normalize_author(" @ ") == ""
     
-    # Emoji-only messages should become empty strings after normalization
+    # 絵文字のみのメッセージは、正規化後に空文字列になること
     assert processor.normalize_message("😄👍") == ""
 
 def test_normalize_author_custom_suffix(mock_config, monkeypatch):
-    # Case 1: Custom suffix ("ちゃん")
+    # ケース 1: カスタムサフィックス（「ちゃん」）
     monkeypatch.setenv("VOICEVOX_AUTHOR_SUFFIX", "ちゃん")
     processor = TextProcessor(mock_config)
     assert processor.normalize_author("Taro") == "Taroちゃん"
     assert processor.normalize_author("Taroちゃん") == "Taroちゃん"
     
-    # Case 2: No suffix (empty string)
+    # ケース 2: サフィックスなし（空文字列）
     monkeypatch.setenv("VOICEVOX_AUTHOR_SUFFIX", "")
     processor2 = TextProcessor(mock_config)
     assert processor2.normalize_author("Taro") == "Taro"

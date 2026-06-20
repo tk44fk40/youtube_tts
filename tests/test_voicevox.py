@@ -29,11 +29,11 @@ def test_synthesize_success():
     client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
     
     with patch("requests.post") as mock_post:
-        # Response for audio_query
+        # audio_query に対するレスポンス
         mock_query_resp = MagicMock()
         mock_query_resp.json.return_value = {"outputSamplingRate": 24000, "volumeScale": 1.0}
         
-        # Response for synthesis
+        # synthesis に対するレスポンス
         mock_synth_resp = MagicMock()
         mock_synth_resp.content = b"fake_wav_data"
 

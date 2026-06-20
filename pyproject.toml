@@ -1,7 +1,7 @@
 [project]
 name = "youtube-tts"
 version = "0.1.0"
-description = "Add your description here"
+description = "YouTube LiveのチャットコメントをリアルタイムにVOICEVOXで読み上げるツール"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -1,35 +1,55 @@
 import os
 import re
 import unicodedata
-from .config import AppConfig
+from .config import AppConfig, normalize_nfkc
+
 
 class TextProcessor:
     def __init__(self, config: AppConfig):
         self.config = config
         self.author_suffix = os.getenv("VOICEVOX_AUTHOR_SUFFIX", "さん")
 
-    def normalize_text(self, text):
-        return unicodedata.normalize("NFKC", text)
+        # replace_words で使う正規表現パターンのキャッシュ。
+        # config.replacements の同一性 (is) で変更を検知し、辞書リロード時に自動更新する。
+        self._compiled_replacements: list[tuple[re.Pattern, str]] = []
+        self._replacements_ref = None  # キャッシュ有効性の確認用 (config.replacements のオブジェクト参照)
 
-    def replace_words(self, message):
-        normalized_message = self.normalize_text(message)
-        for src, dst in self.config.replacements.items():
-            pattern = re.compile(re.escape(src), re.IGNORECASE)
-            normalized_message = pattern.sub(dst, normalized_message)
-        return normalized_message
+    def normalize_text(self, text: str) -> str:
+        """NFKC 正規化を行う（互換性のために公開メソッドとして維持）。"""
+        return normalize_nfkc(text)
 
-    def contains_ng_word(self, message):
-        normalized_message = self.normalize_text(message).lower()
+    def _ensure_compiled(self):
+        """config.replacements が更新されていた場合、正規表現パターンを再コンパイルする。
+        
+        config.reload_if_changed() が新しい dict オブジェクトを代入するため、
+        オブジェクト同一性 (is) で変更を検知できる。
+        """
+        if self.config.replacements is not self._replacements_ref:
+            self._replacements_ref = self.config.replacements
+            self._compiled_replacements = [
+                (re.compile(re.escape(src), re.IGNORECASE), dst)
+                for src, dst in self.config.replacements.items()
+            ]
+
+    def replace_words(self, message: str) -> str:
+        """読み上げ辞書に従ってメッセージ内の単語を置換する。"""
+        self._ensure_compiled()
+        normalized = normalize_nfkc(message)
+        for pattern, dst in self._compiled_replacements:
+            normalized = pattern.sub(dst, normalized)
+        return normalized
+
+    def contains_ng_word(self, message: str) -> bool:
+        """メッセージに NG ワードが含まれているかどうかを判定する。"""
+        normalized = normalize_nfkc(message).lower()
         for word in self.config.ng_words:
-            if word in normalized_message:
+            if word in normalized:
                 return True
         return False
 
-    def normalize_author(self, author):
-        author = self.normalize_text(author)
-        author = author.strip()
-        author = author.lstrip("@")
-        author = author.strip()
+    def normalize_author(self, author: str) -> str:
+        """著者名を正規化する（NFKC、@ 除去、suffix 付与）。"""
+        author = normalize_nfkc(author).strip().lstrip("@").strip()
         if not author:
             return author
         if not self.author_suffix:
@@ -38,24 +58,28 @@ class TextProcessor:
             return author
         return f"{author}{self.author_suffix}"
 
-    def normalize_message(self, message):
-        message = self.normalize_text(message)
-        # URL除去
+    def normalize_message(self, message: str) -> str:
+        """メッセージを読み上げ用に正規化する。
+        
+        各置換処理が互いに干渉するのを防ぐため、以下の順序で処理する。
+        （例: 先に読み上げ辞書を適用すると、辞書内の変換ルールがURL除去や草の変換に影響を及ぼす可能性があるため）
+        
+        URL除去 → 草圧縮 → 記号圧縮 → 絵文字除去 → 読み上げ辞書適用 の順に処理する。
+        """
+        message = normalize_nfkc(message)
+        # URL 除去
         message = re.sub(r"https?:\S+", "", message)
-        # 草を圧縮
+        # 「www」「ｗｗｗ」など3文字以上の草を「わら」に変換
         message = re.sub(r"[wｗ]{3,}", " わら ", message, flags=re.IGNORECASE)
-        # ! を圧縮
+        # 連続する感嘆符・疑問符を1文字に圧縮
         message = re.sub(r"[!！]{2,}", "！", message)
-        # ? を圧縮
         message = re.sub(r"[?？]{2,}", "？", message)
-        # 絵文字除去
+        # サロゲートペア領域（絵文字等）を除去
         message = re.sub(r"[\U00010000-\U0010ffff]", "", message)
-        # 読み上げ辞書
+        # 読み上げ辞書適用
         message = self.replace_words(message)
-        message = message.strip()
-        return message
+        return message.strip()
 
-    def normalize_comment(self, author, message):
-        normalized_author = self.normalize_author(author)
-        normalized_message = self.normalize_message(message)
-        return normalized_author, normalized_message
+    def normalize_comment(self, author: str, message: str) -> tuple[str, str]:
+        """著者名とメッセージをまとめて正規化して返す。"""
+        return self.normalize_author(author), self.normalize_message(message)

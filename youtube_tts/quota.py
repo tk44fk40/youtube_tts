@@ -33,7 +33,7 @@ def get_quota_info(creds, project_id):
     client = monitoring_v3.MetricServiceClient(credentials=creds)
     project_name = f"projects/{project_id}"
 
-    # GCPのQueries per dayは太平洋時間の午前0時にリセットされるため、
+    # YouTube Data APIのクォータ制限（Queries per day）は太平洋時間の午前0時にリセットされるため、
     # 太平洋時間（America/Los_Angeles）基準で本日の午前0時からのデータを集計する。
     # タイムゾーンの取得に失敗した場合は、過去24時間（UTC）での集計にフォールバックする。
     try:

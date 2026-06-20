@@ -2,17 +2,16 @@ import pytest
 import os
 from unittest.mock import patch, MagicMock
 
-# Import the main function
+# main 関数をインポート
 from youtube_voicevox import main
 
 @patch("youtube_voicevox.YouTubeAuthenticator")
 @patch("youtube_voicevox.YouTubeChatClient")
-@patch("youtube_voicevox.youtube_worker")
-@patch("youtube_voicevox.cleanup")
+@patch("youtube_voicevox.YouTubeTtsApp")
 @patch("youtube_voicevox.AudioPlayer")
 @patch("sounddevice.query_devices")
-def test_cli_device_option(mock_query, mock_audio_player_class, mock_cleanup, mock_worker, mock_chat_client, mock_auth):
-    # Setup mocks
+def test_cli_device_option(mock_query, mock_audio_player_class, mock_app_class, mock_chat_client, mock_auth):
+    # モックをセットアップする
     mock_query.return_value = {"name": "test_device", "index": 6}
     
     mock_auth_instance = MagicMock()
@@ -23,22 +22,29 @@ def test_cli_device_option(mock_query, mock_audio_player_class, mock_cleanup, mo
     mock_chat_client.return_value = mock_chat_client_instance
     mock_chat_client_instance.extract_video_id.return_value = "video123"
     
-    # Test with -d option
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+    
+    # -d オプションを指定してテスト
     with patch("sys.argv", ["youtube_voicevox.py", "-d", "6", "video123"]):
         main()
         
-    # Verify AudioPlayer was initialized with default_device=6
+    # AudioPlayer が default_device=6 で初期化されたことを検証
     mock_audio_player_class.assert_called_with(default_device=6)
     mock_chat_client_instance.extract_video_id.assert_called_with("video123")
+    
+    # YouTubeTtsApp がインスタンス化され、run が呼び出されたことを検証
+    mock_app_class.assert_called_once()
+    mock_app_instance.run.assert_called_once()
+
 
 @patch("youtube_voicevox.YouTubeAuthenticator")
 @patch("youtube_voicevox.YouTubeChatClient")
-@patch("youtube_voicevox.youtube_worker")
-@patch("youtube_voicevox.cleanup")
+@patch("youtube_voicevox.YouTubeTtsApp")
 @patch("youtube_voicevox.AudioPlayer")
 @patch("sounddevice.query_devices")
-def test_cli_device_env_var(mock_query, mock_audio_player_class, mock_cleanup, mock_worker, mock_chat_client, mock_auth):
-    # Setup mocks
+def test_cli_device_env_var(mock_query, mock_audio_player_class, mock_app_class, mock_chat_client, mock_auth):
+    # モックをセットアップする
     mock_query.return_value = {"name": "test_device", "index": 6}
     
     mock_auth_instance = MagicMock()
@@ -49,21 +55,23 @@ def test_cli_device_env_var(mock_query, mock_audio_player_class, mock_cleanup, m
     mock_chat_client.return_value = mock_chat_client_instance
     mock_chat_client_instance.extract_video_id.return_value = "video123"
     
-    # Test with VOICEVOX_DEVICE env var
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+    
+    # VOICEVOX_DEVICE 環境変数を用いてテスト
     with patch.dict(os.environ, {"VOICEVOX_DEVICE": "6"}):
         with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
             main()
             
-    # Verify AudioPlayer was initialized with default_device=6
+    # AudioPlayer が default_device=6 で初期化されたことを検証
     mock_audio_player_class.assert_called_with(default_device=6)
 
 
 @patch("youtube_voicevox.YouTubeAuthenticator")
 @patch("youtube_voicevox.YouTubeChatClient")
-@patch("youtube_voicevox.youtube_worker")
-@patch("youtube_voicevox.cleanup")
+@patch("youtube_voicevox.YouTubeTtsApp")
 @patch("youtube_voicevox.get_project_id")
-def test_cli_quota_options(mock_get_project_id, mock_cleanup, mock_worker, mock_chat_client, mock_auth):
+def test_cli_quota_options(mock_get_project_id, mock_app_class, mock_chat_client, mock_auth):
     mock_get_project_id.return_value = "test-project-123"
     
     mock_auth_instance = MagicMock()
@@ -75,24 +83,27 @@ def test_cli_quota_options(mock_get_project_id, mock_cleanup, mock_worker, mock_
     mock_chat_client.return_value = mock_chat_client_instance
     mock_chat_client_instance.extract_video_id.return_value = "video123"
     
-    from youtube_voicevox import QUOTA_SCOPES
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
     
-    # Test with --quota-talk and custom intervals
+    from youtube_tts import QUOTA_SCOPES
+    
+    # --quota-talk およびカスタムの間隔を指定してテスト
     with patch("sys.argv", ["youtube_voicevox.py", "--quota-talk", "--chat-interval", "10", "--quota-interval", "30", "video123"]):
         main()
         
-    # Verify auth was called with QUOTA_SCOPES
+    # auth が QUOTA_SCOPES で呼び出されたことを検証
     mock_auth.assert_called_with(
         client_secret_path="client_secret.json",
         token_path="token.json",
         scopes=QUOTA_SCOPES
     )
     
-    # Verify get_project_id was called
+    # get_project_id が呼び出されたことを検証
     mock_get_project_id.assert_called_once()
     
-    # Verify youtube_worker was called with correct parameters
-    mock_worker.assert_called_with(
+    # app.run が正しいパラメータで呼び出されたことを検証
+    mock_app_instance.run.assert_called_with(
         mock_chat_client_instance,
         "video123",
         creds=mock_creds,
@@ -100,6 +111,171 @@ def test_cli_quota_options(mock_get_project_id, mock_cleanup, mock_worker, mock_
         quota_talk=True,
         chat_interval=10.0,
         quota_interval=30.0,
-        project_id="test-project-123"
+        stream_check_interval=180.0,
+        project_id="test-project-123",
+        verbose=False
     )
 
+    # --verbose およびカスタムの --stream-check-interval を指定してテスト
+    mock_app_instance.run.reset_mock()
+    with patch("sys.argv", ["youtube_voicevox.py", "--quota-talk", "--chat-interval", "10", "--quota-interval", "30", "--stream-check-interval", "120", "-v", "video123"]):
+        main()
+
+    mock_app_instance.run.assert_called_with(
+        mock_chat_client_instance,
+        "video123",
+        creds=mock_creds,
+        quota_check=True,
+        quota_talk=True,
+        chat_interval=10.0,
+        quota_interval=30.0,
+        stream_check_interval=120.0,
+        project_id="test-project-123",
+        verbose=True
+    )
+
+
+# ==============================================================================
+# CLI 例外ハンドリング・フォールバック処理のテスト
+# ==============================================================================
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+@patch("sounddevice.query_devices")
+def test_cli_device_option_string_name(mock_query, mock_audio_player_class, mock_app_class, mock_chat_client, mock_auth):
+    mock_query.return_value = {"name": "MyDevice", "index": 3}
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    with patch("sys.argv", ["youtube_voicevox.py", "-d", "MyDevice", "video123"]):
+        main()
+    mock_audio_player_class.assert_called_with(default_device="MyDevice")
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+@patch("sounddevice.query_devices")
+def test_cli_device_option_query_failure(mock_query, mock_audio_player_class, mock_app_class, mock_chat_client, mock_auth):
+    mock_query.side_effect = Exception("Sounddevice Error")
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    # ロガーの warning メッセージを監視
+    with patch("youtube_voicevox.setup_logger") as mock_setup_logger:
+        mock_logger = MagicMock()
+        mock_setup_logger.return_value = mock_logger
+        with patch("sys.argv", ["youtube_voicevox.py", "-d", "6", "video123"]):
+            main()
+        mock_logger.warning.assert_called_with("デバイス情報の取得に失敗しました: Sounddevice Error")
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+def test_cli_auth_failure(mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.side_effect = Exception("Auth Failure")
+
+    with pytest.raises(SystemExit) as exc_info:
+        with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
+            main()
+    assert exc_info.value.code == 1
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+def test_cli_video_id_auto_detection_success(mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.get_current_live_video_id.return_value = ("live_vid", "live_url")
+
+    with patch("sys.argv", ["youtube_voicevox.py"]):
+        main()
+    mock_chat_client_instance.get_current_live_video_id.assert_called_once()
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+def test_cli_video_id_auto_detection_failure(mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.get_current_live_video_id.side_effect = RuntimeError("No live stream found")
+
+    with pytest.raises(SystemExit) as exc_info:
+        with patch("sys.argv", ["youtube_voicevox.py"]):
+            main()
+    assert exc_info.value.code == 1
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.get_project_id")
+def test_cli_project_id_load_failure(mock_get_project_id, mock_app_class, mock_chat_client, mock_auth):
+    mock_get_project_id.side_effect = Exception("File not found")
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    with patch("sys.argv", ["youtube_voicevox.py", "--quota-check", "video123"]):
+        main()
+    
+    args, kwargs = mock_app_instance.run.call_args
+    assert kwargs["quota_check"] is False
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+def test_cli_unexpected_error_in_worker(mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+    
+    # run で例外を投げる
+    mock_app_instance.run.side_effect = Exception("Worker Unexpected Crash")
+
+    with patch("youtube_voicevox.setup_logger") as mock_setup_logger:
+        mock_logger = MagicMock()
+        mock_setup_logger.return_value = mock_logger
+        with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
+            main()
+        mock_logger.error.assert_called_with("Unexpected error: Worker Unexpected Crash")

@@ -13,17 +13,17 @@ class YouTubeChatClient:
 
         parsed = urlparse(value)
 
-        # youtu.be/<id>
+        # youtu.be/<id> 形式のURLから動画IDを抽出する
         if parsed.netloc == "youtu.be":
             return parsed.path.lstrip("/")
 
-        # youtube.com/watch?v=<id>
+        # youtube.com/watch?v=<id> 形式のURLから動画IDを抽出する
         if parsed.path == "/watch":
             query = parse_qs(parsed.query)
             if "v" in query:
                 return query["v"][0]
 
-        # youtube.com/live/<id>
+        # youtube.com/live/<id> 形式のURLから動画IDを抽出する
         if parsed.path.startswith("/live/"):
             parts = parsed.path.split("/")
             if len(parts) >= 3:
@@ -35,8 +35,8 @@ class YouTubeChatClient:
         try:
             response = self.youtube.videos().list(part="liveStreamingDetails", id=video_id).execute()
         except HttpError as e:
-            self._handle_quota_error(e)
-            raise
+            self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
+            raise  # 例外の再スローは呼び出し元に委ねる
 
         items = response.get("items", [])
         if not items:
@@ -53,8 +53,8 @@ class YouTubeChatClient:
         try:
             response = self.youtube.liveBroadcasts().list(part="id,status", mine=True).execute()
         except HttpError as e:
-            self._handle_quota_error(e)
-            raise
+            self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
+            raise  # 例外の再スローは呼び出し元に委ねる
 
         items = response.get("items", [])
         for item in items:
@@ -82,8 +82,8 @@ class YouTubeChatClient:
                 .execute()
             )
         except HttpError as e:
-            self._handle_quota_error(e)
-            raise
+            self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
+            raise  # 例外の再スローは呼び出し元に委ねる
 
         items = response.get("items", [])
         next_page_token = response.get("nextPageToken")
@@ -103,9 +103,9 @@ class YouTubeChatClient:
                 .execute()
             )
         except HttpError as e:
-            self._handle_quota_error(e)
+            self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
             print(f"[WARN] Error checking video status: {e}")
-            return True
+            return True  # チェック失敗時は継続を優先（配信中と見なす）
         
         items = vresp.get("items", [])
         if not items:
@@ -120,7 +120,12 @@ class YouTubeChatClient:
 
         return True
 
-    def _handle_quota_error(self, e):
+    def _handle_quota_error(self, e: HttpError):
+        """HTTP 403 クォータ超過エラーの場合に詳細なガイダンスをログ出力する。
+
+        このメソッドはログ出力のみ行い、例外の再スローは行わない。
+        呼び出し元が例外の種類に応じて動作（継続 or 停止）を選択できるようにするため。
+        """
         if e.resp.status == 403 and "quotaExceeded" in str(e):
             print("\n[ERROR] YouTube API quota exceeded")
             print("        Please wait 24 hours before running again")
