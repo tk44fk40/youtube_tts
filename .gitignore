@@ -1,3 +1,28 @@
 client_secret.json
 token.json
 test.wav
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Linters / Formatters
+.ruff_cache/
+
+# Local configuration files
+dictionary.txt
+ng_words.txt
+volume.txt
+
+# VOICEVOX project
+Untitled.vvproj
