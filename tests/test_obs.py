@@ -13,7 +13,7 @@ def test_obs_update_success(mock_obs_requests, mock_obsws_class):
     mock_obsws_class.return_value = mock_ws
     
     mock_set_settings = MagicMock()
-    mock_obs_requests.SetSourceSettings = mock_set_settings
+    mock_obs_requests.SetInputSettings = mock_set_settings
 
     client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
     
@@ -22,8 +22,8 @@ def test_obs_update_success(mock_obs_requests, mock_obsws_class):
     assert result is True
     mock_ws.connect.assert_called_once()
     mock_set_settings.assert_called_once_with(
-        sourceName="BrowserSource",
-        sourceSettings={"url": "http://chat_url"}
+        inputName="BrowserSource",
+        inputSettings={"url": "http://chat_url"}
     )
     mock_ws.call.assert_called_once()
     mock_ws.disconnect.assert_called_once()

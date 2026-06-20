@@ -26,8 +26,8 @@ class ObsClient:
             ws = obsws(self.host, self.port, self.password)
             ws.connect()
             ws.call(
-                obs_requests.SetSourceSettings(
-                    sourceName=source_name, sourceSettings={"url": url}
+                obs_requests.SetInputSettings(
+                    inputName=source_name, inputSettings={"url": url}
                 )
             )
             ws.disconnect()
