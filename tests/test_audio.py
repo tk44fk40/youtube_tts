@@ -19,9 +19,20 @@ def dummy_wav_bytes():
 @patch("youtube_tts.audio.sd")
 def test_audio_initialization_success(mock_sd):
     mock_sd.query_devices.return_value = {"name": "default", "default_samplerate": 48000}
+    player = AudioPlayer(default_device="custom_device")
+    assert player.target_sample_rate == 48000
+    assert mock_sd.default.device == "custom_device"
+    mock_sd.query_devices.assert_called_once_with(None, 'output')
+
+@patch("youtube_tts.audio.sd")
+def test_audio_initialization_default_none(mock_sd):
+    mock_sd.query_devices.return_value = {"name": "default", "default_samplerate": 48000}
+    # Create a mock property to verify it was not set
+    mock_sd.default = MagicMock()
     player = AudioPlayer()
     assert player.target_sample_rate == 48000
-    mock_sd.query_devices.assert_called_once_with(None, 'output')
+    # Verify that sd.default.device was not assigned
+    assert not mock_sd.default.mock_calls
 
 @patch("youtube_tts.audio.sd")
 def test_audio_initialization_no_device(mock_sd):

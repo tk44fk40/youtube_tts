@@ -4,9 +4,10 @@ import numpy as np
 import sounddevice as sd
 
 class AudioPlayer:
-    def __init__(self, default_device="default"):
+    def __init__(self, default_device=None):
         self.default_device = default_device
-        sd.default.device = default_device
+        if default_device is not None:
+            sd.default.device = default_device
 
         # Query default sample rate for output device
         try:

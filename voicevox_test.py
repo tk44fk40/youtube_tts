@@ -43,7 +43,7 @@ def main():
     args = parser.parse_args()
     
     client = VoicevoxClient(base_url=args.host, speaker_id=args.speaker)
-    player = AudioPlayer(default_device=args.device or "default")
+    player = AudioPlayer(default_device=args.device)
 
     if args.list_speakers:
         list_speakers(client)
