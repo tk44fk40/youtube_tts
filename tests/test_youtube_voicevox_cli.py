@@ -114,6 +114,7 @@ def test_cli_quota_options(mock_get_project_id, mock_app_class, mock_chat_client
         creds=mock_creds,
         quota_check=True,
         quota_talk=True,
+        tts_test=None,
         chat_interval=10.0,
         quota_interval=30.0,
         stream_check_interval=180.0,
@@ -134,6 +135,7 @@ def test_cli_quota_options(mock_get_project_id, mock_app_class, mock_chat_client
         creds=mock_creds,
         quota_check=True,
         quota_talk=True,
+        tts_test=None,
         chat_interval=10.0,
         quota_interval=30.0,
         stream_check_interval=120.0,
@@ -496,7 +498,7 @@ def test_cli_chat_log_option(mock_audio_player, mock_app_class, mock_chat_client
     mock_chat_client_instance = MagicMock()
     mock_chat_client.return_value = mock_chat_client_instance
     mock_chat_client_instance.extract_video_id.return_value = "video123"
-    
+
     mock_app_instance = MagicMock()
     mock_app_class.return_value = mock_app_instance
 
@@ -507,3 +509,73 @@ def test_cli_chat_log_option(mock_audio_player, mock_app_class, mock_chat_client
     assert kwargs["config"].chat_log_path == "custom_path.jsonl"
 
 
+# ==============================================================================
+# カバレッジ補完テスト
+# ==============================================================================
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_voicevox_connection_failure_warning(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    """VOICEVOX接続確認に失敗した場合: warning が出力される（L805-809）"""
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    with patch("youtube_voicevox.VoicevoxClient.get_speakers", side_effect=Exception("Connection refused")):
+        with patch("youtube_voicevox.setup_logger") as mock_setup_logger:
+            mock_logger = MagicMock()
+            mock_setup_logger.return_value = mock_logger
+            with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
+                main()
+
+    mock_logger.warning.assert_any_call("VOICEVOX サーバーへの接続確認に失敗しました。")
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_voicevox_connection_failure_verbose(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    """VOICEVOX接続確認に失敗した場合 verbose 時: debug ログが出力される（L808-809）"""
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    with patch("youtube_voicevox.VoicevoxClient.get_speakers", side_effect=Exception("Connection refused")):
+        with patch("youtube_voicevox.setup_logger") as mock_setup_logger:
+            mock_logger = MagicMock()
+            mock_setup_logger.return_value = mock_logger
+            with patch("sys.argv", ["youtube_voicevox.py", "-v", "video123"]):
+                main()
+
+    mock_logger.debug.assert_any_call("  (エラー詳細: Connection refused)")
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+def test_cli_auth_failure_verbose(mock_app_class, mock_chat_client, mock_auth):
+    """認証失敗かつ verbose 時: debug ログが出力される（L823）"""
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.side_effect = Exception("Auth Verbose Failure")
+
+    with patch("youtube_voicevox.setup_logger") as mock_setup_logger:
+        mock_logger = MagicMock()
+        mock_setup_logger.return_value = mock_logger
+        with pytest.raises(SystemExit):
+            with patch("sys.argv", ["youtube_voicevox.py", "-v", "video123"]):
+                main()
+
+    mock_logger.debug.assert_any_call("  (エラー詳細: Auth Verbose Failure)")

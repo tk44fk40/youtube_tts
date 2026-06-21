@@ -142,6 +142,7 @@ uv run python3 youtube_voicevox.py -d 6
 | `--device` | `-d` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) |
 | `--quota-check` | `-q` | デバッグ用のクォータ情報確認機能を有効にします（定期的にコンソールへ出力）。 | `False` |
 | `--quota-talk` | (なし) | クォータ使用量の音声読上げを有効にします（値が変化した時のみ。「ぴんぽーん！」というお知らせ発声の後にクォータ値を読み上げます。有効にすると自動で `--quota-check` も有効になります。また、YouTube APIのクォータ超過時に、次回リセット予定時刻を含めたアナウンスを自動で読み上げて終了します）。 | `False` |
+| `--tts-test [TEXT]` | (なし) | 起動時に自分のライブ配信であれば指定したテキストを読み上げる。テキストを省略した場合は「ぴんぽーん！チャット読上げのテストです」を使用。環境変数 `VOICEVOX_TTS_TEST` でも指定可能。 | `None`（無効） |
 | `--chat-interval` | (なし) | コメント取得の最短時間（秒）。 | `20.0` |
 | `--chat-log` | (なし) | チャットログの保存先パス。 | `"chat_log.jsonl"` |
 | `--backlog-seconds` | (なし) | 起動時に読み上げる過去コメントの遡り時間（秒）。`-1` を指定した場合はローリングバッファ内の過去コメントをすべて読み上げます（最大200件）。※ライブ配信モード時のみ有効。コメントモード（アーカイブ・投稿動画）時は無効です。 | `10` |
@@ -222,6 +223,8 @@ uv run python3 youtube_voicevox.py -d 6
   - 例: `[OBS] ✓ チャットURL設定成功`
 - **`[QUOTA]`**: クォータ確認機能が有効な場合、YouTube APIのクォータ消費量および本日上限などを出力するログです。
   - 例: `[QUOTA] Used: 963 / 10,000 (9.63%), Remaining: 9,037`
+- **`[TTS-TEST]`**: `--tts-test` 有効かつ自分のライブ配信起動時、テスト読み上げが実行された際に出力されます。
+  - 例: `[TTS-TEST] ぴんぽーん！チャット読上げのテストです`
 - **`[INFO] / [WARN] / [ERROR]`**: システムの起動情報、接続切断時の警告、APIエラーなどのシステム稼働ログです。
 
 ### 環境変数設定
@@ -238,6 +241,7 @@ uv run python3 youtube_voicevox.py -d 6
 | `VOICEVOX_AUTO_SPEED_BOOST` | キュー滞留時に読上げスピードを自動でブーストする機能の有効化設定。 | `false` | `true` (ブーストを有効化) |
 | `VOICEVOX_MAX_SPEED` | 自動スピードブースト時の最大速度。絶対上限は `2.2`。 | `2.2` | `2.0` (上限を2.0倍速に制限) |
 | `VOICEVOX_DEVICE` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) | `6` または `pipewire` |
+| `VOICEVOX_TTS_TEST` | 起動時に自分のライブ配信であれば読み上げるテキスト。設定した場合 `--tts-test` と同等の動作になる。空文字または未設定で無効。 | (なし) | `ぴんぽーん！チャット読上げのテストです` |
 | `OBS_WEBSOCKET_PASSWORD` | OBS の WebSocket 接続用認証パスワード。未設定時はOBS連携機能がスキップされます。 | (なし) | `your_obs_websocket_password` |
 | `OBS_WEBSOCKET_HOST` | OBS WebSocket が動作しているホスト名。 | `localhost` | `127.0.0.1` |
 | `OBS_WEBSOCKET_PORT` | OBS WebSocket の通信ポート。 | `4455` | `4455` |
@@ -342,7 +346,7 @@ youtube_tts/
 
 ```bash
 # テストの実行とカバレッジ（コード網羅率）の測定
-uv run pytest --cov=youtube_tts --cov-report=term-missing
+uv run pytest --cov=youtube_tts --cov=youtube_voicevox --cov-report=term-missing
 ```
 
 ---

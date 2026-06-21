@@ -254,6 +254,7 @@ class YouTubeTtsApp:
         creds=None,
         quota_check: bool = False,
         quota_talk: bool = False,
+        tts_test: str = None,
         chat_interval: float = 20.0,
         quota_interval: float = 180.0,
         stream_check_interval: float = 180.0,
@@ -294,6 +295,11 @@ class YouTubeTtsApp:
         else:
             is_live = False
             self.logger.info("[INFO] 動画判定: 投稿動画（コメントを取得します）")
+
+        # 自分のライブ配信かつ --tts-test 有効時は起動テスト読み上げを行う
+        if is_live and is_mine and tts_test:
+            self.logger.info(f"[TTS-TEST] {tts_test}")
+            self.speak(tts_test)
 
         # ライブチャットIDの初期化（ライブ配信モードのみ）
         live_chat_id = None
@@ -588,6 +594,7 @@ class YouTubeTtsApp:
         creds=None,
         quota_check: bool = False,
         quota_talk: bool = False,
+        tts_test: str = None,
         chat_interval: float = 20.0,
         quota_interval: float = 180.0,
         stream_check_interval: float = 180.0,
@@ -619,6 +626,7 @@ class YouTubeTtsApp:
                 creds=creds,
                 quota_check=quota_check,
                 quota_talk=quota_talk,
+                tts_test=tts_test,
                 chat_interval=chat_interval,
                 quota_interval=quota_interval,
                 stream_check_interval=stream_check_interval,
@@ -690,6 +698,19 @@ def main():
         "--quota-talk",
         action="store_true",
         help="クォータ使用量の読上げ機能を有効にする"
+    )
+    _TTS_TEST_DEFAULT = "ぴんぽーん！チャット読上げのテストです"
+    parser.add_argument(
+        "--tts-test",
+        nargs="?",
+        const=_TTS_TEST_DEFAULT,
+        default=os.getenv("VOICEVOX_TTS_TEST") or None,
+        metavar="TEXT",
+        help=(
+            "起動時に自分のライブ配信であれば指定したテキストを読み上げる。"
+            f"テキストを省略した場合は「{_TTS_TEST_DEFAULT}」を使用。"
+            "環境変数 VOICEVOX_TTS_TEST でも指定可能。"
+        )
     )
     parser.add_argument(
         "--chat-interval",
@@ -853,6 +874,7 @@ def main():
             creds=creds,
             quota_check=args.quota_check,
             quota_talk=args.quota_talk,
+            tts_test=args.tts_test,
             chat_interval=args.chat_interval,
             quota_interval=args.quota_interval,
             stream_check_interval=args.stream_check_interval,

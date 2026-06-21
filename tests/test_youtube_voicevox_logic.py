@@ -1479,4 +1479,116 @@ def test_youtube_worker_quota_exceeded_speech_queue_empty(mock_get_quota_info, a
     app.comment_queue.task_done()
 
 
+# ==============================================================================
+# TTS テスト読み上げ機能のテスト
+# ==============================================================================
+def test_youtube_worker_tts_test_default_text(app):
+    """tts_test にデフォルト文を指定した場合: speak() がそのテキストで呼ばれる"""
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"activeLiveChatId": "chat_my_live"}
+    }
+    mock_chat_client.get_live_chat_id.return_value = "chat_my_live"
 
+    def fetch_and_stop(*args, **kwargs):
+        app.stop_event.set()
+        return [], "token", 1000
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_and_stop
+
+    with patch.object(app, "speak") as mock_speak:
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_my_live",
+            tts_test="ぴんぽーん！チャット読上げのテストです",
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+        )
+
+    mock_speak.assert_called_once_with("ぴんぽーん！チャット読上げのテストです")
+
+
+def test_youtube_worker_tts_test_custom_text(app):
+    """tts_test にカスタムテキストを指定した場合: speak() がそのテキストで呼ばれる"""
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"activeLiveChatId": "chat_my_live"}
+    }
+    mock_chat_client.get_live_chat_id.return_value = "chat_my_live"
+
+    def fetch_and_stop(*args, **kwargs):
+        app.stop_event.set()
+        return [], "token", 1000
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_and_stop
+
+    with patch.object(app, "speak") as mock_speak:
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_my_live",
+            tts_test="カスタムテキスト",
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+        )
+
+    mock_speak.assert_called_once_with("カスタムテキスト")
+
+
+def test_youtube_worker_tts_test_disabled(app):
+    """tts_test=None の場合: 自分のライブでも speak() が呼ばれない"""
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"activeLiveChatId": "chat_my_live"}
+    }
+    mock_chat_client.get_live_chat_id.return_value = "chat_my_live"
+
+    def fetch_and_stop(*args, **kwargs):
+        app.stop_event.set()
+        return [], "token", 1000
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_and_stop
+
+    with patch.object(app, "speak") as mock_speak:
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_my_live",
+            tts_test=None,
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+        )
+
+    mock_speak.assert_not_called()
+
+
+def test_youtube_worker_tts_test_not_triggered_on_others_live(app):
+    """tts_test 有効でも他者のライブ配信では speak() が呼ばれない"""
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "other_channel_456"},
+        "liveStreamingDetails": {"activeLiveChatId": "chat_other_live"}
+    }
+    mock_chat_client.get_live_chat_id.return_value = "chat_other_live"
+
+    def fetch_and_stop(*args, **kwargs):
+        app.stop_event.set()
+        return [], "token", 1000
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_and_stop
+
+    with patch.object(app, "speak") as mock_speak:
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_other_live",
+            tts_test="ぴんぽーん！チャット読上げのテストです",
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+        )
+
+    mock_speak.assert_not_called()
