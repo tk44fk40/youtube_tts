@@ -25,10 +25,7 @@ class VoicevoxClient:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            raise RuntimeError(
-                f"VOICEVOXサーバーへの接続に失敗しました: {e}\n"
-                "VOICEVOXが起動しているか、ホストURLが正しいか確認してください。"
-            ) from e
+            raise RuntimeError(f"VOICEVOXサーバーへの接続に失敗しました: {e}") from e
 
     def synthesize(self, text, volume_scale=1.0, speed_scale=1.0, target_sample_rate=None) -> bytes:
         # 1. 音声クエリを作成する
