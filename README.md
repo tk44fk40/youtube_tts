@@ -307,3 +307,9 @@ youtube_tts/
 # テストの実行とカバレッジ（コード網羅率）の測定
 uv run pytest --cov=youtube_tts --cov-report=term-missing
 ```
+
+---
+
+## 4. ライセンス
+
+本プロジェクトは [Apache License 2.0](LICENSE) の下でオープンソースソフトウェアとして公開されています。
