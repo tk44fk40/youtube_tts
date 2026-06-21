@@ -94,7 +94,7 @@ class YouTubeTtsApp:
             self.audio_player.play_wav(wav_bytes)
         except Exception as e:
             # VOICEVOX サーバーの未起動や、オーディオ出力デバイスの競合などが原因で失敗する可能性がある
-            self.logger.error(f"speak failed: {e}")
+            self.logger.exception("speak failed")
 
     def is_and_mark_processed(self, message_id: str) -> bool:
         """メッセージIDが処理済みかどうかを判定し、未処理なら履歴に追加する。
@@ -173,7 +173,7 @@ class YouTubeTtsApp:
         try:
             video_details = chat_client.get_video_details(video_id)
         except Exception as e:
-            self.logger.error(f"Failed to get video details: {e}")
+            self.logger.exception("Failed to get video details")
             self.stop_event.set()
             return
 
@@ -206,7 +206,7 @@ class YouTubeTtsApp:
                 live_chat_id = chat_client.get_live_chat_id(video_id)
                 self.logger.info(f"liveChatId: {live_chat_id}")
             except Exception as e:
-                self.logger.error(f"Failed to get liveChatId: {e}")
+                self.logger.exception("Failed to get liveChatId")
                 self.stop_event.set()
                 return
 
@@ -237,7 +237,7 @@ class YouTubeTtsApp:
                         video_id, page_token=page_token, max_results=max_results
                     )
                 except Exception as e:
-                    self.logger.error(f"Failed to fetch initial comment threads: {e}")
+                    self.logger.exception("Failed to fetch initial comment threads")
                     break
                 
                 if not items:
@@ -300,7 +300,7 @@ class YouTubeTtsApp:
                     )
             except Exception as e:
                 # クォータエラーなどの致命的なエラー時はスレッド終了
-                self.logger.error(f"Failed to fetch chat/comments: {e}")
+                self.logger.exception("Failed to fetch chat/comments")
                 self.stop_event.set()
                 return
 
@@ -470,7 +470,7 @@ class YouTubeTtsApp:
                 backlog_counts=backlog_counts,
             )
         except Exception as e:
-            self.logger.error(f"Unexpected error: {e}")
+            self.logger.exception("Unexpected error")
         finally:
             self.cleanup(playback_thread=playback_thread, wait_seconds=5)
 
@@ -624,7 +624,7 @@ def main():
     try:
         creds = authenticator.get_credentials()
     except Exception as e:
-        logger.error(f"Authentication failed: {e}")
+        logger.exception("Authentication failed")
         sys.exit(1)
 
     chat_client = YouTubeChatClient(creds)
@@ -636,7 +636,7 @@ def main():
         try:
             video_id, chat_url = chat_client.get_current_live_video_id()
         except RuntimeError as e:
-            logger.error(e)
+            logger.exception(str(e))
             sys.exit(1)
 
         logger.info(f"auto-detected current live video_id: {video_id}")
@@ -687,7 +687,7 @@ def main():
             backlog_counts=args.backlog_counts,
         )
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.exception("Unexpected error")
 
 
 if __name__ == "__main__":

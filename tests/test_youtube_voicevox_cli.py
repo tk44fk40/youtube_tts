@@ -282,7 +282,7 @@ def test_cli_unexpected_error_in_worker(mock_app_class, mock_chat_client, mock_a
         mock_setup_logger.return_value = mock_logger
         with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
             main()
-        mock_logger.error.assert_called_with("Unexpected error: Worker Unexpected Crash")
+        mock_logger.exception.assert_called_with("Unexpected error")
 
 
 @patch("youtube_voicevox.YouTubeAuthenticator")

@@ -49,7 +49,7 @@ class AppConfig:
                     normalized_src = normalize_nfkc(src.strip()).lower()
                     replacements[normalized_src] = dst.strip()
         except OSError as e:
-            logger.warning(f"[WARN] Failed to load dictionary: {e}")
+            logger.warning(f"Failed to load dictionary: {e}")
         return replacements
 
     def _load_ng_words(self):
@@ -64,7 +64,7 @@ class AppConfig:
                     normalized_word = normalize_nfkc(word).lower()
                     ng_words.add(normalized_word)
         except OSError as e:
-            logger.warning(f"[WARN] Failed to load ng_words: {e}")
+            logger.warning(f"Failed to load ng_words: {e}")
         return ng_words
 
     def reload_if_changed(self):
@@ -99,6 +99,6 @@ class AppConfig:
                     else:
                         logger.info(f"[CONFIG] volume scale out of range (0.0 - 2.0): {val}")
                 except OSError as e:
-                    logger.warning(f"[WARN] Failed to read volume.txt: {e}")
+                    logger.warning(f"Failed to read volume.txt: {e}")
                 except ValueError as e:
-                    logger.warning(f"[WARN] Invalid volume value in volume.txt: {e}")
+                    logger.warning(f"Invalid volume value in volume.txt: {e}")

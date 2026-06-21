@@ -93,4 +93,4 @@ class AudioPlayer:
         try:
             sd.stop()
         except Exception as e:
-            logger.warning(f"[WARN] sounddevice stop failed: {e}")
+            logger.warning(f"sounddevice stop failed: {e}")

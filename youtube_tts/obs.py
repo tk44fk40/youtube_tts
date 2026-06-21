@@ -46,5 +46,5 @@ class ObsClient:
             logger.info(f"      URL: {url}")
             return True
         except Exception as e:
-            logger.error(f"[OBS] ✗ チャットURL設定失敗: {e}")
+            logger.exception("[OBS] ✗ チャットURL設定失敗")
             return False

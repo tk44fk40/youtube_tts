@@ -108,18 +108,18 @@ class YouTubeChatClient:
             )
         except HttpError as e:
             self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
-            logger.warning(f"[WARN] Error checking video status: {e}")
+            logger.warning(f"Error checking video status: {e}")
             return True  # チェック失敗時は継続を優先（配信中と見なす）
         
         items = vresp.get("items", [])
         if not items:
-            logger.info("[INFO] Video not found; assuming stream ended")
+            logger.info("Video not found; assuming stream ended")
             return False
 
         details = items[0].get("liveStreamingDetails", {})
         active_chat = details.get("activeLiveChatId")
         if not active_chat:
-            logger.info("[INFO] activeLiveChatId missing; stream likely ended")
+            logger.info("activeLiveChatId missing; stream likely ended")
             return False
 
         return True
@@ -131,9 +131,9 @@ class YouTubeChatClient:
         呼び出し元が例外の種類に応じて動作（継続 or 停止）を選択できるようにするため。
         """
         if e.resp.status == 403 and "quotaExceeded" in str(e):
-            logger.error("\n[ERROR] YouTube API quota exceeded")
-            logger.error("        Please wait 24 hours before running again")
-            logger.error(f"        Error: {e}")
+            logger.error("YouTube API quota exceeded")
+            logger.error("Please wait 24 hours before running again")
+            logger.error(f"Error: {e}")
 
     def get_my_channel_id(self):
         if not hasattr(self, "_my_channel_id"):
@@ -145,7 +145,7 @@ class YouTubeChatClient:
                 else:
                     self._my_channel_id = None
             except Exception as ex:
-                logger.warning(f"[WARN] Failed to get my channel ID: {ex}")
+                logger.warning(f"Failed to get my channel ID: {ex}")
                 self._my_channel_id = None
         return self._my_channel_id
 
@@ -202,7 +202,7 @@ class YouTubeChatClient:
                         }
                     })
             except Exception as ex:
-                logger.warning(f"[WARN] Failed to parse comment: {ex}")
+                logger.warning(f"Failed to parse comment: {ex}")
                 continue
 
         next_page_token = response.get("nextPageToken")

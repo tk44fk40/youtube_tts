@@ -71,6 +71,39 @@ def test_setup_logger():
         # 他のテストに影響しないようハンドラを削除する
         logger.removeHandler(handler)
 
+def test_tagged_logger():
+    from youtube_tts.logger import TaggedLogger, get_logger
+    logger = get_logger()
+    assert isinstance(logger, TaggedLogger)
+
+    captured_output = StringIO()
+    handler = logging.StreamHandler(captured_output)
+    logger.addHandler(handler)
+    
+    try:
+        logger.info("Normal message")
+        logger.info("[CUSTOM] Custom prefix message")
+        logger.critical("Critical message")
+        try:
+            raise ValueError("Test error")
+        except ValueError:
+            logger.exception("Exception message")
+        logger.log(logging.WARNING, "Log message")
+        logger.warn("Warn message")
+        
+        output = captured_output.getvalue()
+        lines = output.splitlines()
+        
+        assert "[INFO] Normal message" in lines[0]
+        assert "[CUSTOM] Custom prefix message" in lines[1]
+        assert "[INFO] [CUSTOM]" not in lines[1]
+        assert "[CRITICAL] Critical message" in lines[2]
+        assert "[ERROR] Exception message" in lines[3]
+        assert "[WARN] Log message" in lines[-2]
+        assert "[WARN] Warn message" in lines[-1]
+    finally:
+        logger.removeHandler(handler)
+
 # ==============================================================================
 # 2. speak および playback_worker のテスト
 # ==============================================================================
@@ -492,7 +525,7 @@ def test_youtube_worker_fetch_exception(app):
     mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
     mock_chat_client.fetch_chat_messages.side_effect = Exception("YouTube API Error")
 
-    with patch.object(app.logger, "error") as mock_error:
+    with patch.object(app.logger, "exception") as mock_exception:
         app.youtube_worker(
             chat_client=mock_chat_client,
             video_id="video_abc",
@@ -501,7 +534,7 @@ def test_youtube_worker_fetch_exception(app):
             quota_interval=100.0,
         )
 
-    mock_error.assert_called_with("Failed to fetch chat/comments: YouTube API Error")
+    mock_exception.assert_called_with("Failed to fetch chat/comments")
     assert app.stop_event.is_set()
 
 
@@ -726,10 +759,10 @@ def test_youtube_worker_video_details_failure(app):
     mock_chat_client = MagicMock(spec=YouTubeChatClient)
     mock_chat_client.get_video_details.side_effect = Exception("Details API Error")
 
-    with patch.object(app.logger, "error") as mock_error:
+    with patch.object(app.logger, "exception") as mock_exception:
         app.youtube_worker(mock_chat_client, "vid")
     
-    mock_error.assert_called_with("Failed to get video details: Details API Error")
+    mock_exception.assert_called_with("Failed to get video details")
     assert app.stop_event.is_set()
 
 
@@ -742,10 +775,10 @@ def test_youtube_worker_get_live_chat_id_failure(app):
     }
     mock_chat_client.get_live_chat_id.side_effect = Exception("Chat ID API Error")
 
-    with patch.object(app.logger, "error") as mock_error:
+    with patch.object(app.logger, "exception") as mock_exception:
         app.youtube_worker(mock_chat_client, "vid")
 
-    mock_error.assert_called_with("Failed to get liveChatId: Chat ID API Error")
+    mock_exception.assert_called_with("Failed to get liveChatId")
     assert app.stop_event.is_set()
 
 
@@ -773,10 +806,10 @@ def test_youtube_worker_initial_fetch_comments_failure(app):
     }
     mock_chat_client.fetch_comment_threads.side_effect = Exception("Fetch API Error")
 
-    with patch.object(app.logger, "error") as mock_error:
+    with patch.object(app.logger, "exception") as mock_exception:
         app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01)
     
-    mock_error.assert_any_call("Failed to fetch initial comment threads: Fetch API Error")
+    mock_exception.assert_any_call("Failed to fetch initial comment threads")
 
 
 def test_youtube_worker_initial_fetch_comments_no_items(app):
@@ -994,9 +1027,9 @@ def test_youtube_worker_initial_comments_history_overflow(app):
 def test_youtube_app_run_unexpected_error(app):
     mock_chat_client = MagicMock(spec=YouTubeChatClient)
     with patch.object(app, "youtube_worker", side_effect=Exception("Unexpected crash!")):
-        with patch.object(app.logger, "error") as mock_error:
+        with patch.object(app.logger, "exception") as mock_exception:
             app.run(mock_chat_client, "vid")
     
-    mock_error.assert_called_with("Unexpected error: Unexpected crash!")
+    mock_exception.assert_called_with("Unexpected error")
 
 

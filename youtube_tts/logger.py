@@ -3,6 +3,43 @@ import sys
 
 LOGGER_NAME = "youtube_tts"
 
+class TaggedLogger(logging.Logger):
+    def _add_prefix(self, level: int, msg) -> str:
+        msg_str = str(msg)
+        stripped = msg_str.lstrip()
+        if not stripped.startswith("["):
+            level_name = logging.getLevelName(level)
+            if level_name == "WARNING":
+                level_name = "WARN"
+            return f"[{level_name}] {msg_str}"
+        return msg_str
+
+    def debug(self, msg, *args, **kwargs):
+        super().debug(self._add_prefix(logging.DEBUG, msg), *args, **kwargs)
+
+    def info(self, msg, *args, **kwargs):
+        super().info(self._add_prefix(logging.INFO, msg), *args, **kwargs)
+
+    def warning(self, msg, *args, **kwargs):
+        super().warning(self._add_prefix(logging.WARNING, msg), *args, **kwargs)
+
+    def warn(self, msg, *args, **kwargs):
+        self.warning(msg, *args, **kwargs)
+
+    def error(self, msg, *args, **kwargs):
+        super().error(self._add_prefix(logging.ERROR, msg), *args, **kwargs)
+
+    def critical(self, msg, *args, **kwargs):
+        super().critical(self._add_prefix(logging.CRITICAL, msg), *args, **kwargs)
+
+    def exception(self, msg, *args, **kwargs):
+        super().exception(self._add_prefix(logging.ERROR, msg), *args, **kwargs)
+
+    def log(self, level, msg, *args, **kwargs):
+        super().log(level, self._add_prefix(level, msg), *args, **kwargs)
+
+logging.setLoggerClass(TaggedLogger)
+
 def setup_logger(verbose: bool = False) -> logging.Logger:
     """セットアップ済みのロガーを取得または作成します。
 
