@@ -14,12 +14,21 @@ def test_config_initial_load(tmp_path):
     config = AppConfig(
         dictionary_path=dict_file,
         ng_words_path=ng_file,
-        volume_path=vol_file
+        volume_path=vol_file,
+        chat_log_path="custom_chat.jsonl"
     )
 
     assert config.volume_scale == 0.5
     assert config.replacements == {"apple": "林檎", "banana": "バナナ"}
     assert config.ng_words == {"badword"}
+    assert config.chat_log_path == "custom_chat.jsonl"
+
+    config_default = AppConfig(
+        dictionary_path=dict_file,
+        ng_words_path=ng_file,
+        volume_path=vol_file
+    )
+    assert config_default.chat_log_path == "chat_log.jsonl"
 
 def test_config_reload_on_change(tmp_path):
     dict_file = tmp_path / "dictionary.txt"

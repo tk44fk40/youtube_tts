@@ -17,10 +17,11 @@ def normalize_nfkc(text: str) -> str:
 
 
 class AppConfig:
-    def __init__(self, dictionary_path="dictionary.txt", ng_words_path="ng_words.txt", volume_path="volume.txt"):
+    def __init__(self, dictionary_path="dictionary.txt", ng_words_path="ng_words.txt", volume_path="volume.txt", chat_log_path="chat_log.jsonl"):
         self.dictionary_file = Path(dictionary_path)
         self.ng_word_file = Path(ng_words_path)
         self.volume_file = Path(volume_path)
+        self.chat_log_path = chat_log_path
 
         self.volume_scale = 1.0
         self.speed_scale = 1.0

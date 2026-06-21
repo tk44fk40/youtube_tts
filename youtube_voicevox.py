@@ -115,6 +115,45 @@ class YouTubeTtsApp:
             self.processed_message_ids.discard(oldest_message_id)
         return False
 
+    def write_chat_log(self, item: dict, video_id: str):
+        """受信したチャット/コメントのイベントをJSONL形式で保存する"""
+        import json
+        from datetime import datetime, timezone
+
+        published_at_str = item.get("snippet", {}).get("publishedAt")
+        if not published_at_str:
+            published_at_str = datetime.now(timezone.utc).isoformat()
+
+        author_details = item.get("authorDetails", {})
+        snippet = item.get("snippet", {})
+
+        log_data = {
+            "timestamp": published_at_str,
+            "video_id": video_id,
+            "author_id": author_details.get("channelId"),
+            "author_name": author_details.get("displayName", ""),
+            "message": snippet.get("displayMessage", ""),
+            "message_type": snippet.get("type", "textMessageEvent"),
+            "is_member": author_details.get("isChatSponsor", False),
+            "is_moderator": author_details.get("isChatModerator", False),
+            "is_owner": author_details.get("isChatOwner", False),
+            "super_chat": None
+        }
+
+        super_chat_details = snippet.get("superChatDetails")
+        if super_chat_details:
+            log_data["super_chat"] = {
+                "amount_micros": super_chat_details.get("amountMicros"),
+                "currency": super_chat_details.get("currency"),
+                "display_string": super_chat_details.get("amountDisplayString")
+            }
+
+        try:
+            with open(self.config.chat_log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + "\n")
+        except Exception as e:
+            self.logger.error(f"[ERROR] チャットログの保存に失敗しました: {e}")
+
     def playback_worker(self):
         """コメント再生キューを監視し、順次再生するスレッドワーカー"""
         while not self.stop_event.is_set():
@@ -265,6 +304,7 @@ class YouTubeTtsApp:
             for item in backlog_items:
                 message_id = item["id"]
                 self.is_and_mark_processed(message_id)
+                self.write_chat_log(item, video_id)
 
                 author = item["authorDetails"]["displayName"]
                 message = item["snippet"]["displayMessage"]
@@ -328,6 +368,8 @@ class YouTubeTtsApp:
 
                 if self.is_and_mark_processed(message_id):
                     continue
+
+                self.write_chat_log(item, video_id)
 
                 # 投稿時刻のチェックによる過去コメントの除外（ライブチャットモードのみ）
                 if is_live and threshold_time is not None:
@@ -558,6 +600,11 @@ def main():
         help="コメント取得の最短時間（秒）。デフォルトは20秒。"
     )
     parser.add_argument(
+        "--chat-log",
+        default="chat_log.jsonl",
+        help="チャットログの保存先パス（デフォルト: chat_log.jsonl）。"
+    )
+    parser.add_argument(
         "--backlog-seconds",
         type=int,
         default=10,
@@ -599,7 +646,8 @@ def main():
     config = AppConfig(
         dictionary_path="dictionary.txt",
         ng_words_path="ng_words.txt",
-        volume_path="volume.txt"
+        volume_path="volume.txt",
+        chat_log_path=args.chat_log
     )
     # 環境変数 VOICEVOX_VOLUME_SCALE が設定されている場合はファイル設定より優先する
     if "VOICEVOX_VOLUME_SCALE" in os.environ:

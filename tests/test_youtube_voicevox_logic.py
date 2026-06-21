@@ -1110,3 +1110,113 @@ def test_youtube_app_run_signal_value_error(app):
     assert app.stop_event.is_set()
 
 
+def test_write_chat_log_normal(app, tmp_path):
+    log_file = tmp_path / "test_chat.jsonl"
+    app.config.chat_log_path = str(log_file)
+    
+    item = {
+        "id": "msg_123",
+        "authorDetails": {
+            "channelId": "UC_abc",
+            "displayName": "User",
+            "isChatSponsor": True,
+            "isChatModerator": False,
+            "isChatOwner": False
+        },
+        "snippet": {
+            "type": "textMessageEvent",
+            "displayMessage": "Hello, World!",
+            "publishedAt": "2026-06-22T02:00:00Z"
+        }
+    }
+    
+    app.write_chat_log(item, "vid_123")
+    
+    assert log_file.exists()
+    content = log_file.read_text(encoding="utf-8").strip()
+    import json
+    data = json.loads(content)
+    
+    assert data["timestamp"] == "2026-06-22T02:00:00Z"
+    assert data["video_id"] == "vid_123"
+    assert data["author_id"] == "UC_abc"
+    assert data["author_name"] == "User"
+    assert data["message"] == "Hello, World!"
+    assert data["message_type"] == "textMessageEvent"
+    assert data["is_member"] is True
+    assert data["is_moderator"] is False
+    assert data["is_owner"] is False
+    assert data["super_chat"] is None
+
+
+def test_write_chat_log_no_published_at(app, tmp_path):
+    log_file = tmp_path / "test_chat.jsonl"
+    app.config.chat_log_path = str(log_file)
+    
+    item = {
+        "id": "msg_123",
+        "authorDetails": {
+            "channelId": "UC_abc",
+            "displayName": "User"
+        },
+        "snippet": {
+            "displayMessage": "Hello"
+        }
+    }
+    
+    app.write_chat_log(item, "vid_123")
+    
+    content = log_file.read_text(encoding="utf-8").strip()
+    import json
+    data = json.loads(content)
+    assert data["timestamp"] is not None
+
+
+def test_write_chat_log_super_chat(app, tmp_path):
+    log_file = tmp_path / "test_chat.jsonl"
+    app.config.chat_log_path = str(log_file)
+    
+    item = {
+        "id": "msg_123",
+        "authorDetails": {
+            "channelId": "UC_abc",
+            "displayName": "User"
+        },
+        "snippet": {
+            "type": "superChatEvent",
+            "displayMessage": "Super Chat Message",
+            "superChatDetails": {
+                "amountMicros": 1000000000,
+                "currency": "JPY",
+                "amountDisplayString": "￥1,000"
+            }
+        }
+    }
+    
+    app.write_chat_log(item, "vid_123")
+    
+    content = log_file.read_text(encoding="utf-8").strip()
+    import json
+    data = json.loads(content)
+    assert data["super_chat"] == {
+        "amount_micros": 1000000000,
+        "currency": "JPY",
+        "display_string": "￥1,000"
+    }
+
+
+def test_write_chat_log_error(app):
+    app.config.chat_log_path = "/nonexistent_directory_12345/chat.jsonl"
+    
+    item = {
+        "id": "msg_123",
+        "authorDetails": {},
+        "snippet": {}
+    }
+    
+    with patch.object(app.logger, "error") as mock_error:
+        app.write_chat_log(item, "vid")
+        mock_error.assert_called_once()
+        assert "[ERROR] チャットログの保存に失敗しました" in mock_error.call_args[0][0]
+
+

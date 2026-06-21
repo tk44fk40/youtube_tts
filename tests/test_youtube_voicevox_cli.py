@@ -483,3 +483,27 @@ def test_cli_volume_scale_env_var_invalid(mock_audio_player, mock_app_class, moc
     args, kwargs = mock_app_class.call_args
     assert kwargs["config"].volume_scale is not None
 
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_chat_log_option(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    with patch("sys.argv", ["youtube_voicevox.py", "--chat-log", "custom_path.jsonl", "video123"]):
+        main()
+        
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].chat_log_path == "custom_path.jsonl"
+
+

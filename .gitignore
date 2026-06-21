@@ -26,3 +26,6 @@ volume.txt
 
 # VOICEVOX project
 Untitled.vvproj
+
+# Chat logs
+*.jsonl

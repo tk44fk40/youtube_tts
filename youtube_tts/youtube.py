@@ -204,12 +204,14 @@ class YouTubeChatClient:
                 author = comment_snippet.get("authorDisplayName", "")
                 message = comment_snippet.get("textOriginal", "")
                 published_at = comment_snippet.get("publishedAt", "")
+                author_channel_id = comment_snippet.get("authorChannelId", {}).get("value", "")
                 
                 if comment_id:
                     items.append({
                         "id": comment_id,
                         "authorDetails": {
-                            "displayName": author
+                            "displayName": author,
+                            "channelId": author_channel_id
                         },
                         "snippet": {
                             "type": "commentEvent",
