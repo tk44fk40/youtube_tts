@@ -10,6 +10,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 from youtube_tts import (
     AppConfig,
@@ -196,6 +197,41 @@ class YouTubeTtsApp:
             self.speak(text, speed_scale=speed)
             self.comment_queue.task_done()
 
+    def _get_next_quota_reset_time(self):
+        """太平洋時間における次のクォータリセット時刻を算出し、ローカルのタイムゾーンに変換して返す"""
+        try:
+            from zoneinfo import ZoneInfo
+            tz_la = ZoneInfo("America/Los_Angeles")
+        except Exception:
+            # フォールバック: 現在時刻の月情報から簡易的にPDT/PSTを切り替える
+            now_utc = datetime.now(timezone.utc)
+            if 3 <= now_utc.month <= 11:
+                tz_la = timezone(timedelta(hours=-7))  # PDT
+            else:
+                tz_la = timezone(timedelta(hours=-8))  # PST
+
+        now_la = datetime.now(tz_la)
+        next_reset_la = (now_la + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return next_reset_la.astimezone()
+
+    def _format_reset_time_for_speech(self, reset_time):
+        """リセット時刻を音声読み上げ用の文字列にフォーマットする"""
+        now_local = datetime.now().astimezone()
+        delta_days = (reset_time.date() - now_local.date()).days
+
+        time_str = f"{reset_time.hour}時"
+        if reset_time.minute > 0:
+            time_str += f"{reset_time.minute}分"
+
+        if delta_days == 0:
+            day_prefix = "今日"
+        elif delta_days == 1:
+            day_prefix = "明日"
+        else:
+            day_prefix = f"{reset_time.month}月{reset_time.day}日"
+
+        return f"{day_prefix}の{time_str}"
+
     def youtube_worker(
         self,
         chat_client: YouTubeChatClient,
@@ -349,7 +385,54 @@ class YouTubeTtsApp:
                         video_id, page_token=None, max_results=100
                     )
             except Exception as e:
-                # クォータエラーなどの致命的なエラー時はスレッド終了
+                # クォータ超過のエラー（HttpError かつ status=403 かつ "quotaExceeded"）であるかを判定
+                is_quota_exceeded = False
+                try:
+                    from googleapiclient.errors import HttpError
+                    if isinstance(e, HttpError) and e.resp.status == 403:
+                        content_str = ""
+                        if hasattr(e, "content") and e.content:
+                            try:
+                                content_str = e.content.decode("utf-8")
+                            except Exception:
+                                pass
+                        if "quotaExceeded" in str(e) or "quotaExceeded" in content_str:
+                            is_quota_exceeded = True
+                except ImportError:
+                    pass
+
+                if is_quota_exceeded:
+                    if quota_talk:
+                        # コメント再生キューをクリア
+                        while not self.comment_queue.empty():
+                            try:
+                                self.comment_queue.get_nowait()
+                                self.comment_queue.task_done()
+                            except queue.Empty:
+                                break
+
+                        # 警告メッセージを作成
+                        try:
+                            reset_time = self._get_next_quota_reset_time()
+                            reset_str = self._format_reset_time_for_speech(reset_time)
+                            quota_message = f"ぴんぽーん！残念！クォータを超過しました。{reset_str}頃までお待ち下さい。"
+                        except Exception as ex:
+                            self.logger.warning(f"リセット予定時刻の取得に失敗しました: {ex}")
+                            quota_message = "ぴんぽーん！残念！クォータを超過しました。"
+
+                        self.logger.info(f"[QUOTA] {quota_message}")
+
+                        quota_author = ""
+                        char_count = len(quota_message)
+                        with self.queue_lock:
+                            self.queued_char_count = char_count
+                        self.comment_queue.put(CommentItem(quota_author, quota_message, char_count))
+
+                        # 再生が完了するのを少し待つ（最大5秒）
+                        timeout = time.time() + 5.0
+                        while not self.comment_queue.empty() and time.time() < timeout:
+                            time.sleep(0.1)
+
                 self.logger.error("[ERROR] チャットまたはコメントの取得に失敗しました。")
                 if verbose:
                     self.logger.debug(f"  (エラー詳細: {e})")

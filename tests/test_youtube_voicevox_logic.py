@@ -1220,3 +1220,263 @@ def test_write_chat_log_error(app):
         assert "[ERROR] チャットログの保存に失敗しました" in mock_error.call_args[0][0]
 
 
+# ==============================================================================
+# 6. クォータ超過時の読み上げ機能のテスト
+# ==============================================================================
+@patch("youtube_voicevox.get_quota_info")
+def test_youtube_worker_quota_exceeded_speech(mock_get_quota_info, app):
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+    from youtube_voicevox import CommentItem
+
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
+
+    # クォータ超過エラーをシミュレート
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"domain": "usageLimits", "reason": "quotaExceeded"}], "code": 403, "message": "Quota exceeded"}}'
+    mock_chat_client.fetch_chat_messages.side_effect = HttpError(resp, content)
+
+    # 既存のコメントがキューに残っている状態をシミュレート
+    app.comment_queue.put(CommentItem("User", "Old Comment", 11))
+
+    # quota_talk=True のテスト
+    app.youtube_worker(
+        chat_client=mock_chat_client,
+        video_id="video_abc",
+        creds="mock_creds",
+        quota_check=True,
+        quota_talk=True,
+        chat_interval=0.01,
+        quota_interval=100.0,
+        stream_check_interval=100.0,
+    )
+
+    # スレッド停止イベントがセットされていること
+    assert app.stop_event.is_set()
+    # キューには「クォータ超過しました」の警告コメントのみがあること（古いコメントはクリアされている）
+    assert app.comment_queue.qsize() == 1
+    author, msg = app.comment_queue.get()
+    assert author == ""
+    assert "クォータを超過しました" in msg
+    assert "お待ち下さい" in msg
+
+    # queueの task_done を呼んで空にする
+    app.comment_queue.task_done()
+    assert app.comment_queue.empty()
+
+    # quota_talk=False のテスト
+    app.stop_event.clear()
+    app.comment_queue.put(CommentItem("User", "Old Comment", 11))
+    
+    app.youtube_worker(
+        chat_client=mock_chat_client,
+        video_id="video_abc",
+        creds="mock_creds",
+        quota_check=True,
+        quota_talk=False,  # 読み上げ無効
+        chat_interval=0.01,
+        quota_interval=100.0,
+        stream_check_interval=100.0,
+    )
+    
+    # 警告メッセージは投入されず、古いコメントもクリアされない
+    assert app.comment_queue.qsize() == 1
+    author, msg = app.comment_queue.get()
+    assert author == "User"
+    assert msg == "Old Comment"
+    app.comment_queue.task_done()
+
+
+@patch("youtube_voicevox.get_quota_info")
+def test_youtube_worker_quota_exceeded_speech_time_failure(mock_get_quota_info, app):
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+    from youtube_voicevox import CommentItem
+
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
+
+    # クォータ超過エラーをシミュレート
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"domain": "usageLimits", "reason": "quotaExceeded"}], "code": 403, "message": "Quota exceeded"}}'
+    mock_chat_client.fetch_chat_messages.side_effect = HttpError(resp, content)
+
+    # _get_next_quota_reset_time が例外を投げるようにモック
+    with patch.object(app, "_get_next_quota_reset_time", side_effect=RuntimeError("Time Error")):
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_abc",
+            creds="mock_creds",
+            quota_check=True,
+            quota_talk=True,
+            chat_interval=0.01,
+            quota_interval=100.0,
+            stream_check_interval=100.0,
+        )
+
+    # アナウンスがデフォルトの文言で投入されていること
+    assert app.comment_queue.qsize() == 1
+    author, msg = app.comment_queue.get()
+    assert author == ""
+    assert msg == "ぴんぽーん！残念！クォータを超過しました。"
+    app.comment_queue.task_done()
+
+
+def test_quota_reset_time_calculation_and_speech_formatting(app):
+    from datetime import datetime, timezone, timedelta
+
+    # _get_next_quota_reset_time のテスト (正常系)
+    # ZoneInfo が使える前提でテストする
+    reset_time = app._get_next_quota_reset_time()
+    assert isinstance(reset_time, datetime)
+    assert reset_time.tzinfo is not None
+
+    # ZoneInfo 読み込み失敗時のフォールバック動作を検証するため、
+    # ZoneInfo の import 時に例外を投げるようにモックする
+    with patch("zoneinfo.ZoneInfo", side_effect=Exception("mock import error")):
+        # 現在が夏時間 (6月など) の場合
+        reset_time_fallback = app._get_next_quota_reset_time()
+        assert isinstance(reset_time_fallback, datetime)
+
+        # 現在を冬時間 (1月など) にモックして、PST へのフォールバック (L211) をカバーする
+        with patch("youtube_voicevox.datetime") as mock_datetime:
+            from datetime import datetime as real_datetime
+            mock_datetime.now.side_effect = lambda tz=None: real_datetime(2026, 1, 15, 10, 0, 0, tzinfo=tz)
+            
+            # _get_next_quota_reset_time を実行して、tz_la が PST (UTC-8) になることを検証
+            reset_time_winter = app._get_next_quota_reset_time()
+            assert isinstance(reset_time_winter, real_datetime)
+
+    # _format_reset_time_for_speech のテスト
+    # テスト対象の日付を現在時刻に対して調整
+    now_local = datetime.now().astimezone()
+    
+    # 1. 今日のリセット (同日)
+    reset_today = now_local.replace(hour=16, minute=0, second=0, microsecond=0)
+    formatted = app._format_reset_time_for_speech(reset_today)
+    assert "今日の16時" in formatted
+
+    # 1.1 分数がある場合
+    reset_today_min = now_local.replace(hour=16, minute=30, second=0, microsecond=0)
+    formatted = app._format_reset_time_for_speech(reset_today_min)
+    assert "今日の16時30分" in formatted
+
+    # 2. 明日のリセット
+    reset_tomorrow = (now_local + timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+    formatted = app._format_reset_time_for_speech(reset_tomorrow)
+    assert "明日の17時" in formatted
+
+    # 3. それ以降の日付
+    reset_future = (now_local + timedelta(days=3)).replace(hour=16, minute=0, second=0, microsecond=0)
+    formatted = app._format_reset_time_for_speech(reset_future)
+    expected_day = f"{reset_future.month}月{reset_future.day}日"
+    assert f"{expected_day}の16時" in formatted
+
+
+@patch("youtube_voicevox.get_quota_info")
+def test_youtube_worker_quota_exceeded_speech_decode_failure(mock_get_quota_info, app):
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
+
+    # クォータ超過エラーをシミュレート (デコードエラーになる不正なバイト列を設定)
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'\xff\xff\xff'
+    # str(e) に quotaExceeded が含まれないが、e.content.decode("utf-8") で例外が発生することを確認する
+    mock_chat_client.fetch_chat_messages.side_effect = HttpError(resp, content)
+
+    app.youtube_worker(
+        chat_client=mock_chat_client,
+        video_id="video_abc",
+        creds="mock_creds",
+        quota_check=True,
+        quota_talk=True,
+        chat_interval=0.01,
+        quota_interval=100.0,
+        stream_check_interval=100.0,
+    )
+
+    # デコードエラーで例外が発生して pass され、通常のエラー終了になる（読み上げは入らない）
+    assert app.stop_event.is_set()
+    assert app.comment_queue.empty()
+
+
+@patch("youtube_voicevox.get_quota_info")
+def test_youtube_worker_quota_exceeded_speech_import_error(mock_get_quota_info, app):
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
+
+    # クォータ超過エラーをシミュレート
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"domain": "usageLimits", "reason": "quotaExceeded"}], "code": 403, "message": "Quota exceeded"}}'
+    mock_chat_client.fetch_chat_messages.side_effect = HttpError(resp, content)
+
+    # builtins.__import__ をフックして ImportError を投げるようにパッチする
+    import builtins
+    real_import = builtins.__import__
+    def mock_import(name, *args, **kwargs):
+        if "googleapiclient" in name:
+            raise ImportError("mock import error")
+        return real_import(name, *args, **kwargs)
+
+    with patch("builtins.__import__", side_effect=mock_import):
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_abc",
+            creds="mock_creds",
+            quota_check=True,
+            quota_talk=True,
+            chat_interval=0.01,
+            quota_interval=100.0,
+            stream_check_interval=100.0,
+        )
+
+    # インポートエラーで pass され、通常のエラー終了になる（読み上げは入らない）
+    assert app.stop_event.is_set()
+    assert app.comment_queue.empty()
+
+
+@patch("youtube_voicevox.get_quota_info")
+def test_youtube_worker_quota_exceeded_speech_queue_empty(mock_get_quota_info, app):
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+    import queue
+
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
+
+    # クォータ超過エラーをシミュレート
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"domain": "usageLimits", "reason": "quotaExceeded"}], "code": 403, "message": "Quota exceeded"}}'
+    mock_chat_client.fetch_chat_messages.side_effect = HttpError(resp, content)
+
+    # キューの中身が入っていると見せかけて、get_nowait() で queue.Empty を発生させる
+    # comment_queue.empty() が一瞬 False になるようにパッチしつつ、get_nowait は Empty を投げる
+    with patch.object(app.comment_queue, "empty", side_effect=[False, True]), \
+         patch.object(app.comment_queue, "get_nowait", side_effect=queue.Empty):
+        
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_abc",
+            creds="mock_creds",
+            quota_check=True,
+            quota_talk=True,
+            chat_interval=0.01,
+            quota_interval=100.0,
+            stream_check_interval=100.0,
+        )
+
+    # 警告メッセージは投入されるが、古いメッセージのクリア処理が queue.Empty で安全に break される
+    assert app.stop_event.is_set()
+    assert app.comment_queue.qsize() == 1
+    app.comment_queue.get()
+    app.comment_queue.task_done()
+
+
+
