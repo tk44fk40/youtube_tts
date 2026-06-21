@@ -5,6 +5,11 @@ from unittest.mock import patch, MagicMock
 # main 関数をインポート
 from youtube_voicevox import main
 
+@pytest.fixture(autouse=True)
+def mock_voicevox_client_get_speakers():
+    with patch("youtube_voicevox.VoicevoxClient.get_speakers") as mock_get_speakers:
+        yield mock_get_speakers
+
 @patch("youtube_voicevox.YouTubeAuthenticator")
 @patch("youtube_voicevox.YouTubeChatClient")
 @patch("youtube_voicevox.YouTubeTtsApp")

@@ -191,6 +191,40 @@ def test_handle_quota_error(mock_build, mock_creds, caplog):
         
     assert any("本日の無料枠上限（クォータ）を超過しました" in record.message for record in caplog.records)
 
+
+@patch("youtube_tts.youtube.build")
+def test_handle_comments_disabled_error(mock_build, mock_creds):
+    mock_service = MagicMock()
+    mock_build.return_value = mock_service
+    
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"domain": "youtube.commentThread", "reason": "commentsDisabled"}], "code": 403, "message": "Comments are disabled"}}'
+    
+    # test verbose = False
+    client = YouTubeChatClient(mock_creds, verbose=False)
+    mock_service.videos().list().execute.side_effect = HttpError(resp, content)
+    
+    with patch("youtube_tts.youtube.logger") as mock_logger:
+        with pytest.raises(HttpError):
+            client.get_live_chat_id("vid")
+            
+        mock_logger.error.assert_any_call("[ERROR] この動画・アーカイブはコメント機能がオフ（無効）に設定されています。")
+        mock_logger.error.assert_any_call("        - コメント（チャット）機能が有効な動画・配信のURLを指定してください。")
+        mock_logger.debug.assert_not_called()
+
+    # test verbose = True
+    client_verbose = YouTubeChatClient(mock_creds, verbose=True)
+    with patch("youtube_tts.youtube.logger") as mock_logger:
+        with pytest.raises(HttpError):
+            client_verbose.get_live_chat_id("vid")
+            
+        mock_logger.error.assert_any_call("[ERROR] この動画・アーカイブはコメント機能がオフ（無効）に設定されています。")
+        mock_logger.error.assert_any_call("        - コメント（チャット）機能が有効な動画・配信のURLを指定してください。")
+        mock_logger.debug.assert_called_once()
+        args, _ = mock_logger.debug.call_args
+        assert "(エラー詳細:" in args[0]
+
+
 @patch("youtube_tts.youtube.build")
 def test_get_my_channel_id_success(mock_build, mock_creds):
     mock_service = MagicMock()

@@ -122,12 +122,39 @@ def test_speak_success(app):
 
 def test_speak_failure(app):
     app.voicevox_client.synthesize.side_effect = Exception("VOICEVOX Error")
+    app.verbose = False
     
     # 例外をキャッチし、クラッシュしないこと、ログが出力されることを確認
-    with patch.object(app.logger, "error") as mock_error:
+    with patch.object(app.logger, "error") as mock_error, \
+         patch.object(app.logger, "debug") as mock_debug:
         app.speak("エラーテスト")
         app.audio_player.play_wav.assert_not_called()
-        mock_error.assert_called_once()
+        
+        # エラーメッセージが3回出力されたことを確認
+        assert mock_error.call_count == 3
+        mock_error.assert_any_call("[ERROR] 音声の合成または再生に失敗しました。")
+        mock_error.assert_any_call("        - VOICEVOX サーバーが起動しているか確認してください。")
+        mock_error.assert_any_call("        - 出力オーディオデバイスの設定を確認してください。")
+        
+        # verbose が False なのでデバッグログは出力されない
+        mock_debug.assert_not_called()
+
+
+def test_speak_failure_verbose(app):
+    app.voicevox_client.synthesize.side_effect = Exception("VOICEVOX Error")
+    app.verbose = True
+    
+    # 例外をキャッチし、クラッシュしないこと、ログが出力されることを確認
+    with patch.object(app.logger, "error") as mock_error, \
+         patch.object(app.logger, "debug") as mock_debug:
+        app.speak("エラーテスト")
+        app.audio_player.play_wav.assert_not_called()
+        
+        # エラーメッセージが3回出力されたことを確認
+        assert mock_error.call_count == 3
+        
+        # verbose が True なのでデバッグログが出力される
+        mock_debug.assert_called_once_with("  (エラー詳細: VOICEVOX Error)")
 
 
 def test_playback_worker(app):
@@ -643,7 +670,8 @@ def test_youtube_worker_quota_exception(mock_get_quota_info, app):
 
     mock_get_quota_info.side_effect = Exception("Monitoring API Error")
 
-    with patch.object(app.logger, "warning") as mock_warning:
+    with patch.object(app.logger, "warning") as mock_warning, \
+         patch.object(app.logger, "debug") as mock_debug:
         app.youtube_worker(
             chat_client=mock_chat_client,
             video_id="video_abc",
@@ -653,9 +681,11 @@ def test_youtube_worker_quota_exception(mock_get_quota_info, app):
             quota_interval=-1.0,
             stream_check_interval=100.0,
             project_id="project_123",
+            verbose=True,
         )
 
     mock_warning.assert_any_call("[WARNING] クォータ情報の取得に失敗しました。")
+    mock_debug.assert_any_call("  (エラー詳細: Monitoring API Error)")
 
 
 def test_youtube_worker_stream_active_verbose(app):
@@ -759,10 +789,12 @@ def test_youtube_worker_video_details_failure(app):
     mock_chat_client = MagicMock(spec=YouTubeChatClient)
     mock_chat_client.get_video_details.side_effect = Exception("Details API Error")
 
-    with patch.object(app.logger, "error") as mock_error:
-        app.youtube_worker(mock_chat_client, "vid")
+    with patch.object(app.logger, "error") as mock_error, \
+         patch.object(app.logger, "debug") as mock_debug:
+        app.youtube_worker(mock_chat_client, "vid", verbose=True)
     
     mock_error.assert_called_with("[ERROR] 動画情報の取得に失敗しました。")
+    mock_debug.assert_called_with("  (エラー詳細: Details API Error)")
     assert app.stop_event.is_set()
 
 
@@ -775,10 +807,12 @@ def test_youtube_worker_get_live_chat_id_failure(app):
     }
     mock_chat_client.get_live_chat_id.side_effect = Exception("Chat ID API Error")
 
-    with patch.object(app.logger, "error") as mock_error:
-        app.youtube_worker(mock_chat_client, "vid")
+    with patch.object(app.logger, "error") as mock_error, \
+         patch.object(app.logger, "debug") as mock_debug:
+        app.youtube_worker(mock_chat_client, "vid", verbose=True)
 
     mock_error.assert_called_with("[ERROR] liveChatId の取得に失敗しました。")
+    mock_debug.assert_called_with("  (エラー詳細: Chat ID API Error)")
     assert app.stop_event.is_set()
 
 
@@ -806,10 +840,12 @@ def test_youtube_worker_initial_fetch_comments_failure(app):
     }
     mock_chat_client.fetch_comment_threads.side_effect = Exception("Fetch API Error")
 
-    with patch.object(app.logger, "error") as mock_error:
-        app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01)
+    with patch.object(app.logger, "error") as mock_error, \
+         patch.object(app.logger, "debug") as mock_debug:
+        app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01, verbose=True)
     
     mock_error.assert_any_call("[ERROR] 初期コメントスレッドの取得に失敗しました。")
+    mock_debug.assert_any_call("  (エラー詳細: Fetch API Error)")
 
 
 def test_youtube_worker_initial_fetch_comments_no_items(app):
@@ -1031,5 +1067,46 @@ def test_youtube_app_run_unexpected_error(app):
             app.run(mock_chat_client, "vid")
     
     mock_exception.assert_called_with("Unexpected error")
+
+
+def test_youtube_app_run_signal_handling(app):
+    import signal
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    
+    handlers = {}
+    def mock_signal(sig, handler):
+        handlers[sig] = handler
+        return None
+    
+    def dummy_worker(*args, **kwargs):
+        # シグナルハンドラを実行する
+        if signal.SIGINT in handlers:
+            handlers[signal.SIGINT](signal.SIGINT, None)
+    
+    with patch("signal.signal", side_effect=mock_signal), \
+         patch.object(app, "youtube_worker", side_effect=dummy_worker), \
+         patch.object(app.logger, "info") as mock_info:
+        app.run(mock_chat_client, "vid")
+        
+    assert app.stop_event.is_set()
+    mock_info.assert_any_call("Signal received, shutting down...")
+
+
+def test_youtube_app_run_signal_value_error(app):
+    import signal
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    
+    def mock_signal(sig, handler):
+        raise ValueError("signal only works in main thread")
+        
+    def dummy_worker(*args, **kwargs):
+        app.stop_event.set()
+        
+    with patch("signal.signal", side_effect=mock_signal), \
+         patch.object(app, "youtube_worker", side_effect=dummy_worker):
+        # ValueError が発生しても無視されて正常に終了することを確認
+        app.run(mock_chat_client, "vid")
+        
+    assert app.stop_event.is_set()
 
 

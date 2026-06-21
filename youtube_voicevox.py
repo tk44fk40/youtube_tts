@@ -77,6 +77,7 @@ class YouTubeTtsApp:
         self.last_spoken_used = None
         self.queued_char_count = 0
         self.queue_lock = threading.Lock()
+        self.verbose = False
 
     def speak(self, text: str, speed_scale: float = None):
         """指定されたテキストを VOICEVOX で音声合成し再生する"""
@@ -93,8 +94,11 @@ class YouTubeTtsApp:
             # 音声再生
             self.audio_player.play_wav(wav_bytes)
         except Exception as e:
-            # VOICEVOX サーバーの未起動や、オーディオ出力デバイスの競合などが原因で失敗する可能性がある
-            self.logger.exception("speak failed")
+            self.logger.error("[ERROR] 音声の合成または再生に失敗しました。")
+            self.logger.error("        - VOICEVOX サーバーが起動しているか確認してください。")
+            self.logger.error("        - 出力オーディオデバイスの設定を確認してください。")
+            if getattr(self, "verbose", False):
+                self.logger.debug(f"  (エラー詳細: {e})")
 
     def is_and_mark_processed(self, message_id: str) -> bool:
         """メッセージIDが処理済みかどうかを判定し、未処理なら履歴に追加する。
@@ -453,6 +457,7 @@ class YouTubeTtsApp:
         backlog_counts: int = 100,
     ):
         """スレッドの起動、シグナルハンドラ設定、および実行中のエラー処理をハンドリングする"""
+        self.verbose = verbose
         def handle_signal(signum, frame):
             self.logger.info("Signal received, shutting down...")
             self.stop_event.set()
@@ -626,6 +631,15 @@ def main():
 
     audio_player = AudioPlayer(default_device=dev_id)
     voicevox_client = VoicevoxClient(base_url=VOICEVOX_URL, speaker_id=SPEAKER_ID)
+
+    # VOICEVOX サーバーへの接続確認
+    try:
+        voicevox_client.get_speakers()
+    except Exception as e:
+        logger.warning("VOICEVOX サーバーへの接続確認に失敗しました。")
+        logger.warning("      ※VOICEVOXが起動しているか、ホストURLおよびポート番号が正しいか確認してください。")
+        if args.verbose:
+            logger.debug(f"  (エラー詳細: {e})")
 
     # 認証情報の初期化
     scopes = QUOTA_SCOPES if args.quota_check else None
