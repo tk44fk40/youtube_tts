@@ -1,4 +1,4 @@
-from .auth import YouTubeAuthenticator
+from .auth import YouTubeAuthenticator, YOUTUBE_SCOPE
 from .youtube import YouTubeChatClient
 from .voicevox import VoicevoxClient
 from .audio import AudioPlayer
@@ -16,6 +16,7 @@ __all__ = [
     "AppConfig",
     "TextProcessor",
     "ObsClient",
+    "YOUTUBE_SCOPE",
     "QUOTA_SCOPES",
     "get_project_id",
     "get_quota_info",

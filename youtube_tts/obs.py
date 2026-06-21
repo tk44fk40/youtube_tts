@@ -42,9 +42,10 @@ class ObsClient:
                 )
             )
             ws.disconnect()
-            logger.info("[OBS] ✓ チャットURL設定成功")
+            logger.info("[OBS] チャットURL設定成功")
             logger.info(f"      URL: {url}")
             return True
         except Exception as e:
-            logger.exception("[OBS] ✗ チャットURL設定失敗")
+            logger.error(f"[OBS] チャットURL設定失敗 (エラー詳細: {e})")
+            logger.error("      ※OBS Studioが起動しているか、およびWebSocketサーバー(ポート4455)の設定を確認してください。")
             return False

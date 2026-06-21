@@ -173,7 +173,9 @@ class YouTubeTtsApp:
         try:
             video_details = chat_client.get_video_details(video_id)
         except Exception as e:
-            self.logger.exception("Failed to get video details")
+            self.logger.error("[ERROR] 動画情報の取得に失敗しました。")
+            if verbose:
+                self.logger.debug(f"  (エラー詳細: {e})")
             self.stop_event.set()
             return
 
@@ -206,7 +208,9 @@ class YouTubeTtsApp:
                 live_chat_id = chat_client.get_live_chat_id(video_id)
                 self.logger.info(f"liveChatId: {live_chat_id}")
             except Exception as e:
-                self.logger.exception("Failed to get liveChatId")
+                self.logger.error("[ERROR] liveChatId の取得に失敗しました。")
+                if verbose:
+                    self.logger.debug(f"  (エラー詳細: {e})")
                 self.stop_event.set()
                 return
 
@@ -237,7 +241,9 @@ class YouTubeTtsApp:
                         video_id, page_token=page_token, max_results=max_results
                     )
                 except Exception as e:
-                    self.logger.exception("Failed to fetch initial comment threads")
+                    self.logger.error("[ERROR] 初期コメントスレッドの取得に失敗しました。")
+                    if verbose:
+                        self.logger.debug(f"  (エラー詳細: {e})")
                     break
                 
                 if not items:
@@ -300,7 +306,9 @@ class YouTubeTtsApp:
                     )
             except Exception as e:
                 # クォータエラーなどの致命的なエラー時はスレッド終了
-                self.logger.exception("Failed to fetch chat/comments")
+                self.logger.error("[ERROR] チャットまたはコメントの取得に失敗しました。")
+                if verbose:
+                    self.logger.debug(f"  (エラー詳細: {e})")
                 self.stop_event.set()
                 return
 
@@ -388,7 +396,12 @@ class YouTubeTtsApp:
                             self.comment_queue.put(CommentItem(quota_author, quota_message, char_count))
                             self.last_spoken_used = used
                 except Exception as e:
-                    self.logger.warning(f"Failed to fetch quota info: {e}")
+                    self.logger.warning("[WARNING] クォータ情報の取得に失敗しました。")
+                    self.logger.warning("          - Google Cloud Console で「Cloud Monitoring API」が有効化されているか確認してください。")
+                    self.logger.warning("          - 認証したアカウントに「モニタリング閲覧者 (Monitoring Viewer)」権限が付与されているか確認してください。")
+                    self.logger.warning("          ※本機能がエラーになっても、チャットの読み上げ自体は問題なく動作し続けます。")
+                    if verbose:
+                        self.logger.debug(f"  (エラー詳細: {e})")
                 last_quota_check_time = now
 
             time.sleep(max(polling_interval / 1000, chat_interval))
@@ -624,10 +637,12 @@ def main():
     try:
         creds = authenticator.get_credentials()
     except Exception as e:
-        logger.exception("Authentication failed")
+        logger.error("[ERROR] 認証に失敗しました。")
+        if args.verbose:
+            logger.debug(f"  (エラー詳細: {e})")
         sys.exit(1)
 
-    chat_client = YouTubeChatClient(creds)
+    chat_client = YouTubeChatClient(creds, verbose=args.verbose)
 
     if args.video_url_or_id:
         video_id = chat_client.extract_video_id(args.video_url_or_id)
@@ -636,7 +651,7 @@ def main():
         try:
             video_id, chat_url = chat_client.get_current_live_video_id()
         except RuntimeError as e:
-            logger.exception(str(e))
+            logger.error(f"[ERROR] ライブ動画IDの自動検出に失敗しました: {e}")
             sys.exit(1)
 
         logger.info(f"auto-detected current live video_id: {video_id}")

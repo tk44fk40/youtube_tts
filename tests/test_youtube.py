@@ -189,7 +189,7 @@ def test_handle_quota_error(mock_build, mock_creds, caplog):
         with caplog.at_level("ERROR"):
             client.get_live_chat_id("vid")
         
-    assert any("YouTube API quota exceeded" in record.message for record in caplog.records)
+    assert any("本日の無料枠上限（クォータ）を超過しました" in record.message for record in caplog.records)
 
 @patch("youtube_tts.youtube.build")
 def test_get_my_channel_id_success(mock_build, mock_creds):
@@ -307,7 +307,7 @@ def test_get_video_details_http_error(mock_build, mock_creds, caplog):
     with pytest.raises(HttpError):
         with caplog.at_level("ERROR"):
             client.get_video_details("vid")
-    assert any("YouTube API quota exceeded" in record.message for record in caplog.records)
+    assert any("本日の無料枠上限（クォータ）を超過しました" in record.message for record in caplog.records)
 
 
 @patch("youtube_tts.youtube.build")
@@ -323,7 +323,7 @@ def test_fetch_comment_threads_http_error(mock_build, mock_creds, caplog):
     with pytest.raises(HttpError):
         with caplog.at_level("ERROR"):
             client.fetch_comment_threads("vid")
-    assert any("YouTube API quota exceeded" in record.message for record in caplog.records)
+    assert any("本日の無料枠上限（クォータ）を超過しました" in record.message for record in caplog.records)
 
 
 @patch("youtube_tts.youtube.build")

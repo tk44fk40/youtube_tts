@@ -3,11 +3,13 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"
+
 class YouTubeAuthenticator:
     def __init__(self, client_secret_path="client_secret.json", token_path="token.json", scopes=None):
         self.client_secret_path = Path(client_secret_path)
         self.token_path = Path(token_path)
-        self.scopes = scopes or ["https://www.googleapis.com/auth/youtube.readonly"]
+        self.scopes = scopes or [YOUTUBE_SCOPE]
 
     def get_credentials(self) -> Credentials:
         creds = None

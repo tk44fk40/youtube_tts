@@ -525,7 +525,7 @@ def test_youtube_worker_fetch_exception(app):
     mock_chat_client.get_live_chat_id.return_value = "chat_id_123"
     mock_chat_client.fetch_chat_messages.side_effect = Exception("YouTube API Error")
 
-    with patch.object(app.logger, "exception") as mock_exception:
+    with patch.object(app.logger, "error") as mock_error:
         app.youtube_worker(
             chat_client=mock_chat_client,
             video_id="video_abc",
@@ -534,7 +534,7 @@ def test_youtube_worker_fetch_exception(app):
             quota_interval=100.0,
         )
 
-    mock_exception.assert_called_with("Failed to fetch chat/comments")
+    mock_error.assert_called_with("[ERROR] チャットまたはコメントの取得に失敗しました。")
     assert app.stop_event.is_set()
 
 
@@ -655,7 +655,7 @@ def test_youtube_worker_quota_exception(mock_get_quota_info, app):
             project_id="project_123",
         )
 
-    mock_warning.assert_called_with("Failed to fetch quota info: Monitoring API Error")
+    mock_warning.assert_any_call("[WARNING] クォータ情報の取得に失敗しました。")
 
 
 def test_youtube_worker_stream_active_verbose(app):
@@ -759,10 +759,10 @@ def test_youtube_worker_video_details_failure(app):
     mock_chat_client = MagicMock(spec=YouTubeChatClient)
     mock_chat_client.get_video_details.side_effect = Exception("Details API Error")
 
-    with patch.object(app.logger, "exception") as mock_exception:
+    with patch.object(app.logger, "error") as mock_error:
         app.youtube_worker(mock_chat_client, "vid")
     
-    mock_exception.assert_called_with("Failed to get video details")
+    mock_error.assert_called_with("[ERROR] 動画情報の取得に失敗しました。")
     assert app.stop_event.is_set()
 
 
@@ -775,10 +775,10 @@ def test_youtube_worker_get_live_chat_id_failure(app):
     }
     mock_chat_client.get_live_chat_id.side_effect = Exception("Chat ID API Error")
 
-    with patch.object(app.logger, "exception") as mock_exception:
+    with patch.object(app.logger, "error") as mock_error:
         app.youtube_worker(mock_chat_client, "vid")
 
-    mock_exception.assert_called_with("Failed to get liveChatId")
+    mock_error.assert_called_with("[ERROR] liveChatId の取得に失敗しました。")
     assert app.stop_event.is_set()
 
 
@@ -806,10 +806,10 @@ def test_youtube_worker_initial_fetch_comments_failure(app):
     }
     mock_chat_client.fetch_comment_threads.side_effect = Exception("Fetch API Error")
 
-    with patch.object(app.logger, "exception") as mock_exception:
+    with patch.object(app.logger, "error") as mock_error:
         app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01)
     
-    mock_exception.assert_any_call("Failed to fetch initial comment threads")
+    mock_error.assert_any_call("[ERROR] 初期コメントスレッドの取得に失敗しました。")
 
 
 def test_youtube_worker_initial_fetch_comments_no_items(app):

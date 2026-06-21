@@ -8,8 +8,9 @@ from .logger import get_logger
 logger = get_logger()
 
 class YouTubeChatClient:
-    def __init__(self, credentials):
+    def __init__(self, credentials, verbose=False):
         self.youtube = build("youtube", "v3", credentials=credentials)
+        self.verbose = verbose
 
     def extract_video_id(self, value):
         if "youtube.com" not in value and "youtu.be" not in value:
@@ -39,7 +40,7 @@ class YouTubeChatClient:
         try:
             response = self.youtube.videos().list(part="liveStreamingDetails", id=video_id).execute()
         except HttpError as e:
-            self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
+            self._handle_api_error(e)
             raise  # 例外の再スローは呼び出し元に委ねる
 
         items = response.get("items", [])
@@ -57,7 +58,7 @@ class YouTubeChatClient:
         try:
             response = self.youtube.liveBroadcasts().list(part="id,status", mine=True).execute()
         except HttpError as e:
-            self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
+            self._handle_api_error(e)
             raise  # 例外の再スローは呼び出し元に委ねる
 
         items = response.get("items", [])
@@ -86,7 +87,7 @@ class YouTubeChatClient:
                 .execute()
             )
         except HttpError as e:
-            self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
+            self._handle_api_error(e)
             raise  # 例外の再スローは呼び出し元に委ねる
 
         items = response.get("items", [])
@@ -107,7 +108,7 @@ class YouTubeChatClient:
                 .execute()
             )
         except HttpError as e:
-            self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
+            self._handle_api_error(e)
             logger.warning(f"Error checking video status: {e}")
             return True  # チェック失敗時は継続を優先（配信中と見なす）
         
@@ -124,16 +125,31 @@ class YouTubeChatClient:
 
         return True
 
-    def _handle_quota_error(self, e: HttpError):
-        """HTTP 403 クォータ超過エラーの場合に詳細なガイダンスをログ出力する。
+    def _handle_api_error(self, e: HttpError):
+        """YouTube APIの例外を検知し、発生原因に応じた詳細なガイダンスを日本語で出力する。
 
         このメソッドはログ出力のみ行い、例外の再スローは行わない。
         呼び出し元が例外の種類に応じて動作（継続 or 停止）を選択できるようにするため。
         """
-        if e.resp.status == 403 and "quotaExceeded" in str(e):
-            logger.error("YouTube API quota exceeded")
-            logger.error("Please wait 24 hours before running again")
-            logger.error(f"Error: {e}")
+        err_msg = str(e)
+        if e.resp.status == 403:
+            if "quotaExceeded" in err_msg:
+                logger.error("[ERROR] YouTube API の本日の無料枠上限（クォータ）を超過しました。")
+                logger.error("        - 太平洋時間 0:00（日本時間の午後4時〜5時頃）に制限がリセットされるまでお待ちください。")
+                logger.error("        - または、別の Google Cloud プロジェクトの client_secret.json を使用してください。")
+            elif "commentsDisabled" in err_msg:
+                logger.error("[ERROR] この動画・アーカイブはコメント機能がオフ（無効）に設定されています。")
+                logger.error("        - コメント（チャット）機能が有効な動画・配信のURLを指定してください。")
+            else:
+                # 権限不足・メンバー限定・非公開動画など
+                logger.error("[ERROR] 指定された動画・配信へのアクセス権限がありません。")
+                logger.error("        - メンバー限定配信、非公開、または限定公開の動画ではないかご確認ください。")
+                logger.error("        - 閲覧権限がある正しい Google アカウントで再認証（token.json を削除して再実行）してください。")
+        else:
+            logger.error(f"[ERROR] YouTube API エラーが発生しました (ステータスコード: {e.resp.status})")
+
+        if getattr(self, "verbose", False):
+            logger.debug(f"  (エラー詳細: {err_msg.strip()})")
 
     def get_my_channel_id(self):
         if not hasattr(self, "_my_channel_id"):
@@ -153,7 +169,7 @@ class YouTubeChatClient:
         try:
             response = self.youtube.videos().list(part="snippet,liveStreamingDetails", id=video_id).execute()
         except HttpError as e:
-            self._handle_quota_error(e)
+            self._handle_api_error(e)
             raise
         
         items = response.get("items", [])
@@ -175,7 +191,7 @@ class YouTubeChatClient:
                 .execute()
             )
         except HttpError as e:
-            self._handle_quota_error(e)
+            self._handle_api_error(e)
             raise
 
         raw_items = response.get("items", [])

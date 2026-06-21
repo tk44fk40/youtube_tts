@@ -6,8 +6,10 @@ from google.cloud import monitoring_v3
 
 CLIENT_SECRET_FILE = "client_secret.json"
 
+from .auth import YOUTUBE_SCOPE
+
 QUOTA_SCOPES = [
-    "https://www.googleapis.com/auth/youtube.readonly",
+    YOUTUBE_SCOPE,
     "https://www.googleapis.com/auth/monitoring.read",
 ]
 
