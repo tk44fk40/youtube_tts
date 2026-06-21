@@ -49,7 +49,7 @@ def test_config_reload_on_change(tmp_path):
     assert config.replacements == {"orange": "オレンジ"}
     assert config.ng_words == {"spam"}
 
-def test_config_volume_invalid(tmp_path, capsys):
+def test_config_volume_invalid(tmp_path, caplog):
     vol_file = tmp_path / "volume.txt"
     vol_file.write_text("1.0")
 
@@ -61,17 +61,18 @@ def test_config_volume_invalid(tmp_path, capsys):
 
     # 無効なケース 1: 浮動小数点数ではない
     vol_file.write_text("invalid_float")
-    config.reload_if_changed()
+    with caplog.at_level("WARNING"):
+        config.reload_if_changed()
     assert config.volume_scale == 1.0
-    captured = capsys.readouterr()
-    assert "Invalid volume value in volume.txt" in captured.out or "Invalid volume value in volume.txt" in captured.err
+    assert any("Invalid volume value in volume.txt" in record.message for record in caplog.records)
+    caplog.clear()
 
     # 無効なケース 2: 範囲外 (最大 2.0)
     vol_file.write_text("2.5")
-    config.reload_if_changed()
+    with caplog.at_level("INFO"):
+        config.reload_if_changed()
     assert config.volume_scale == 1.0
-    captured = capsys.readouterr()
-    assert "volume scale out of range" in captured.out or "volume scale out of range" in captured.err
+    assert any("volume scale out of range" in record.message for record in caplog.records)
 
 def test_config_dictionary_invalid(tmp_path):
     dict_file = tmp_path / "dictionary.txt"
@@ -107,7 +108,7 @@ def test_config_ng_words_missing_and_empty_lines(tmp_path):
     assert config.ng_words == {"spam"}
 
 
-def test_config_load_os_errors(tmp_path, capsys):
+def test_config_load_os_errors(tmp_path, caplog):
     from unittest.mock import patch
     import time
     
@@ -132,10 +133,10 @@ def test_config_load_os_errors(tmp_path, capsys):
     vol_file.touch()
 
     with patch("builtins.open", side_effect=OSError("Permission Denied")):
-        config.reload_if_changed()
+        with caplog.at_level("WARNING"):
+            config.reload_if_changed()
 
-    captured = capsys.readouterr()
-    combined_output = captured.out + captured.err
+    combined_output = "\n".join(record.message for record in caplog.records)
     
     assert "Failed to load dictionary: Permission Denied" in combined_output
     assert "Failed to load ng_words: Permission Denied" in combined_output

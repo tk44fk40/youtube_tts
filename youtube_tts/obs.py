@@ -1,3 +1,6 @@
+from .logger import get_logger
+
+logger = get_logger()
 
 class ObsClient:
     def __init__(self, host="localhost", port=4455, password=None):
@@ -21,11 +24,11 @@ class ObsClient:
             return False
 
         if not self.password:
-            print("[OBS] OBS_WEBSOCKET_PASSWORD is not set; skipping OBS update")
+            logger.info("[OBS] OBS_WEBSOCKET_PASSWORD is not set; skipping OBS update")
             return False
 
         if not self._available:
-            print(
+            logger.warning(
                 "[OBS] obs-websocket library is not installed; install obs-websocket-py to enable OBS integration"
             )
             return False
@@ -39,9 +42,9 @@ class ObsClient:
                 )
             )
             ws.disconnect()
-            print("[OBS] ✓ チャットURL設定成功")
-            print(f"      URL: {url}")
+            logger.info("[OBS] ✓ チャットURL設定成功")
+            logger.info(f"      URL: {url}")
             return True
         except Exception as e:
-            print(f"[OBS] ✗ チャットURL設定失敗: {e}")
+            logger.error(f"[OBS] ✗ チャットURL設定失敗: {e}")
             return False

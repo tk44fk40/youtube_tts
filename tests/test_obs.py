@@ -23,16 +23,16 @@ def test_obs_update_success():
     mock_ws.connect.assert_called_once()
     mock_ws.disconnect.assert_called_once()
 
-def test_obs_update_not_available(capsys):
+def test_obs_update_not_available(caplog):
     """obs-websocket-py が未インストールの場合に False を返す。"""
     client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
     client._available = False  # インストールされていない状態をシミュレート
 
-    result = client.update_chat_url("BrowserSource", "http://chat_url")
+    with caplog.at_level("WARNING"):
+        result = client.update_chat_url("BrowserSource", "http://chat_url")
 
     assert result is False
-    captured = capsys.readouterr()
-    assert "obs-websocket library is not installed" in captured.out
+    assert any("obs-websocket library is not installed" in record.message for record in caplog.records)
 
 def test_obs_update_connection_failure():
     client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")

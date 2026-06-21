@@ -211,14 +211,19 @@ def test_youtube_worker_backlog_seconds_filter(app):
     mock_chat_client.fetch_chat_messages.side_effect = fetch_side_effect
 
     # 10秒前までを遡る設定
-    app.youtube_worker(
-        chat_client=mock_chat_client,
-        video_id="video_abc",
-        chat_interval=0.01,
-        stream_check_interval=100.0,
-        quota_interval=100.0,
-        backlog_seconds=10,
-    )
+    with patch.object(app.logger, "debug") as mock_debug:
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_abc",
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+            backlog_seconds=10,
+            verbose=True,
+        )
+
+    # SKIP(PAST) ログが出力されたことを確認
+    assert any("[SKIP(PAST)]" in call[0][0] for call in mock_debug.call_args_list)
 
     # 新しいメッセージのみがキューに入っていることを確認
     assert app.comment_queue.qsize() == 1
@@ -382,7 +387,7 @@ def test_youtube_worker_verbose_logs(app):
         )
 
     # verbose 出力が含まれていることを確認
-    mock_debug.assert_any_call("Fetching chat messages (pageToken: None)")
+    mock_debug.assert_any_call("Fetching chat messages (is_live: True, pageToken: None)")
 
 
 # ==============================================================================
@@ -496,8 +501,102 @@ def test_youtube_worker_fetch_exception(app):
             quota_interval=100.0,
         )
 
-    mock_error.assert_called_with("Failed to fetch chat messages: YouTube API Error")
+    mock_error.assert_called_with("Failed to fetch chat/comments: YouTube API Error")
     assert app.stop_event.is_set()
+
+
+def test_youtube_worker_my_live_stream(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"activeLiveChatId": "chat_my_live"}
+    }
+    mock_chat_client.get_live_chat_id.return_value = "chat_my_live"
+    
+    def fetch_and_stop(*args, **kwargs):
+        app.stop_event.set()
+        return [], "token", 1000
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_and_stop
+
+    with patch.object(app.logger, "info") as mock_info:
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_my_live",
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+        )
+    
+    mock_info.assert_any_call("[INFO] 動画判定: 自分のライブ配信（チャットを取得します）")
+    mock_chat_client.get_live_chat_id.assert_called_once_with("video_my_live")
+    mock_chat_client.fetch_chat_messages.assert_called_once_with("chat_my_live", page_token=None)
+
+
+def test_youtube_worker_others_live_stream(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "other_channel_456"},
+        "liveStreamingDetails": {"activeLiveChatId": "chat_other_live"}
+    }
+    mock_chat_client.get_live_chat_id.return_value = "chat_other_live"
+    
+    def fetch_and_stop(*args, **kwargs):
+        app.stop_event.set()
+        return [], "token", 1000
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_and_stop
+
+    with patch.object(app.logger, "info") as mock_info:
+        app.youtube_worker(
+            chat_client=mock_chat_client,
+            video_id="video_other_live",
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+        )
+    
+    mock_info.assert_any_call("[INFO] 動画判定: 他者のライブ配信（チャットを取得します）")
+    mock_chat_client.get_live_chat_id.assert_called_once_with("video_other_live")
+    mock_chat_client.fetch_chat_messages.assert_called_once_with("chat_other_live", page_token=None)
+
+
+def test_youtube_worker_archive_mode(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"activeLiveChatId": "chat_old", "actualEndTime": "2026-06-21T12:00:00Z"}
+    }
+    
+    mock_chat_client.fetch_comment_threads.side_effect = [
+        ([{"id": "c1", "authorDetails": {"displayName": "Alice"}, "snippet": {"displayMessage": "Hello!"}}], None, 3000),
+        ([{"id": "c2", "authorDetails": {"displayName": "Bob"}, "snippet": {"displayMessage": "New Comment"}}], None, 3000),
+    ]
+
+    with patch.object(app, "speak") as mock_speak:
+        def side_effect(text, *args, **kwargs):
+            if "Bob" in text:
+                app.stop_event.set()
+        mock_speak.side_effect = side_effect
+
+        with patch.object(app.logger, "info") as mock_info:
+            app.youtube_worker(
+                chat_client=mock_chat_client,
+                video_id="video_archive",
+                chat_interval=0.01,
+                stream_check_interval=100.0,
+                quota_interval=100.0,
+                backlog_counts=10,
+            )
+    
+    mock_info.assert_any_call("[INFO] 動画判定: 過去の配信アーカイブ（コメントを取得します）")
+    mock_chat_client.get_live_chat_id.assert_not_called()
+    mock_chat_client.check_stream_active.assert_not_called()
+    
+    assert not app.comment_queue.empty()
+    item1 = app.comment_queue.get()
+    assert item1[0] == "Aliceさん"
 
 
 @patch("youtube_voicevox.get_quota_info")
@@ -621,3 +720,283 @@ def test_playback_worker_backward_compatibility(app):
         # 無事にアンパックされ、文字数が引かれていること
         assert app.queued_char_count == 0
         mock_speak.assert_called_once_with("UserOld HelloOld", speed_scale=1.0)
+
+
+def test_youtube_worker_video_details_failure(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_video_details.side_effect = Exception("Details API Error")
+
+    with patch.object(app.logger, "error") as mock_error:
+        app.youtube_worker(mock_chat_client, "vid")
+    
+    mock_error.assert_called_with("Failed to get video details: Details API Error")
+    assert app.stop_event.is_set()
+
+
+def test_youtube_worker_get_live_chat_id_failure(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {}
+    }
+    mock_chat_client.get_live_chat_id.side_effect = Exception("Chat ID API Error")
+
+    with patch.object(app.logger, "error") as mock_error:
+        app.youtube_worker(mock_chat_client, "vid")
+
+    mock_error.assert_called_with("Failed to get liveChatId: Chat ID API Error")
+    assert app.stop_event.is_set()
+
+
+def test_youtube_worker_posted_video_mode(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"}
+    }
+    
+    # 正常終了させるための side_effect
+    def side_effect(*args, **kwargs):
+        app.stop_event.set()
+        return [], None, 3000
+    mock_chat_client.fetch_comment_threads.side_effect = side_effect
+    app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01)
+
+
+def test_youtube_worker_initial_fetch_comments_failure(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"actualEndTime": "2026-06-21T12:00:00Z"}
+    }
+    mock_chat_client.fetch_comment_threads.side_effect = Exception("Fetch API Error")
+
+    with patch.object(app.logger, "error") as mock_error:
+        app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01)
+    
+    mock_error.assert_any_call("Failed to fetch initial comment threads: Fetch API Error")
+
+
+def test_youtube_worker_initial_fetch_comments_no_items(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"actualEndTime": "2026-06-21T12:00:00Z"}
+    }
+    
+    def side_effect(*args, **kwargs):
+        app.stop_event.set()
+        return [], None, 3000
+    mock_chat_client.fetch_comment_threads.side_effect = [
+        ([], None, 3000),
+        side_effect
+    ]
+    app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01)
+
+
+def test_youtube_worker_initial_comments_ng_skip(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"actualEndTime": "2026-06-21T12:00:00Z"}
+    }
+    
+    def side_effect(*args, **kwargs):
+        app.stop_event.set()
+        return [], None, 3000
+
+    mock_chat_client.fetch_comment_threads.side_effect = [
+        ([{"id": "ng_c", "authorDetails": {"displayName": "Spammer"}, "snippet": {"displayMessage": "badword"}}], None, 3000),
+        side_effect
+    ]
+
+    with patch.object(app.text_processor, "contains_ng_word", return_value=True):
+        with patch.object(app.logger, "info") as mock_info:
+            app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01, verbose=True)
+    
+    mock_info.assert_any_call("[SKIP(NG)] Spammer: badword")
+    assert app.comment_queue.empty()
+
+
+def test_youtube_worker_initial_comments_queue_full_skip(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"actualEndTime": "2026-06-21T12:00:00Z"}
+    }
+
+    for i in range(50):
+        app.comment_queue.put(("User", f"Msg {i}"))
+    
+    def side_effect(*args, **kwargs):
+        app.stop_event.set()
+        return [], None, 3000
+
+    mock_chat_client.fetch_comment_threads.side_effect = [
+        ([{"id": "overflow_c", "authorDetails": {"displayName": "User"}, "snippet": {"displayMessage": "Hello"}}], None, 3000),
+        side_effect
+    ]
+
+    with patch.object(app.logger, "info") as mock_info:
+        app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01)
+    
+    mock_info.assert_any_call("[SKIP(QUEUE)] Userさん: Hello")
+
+
+def test_youtube_worker_published_at_parse_failure(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_live_chat_id.return_value = "chat_123"
+    
+    def fetch_side_effect(*args, **kwargs):
+        if app.stop_event.is_set():
+            return [], None, 3000
+        items = [{
+            "id": "msg_invalid_date",
+            "authorDetails": {"displayName": "User"},
+            "snippet": {
+                "displayMessage": "Msg",
+                "publishedAt": "invalid-date-format"
+            }
+        }]
+        app.stop_event.set()
+        return items, "token_1", 1000
+
+    mock_chat_client.fetch_chat_messages.side_effect = fetch_side_effect
+
+    with patch.object(app.logger, "warning") as mock_warning:
+        app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01, backlog_seconds=10)
+    
+    mock_warning.assert_any_call("Failed to parse publishedAt: invalid-date-format, error: Invalid isoformat string: 'invalid-date-format'")
+
+
+def test_youtube_app_run_success(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    
+    def dummy_worker(*args, **kwargs):
+        app.stop_event.set()
+    
+    with patch.object(app, "youtube_worker", side_effect=dummy_worker):
+        app.run(mock_chat_client, "vid")
+        
+    assert app.stop_event.is_set()
+
+
+def test_youtube_app_init_logger_none():
+    config = AppConfig(
+        dictionary_path="dictionary.txt",
+        ng_words_path="ng_words.txt",
+        volume_path="volume.txt"
+    )
+    voicevox_client = MagicMock(spec=VoicevoxClient)
+    audio_player = MagicMock(spec=AudioPlayer)
+    
+    app_logger_none = YouTubeTtsApp(
+        config=config,
+        voicevox_client=voicevox_client,
+        audio_player=audio_player,
+        logger=None,
+    )
+    assert app_logger_none.logger is not None
+
+
+def test_playback_worker_speed_boost_lower_limit(app):
+    app.config.auto_speed_boost = True
+    app.config.speed_scale = 1.0
+    app.config.max_speed = 2.2
+    from youtube_voicevox import CommentItem
+    app.comment_queue.put(CommentItem("User", "Hello", 11))
+    app.comment_queue.put(CommentItem("User2", "A" * 25, 30))
+    app.queued_char_count = 41
+    
+    with patch.object(app, "speak") as mock_speak:
+        def side_effect(text, speed_scale=None):
+            app.stop_event.set()
+        mock_speak.side_effect = side_effect
+        app.playback_worker()
+        mock_speak.assert_called_once_with("User Hello", speed_scale=1.0)
+
+
+def test_playback_worker_speed_boost_upper_limit(app):
+    app.config.auto_speed_boost = True
+    app.config.speed_scale = 1.0
+    app.config.max_speed = 2.0
+    from youtube_voicevox import CommentItem
+    app.comment_queue.put(CommentItem("User", "Hello", 11))
+    app.comment_queue.put(CommentItem("User2", "A" * 295, 300))
+    app.queued_char_count = 311
+    
+    with patch.object(app, "speak") as mock_speak:
+        def side_effect(text, speed_scale=None):
+            app.stop_event.set()
+        mock_speak.side_effect = side_effect
+        app.playback_worker()
+        mock_speak.assert_called_once_with("User Hello", speed_scale=2.0)
+
+
+def test_youtube_worker_initial_fetch_comments_counts_limit(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"actualEndTime": "2026-06-21T12:00:00Z"}
+    }
+    
+    def polling_stop(*args, **kwargs):
+        app.stop_event.set()
+        return [], None, 3000
+        
+    mock_chat_client.fetch_comment_threads.side_effect = [
+        ([{"id": f"c_{i}", "authorDetails": {"displayName": "U"}, "snippet": {"displayMessage": "M"}} for i in range(10)], "next_token_1", 3000),
+        polling_stop
+    ]
+
+    app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01, backlog_counts=5)
+    assert mock_chat_client.fetch_comment_threads.call_count == 2
+
+
+def test_youtube_worker_initial_comments_history_overflow(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    mock_chat_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_chat_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+        "liveStreamingDetails": {"actualEndTime": "2026-06-21T12:00:00Z"}
+    }
+    
+    app.max_processed_message_ids = 2
+    
+    calls = []
+    def fetch_threads_side_effect(*args, **kwargs):
+        if not calls:
+            calls.append(1)
+            return [
+                {"id": "c1", "authorDetails": {"displayName": "U"}, "snippet": {"displayMessage": "M1"}},
+                {"id": "c2", "authorDetails": {"displayName": "U"}, "snippet": {"displayMessage": "M2"}},
+                {"id": "c3", "authorDetails": {"displayName": "U"}, "snippet": {"displayMessage": "M3"}},
+            ], None, 3000
+        else:
+            app.stop_event.set()
+            return [], None, 3000
+
+    mock_chat_client.fetch_comment_threads.side_effect = fetch_threads_side_effect
+    
+    app.youtube_worker(mock_chat_client, "vid", chat_interval=0.01, backlog_counts=10)
+    # c3 (oldest) should be discarded when history size is capped at 2 (c1, c2 are newer)
+    assert "c3" not in app.processed_message_ids
+    assert "c2" in app.processed_message_ids
+    assert "c1" in app.processed_message_ids
+
+
+def test_youtube_app_run_unexpected_error(app):
+    mock_chat_client = MagicMock(spec=YouTubeChatClient)
+    with patch.object(app, "youtube_worker", side_effect=Exception("Unexpected crash!")):
+        with patch.object(app.logger, "error") as mock_error:
+            app.run(mock_chat_client, "vid")
+    
+    mock_error.assert_called_with("Unexpected error: Unexpected crash!")
+
+

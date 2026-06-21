@@ -2,6 +2,10 @@ import os
 import unicodedata
 from pathlib import Path
 
+from .logger import get_logger
+
+logger = get_logger()
+
 
 def normalize_nfkc(text: str) -> str:
     """Unicode NFKC 正規化を行うユーティリティ関数。
@@ -45,7 +49,7 @@ class AppConfig:
                     normalized_src = normalize_nfkc(src.strip()).lower()
                     replacements[normalized_src] = dst.strip()
         except OSError as e:
-            print(f"[WARN] Failed to load dictionary: {e}")
+            logger.warning(f"[WARN] Failed to load dictionary: {e}")
         return replacements
 
     def _load_ng_words(self):
@@ -60,7 +64,7 @@ class AppConfig:
                     normalized_word = normalize_nfkc(word).lower()
                     ng_words.add(normalized_word)
         except OSError as e:
-            print(f"[WARN] Failed to load ng_words: {e}")
+            logger.warning(f"[WARN] Failed to load ng_words: {e}")
         return ng_words
 
     def reload_if_changed(self):
@@ -71,7 +75,7 @@ class AppConfig:
             if current_mtime != self._dictionary_mtime:
                 self._dictionary_mtime = current_mtime
                 self.replacements = self._load_replacements()
-                print("[CONFIG] dictionary reloaded")
+                logger.info("[CONFIG] dictionary reloaded")
 
         # ng_words.txt
         if self.ng_word_file.exists():
@@ -79,7 +83,7 @@ class AppConfig:
             if current_mtime != self._ng_word_mtime:
                 self._ng_word_mtime = current_mtime
                 self.ng_words = self._load_ng_words()
-                print("[CONFIG] ng words reloaded")
+                logger.info("[CONFIG] ng words reloaded")
 
         # volume.txt
         if self.volume_file.exists():
@@ -91,10 +95,10 @@ class AppConfig:
                         val = float(f.read().strip())
                     if 0.0 <= val <= 2.0:
                         self.volume_scale = val
-                        print(f"[CONFIG] volume scale updated: {self.volume_scale}")
+                        logger.info(f"[CONFIG] volume scale updated: {self.volume_scale}")
                     else:
-                        print(f"[CONFIG] volume scale out of range (0.0 - 2.0): {val}")
+                        logger.info(f"[CONFIG] volume scale out of range (0.0 - 2.0): {val}")
                 except OSError as e:
-                    print(f"[WARN] Failed to read volume.txt: {e}")
+                    logger.warning(f"[WARN] Failed to read volume.txt: {e}")
                 except ValueError as e:
-                    print(f"[WARN] Invalid volume value in volume.txt: {e}")
+                    logger.warning(f"[WARN] Invalid volume value in volume.txt: {e}")

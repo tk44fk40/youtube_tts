@@ -114,7 +114,8 @@ def test_cli_quota_options(mock_get_project_id, mock_app_class, mock_chat_client
         stream_check_interval=180.0,
         project_id="test-project-123",
         verbose=False,
-        backlog_seconds=10
+        backlog_seconds=10,
+        backlog_counts=100
     )
 
     # --verbose およびカスタムの --stream-check-interval を指定してテスト
@@ -133,7 +134,8 @@ def test_cli_quota_options(mock_get_project_id, mock_app_class, mock_chat_client
         stream_check_interval=120.0,
         project_id="test-project-123",
         verbose=True,
-        backlog_seconds=10
+        backlog_seconds=10,
+        backlog_counts=100
     )
 
 
@@ -431,3 +433,48 @@ def test_cli_max_speed_clip(mock_audio_player, mock_app_class, mock_chat_client,
         
     args, kwargs = mock_app_class.call_args
     assert kwargs["config"].max_speed == 2.2
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_max_speed_env_var_invalid(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    with patch.dict(os.environ, {"VOICEVOX_MAX_SPEED": "invalid_speed"}):
+        with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
+            main()
+            
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].max_speed == 2.2
+
+
+@patch("youtube_voicevox.YouTubeAuthenticator")
+@patch("youtube_voicevox.YouTubeChatClient")
+@patch("youtube_voicevox.YouTubeTtsApp")
+@patch("youtube_voicevox.AudioPlayer")
+def test_cli_volume_scale_env_var_invalid(mock_audio_player, mock_app_class, mock_chat_client, mock_auth):
+    mock_auth_instance = MagicMock()
+    mock_auth.return_value = mock_auth_instance
+    mock_auth_instance.get_credentials.return_value = MagicMock()
+    mock_chat_client_instance = MagicMock()
+    mock_chat_client.return_value = mock_chat_client_instance
+    mock_chat_client_instance.extract_video_id.return_value = "video123"
+    mock_app_instance = MagicMock()
+    mock_app_class.return_value = mock_app_instance
+
+    with patch.dict(os.environ, {"VOICEVOX_VOLUME_SCALE": "invalid_volume"}):
+        with patch("sys.argv", ["youtube_voicevox.py", "video123"]):
+            main()
+            
+    args, kwargs = mock_app_class.call_args
+    assert kwargs["config"].volume_scale is not None
+

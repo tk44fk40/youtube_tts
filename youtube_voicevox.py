@@ -96,6 +96,21 @@ class YouTubeTtsApp:
             # VOICEVOX サーバーの未起動や、オーディオ出力デバイスの競合などが原因で失敗する可能性がある
             self.logger.error(f"speak failed: {e}")
 
+    def is_and_mark_processed(self, message_id: str) -> bool:
+        """メッセージIDが処理済みかどうかを判定し、未処理なら履歴に追加する。
+        
+        重複読み上げを防止するため、履歴数が上限値(max_processed_message_ids)を超えたら古いIDを破棄する。
+        """
+        if message_id in self.processed_message_ids:
+            return True
+
+        self.processed_message_ids.add(message_id)
+        self.processed_message_queue.append(message_id)
+        if len(self.processed_message_queue) > self.max_processed_message_ids:
+            oldest_message_id = self.processed_message_queue.popleft()
+            self.processed_message_ids.discard(oldest_message_id)
+        return False
+
     def playback_worker(self):
         """コメント再生キューを監視し、順次再生するスレッドワーカー"""
         while not self.stop_event.is_set():
@@ -151,18 +166,117 @@ class YouTubeTtsApp:
         project_id: str = None,
         verbose: bool = False,
         backlog_seconds: int = 10,
+        backlog_counts: int = 100,
     ):
         """YouTube チャットコメントの定期取得を行い、キューへ送るスレッドワーカー"""
-        live_chat_id = chat_client.get_live_chat_id(video_id)
-        self.logger.info(f"liveChatId: {live_chat_id}")
+        # 動画詳細の取得
+        try:
+            video_details = chat_client.get_video_details(video_id)
+        except Exception as e:
+            self.logger.error(f"Failed to get video details: {e}")
+            self.stop_event.set()
+            return
 
-        # しきい値時刻の算出
+        # チャンネルID判定用の自チャンネルID取得
+        my_channel_id = chat_client.get_my_channel_id()
+        channel_id = video_details.get("snippet", {}).get("channelId")
+        is_mine = (my_channel_id is not None and channel_id == my_channel_id)
+        
+        live_details = video_details.get("liveStreamingDetails")
+        
+        # モード判定とログ出力
+        if live_details is not None:
+            if "actualEndTime" in live_details:
+                is_live = False
+                self.logger.info("[INFO] 動画判定: 過去の配信アーカイブ（コメントを取得します）")
+            else:
+                is_live = True
+                if is_mine:
+                    self.logger.info("[INFO] 動画判定: 自分のライブ配信（チャットを取得します）")
+                else:
+                    self.logger.info("[INFO] 動画判定: 他者のライブ配信（チャットを取得します）")
+        else:
+            is_live = False
+            self.logger.info("[INFO] 動画判定: 投稿動画（コメントを取得します）")
+
+        # ライブチャットIDの初期化（ライブ配信モードのみ）
+        live_chat_id = None
+        if is_live:
+            try:
+                live_chat_id = chat_client.get_live_chat_id(video_id)
+                self.logger.info(f"liveChatId: {live_chat_id}")
+            except Exception as e:
+                self.logger.error(f"Failed to get liveChatId: {e}")
+                self.stop_event.set()
+                return
+
+        # しきい値時刻の算出（ライブ配信モードのみ有効）
         from datetime import datetime, timezone, timedelta
-        if backlog_seconds >= 0:
-            threshold_time = datetime.now(timezone.utc) - timedelta(seconds=backlog_seconds)
+        if is_live:
+            if backlog_seconds >= 0:
+                threshold_time = datetime.now(timezone.utc) - timedelta(seconds=backlog_seconds)
+            else:
+                threshold_time = None
         else:
             threshold_time = None
 
+        # コメントモード（is_live = False）の初期バックログ読み込み
+        if not is_live:
+            self.logger.info(f"Loading initial comments backlog (limit: {backlog_counts})...")
+            backlog_items = []
+            page_token = None
+            remaining_to_fetch = backlog_counts if backlog_counts >= 0 else None
+            
+            while not self.stop_event.is_set():
+                if remaining_to_fetch is not None and remaining_to_fetch <= 0:
+                    break
+                max_results = min(remaining_to_fetch, 100) if remaining_to_fetch is not None else 100
+                
+                try:
+                    items, page_token, _ = chat_client.fetch_comment_threads(
+                        video_id, page_token=page_token, max_results=max_results
+                    )
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch initial comment threads: {e}")
+                    break
+                
+                if not items:
+                    break
+                
+                backlog_items.extend(items)
+                if remaining_to_fetch is not None:
+                    remaining_to_fetch -= len(items)
+                
+                if not page_token:
+                    break
+
+            # 古い順に反転してキューに追加
+            backlog_items.reverse()
+            for item in backlog_items:
+                message_id = item["id"]
+                self.is_and_mark_processed(message_id)
+
+                author = item["authorDetails"]["displayName"]
+                message = item["snippet"]["displayMessage"]
+
+                if self.text_processor.contains_ng_word(message):
+                    if verbose:
+                        self.logger.info(f"[SKIP(NG)] {author}: {message}")
+                    continue
+
+                self.logger.info(f"[COMMENT] {author}: {message}")
+                author, message = self.text_processor.normalize_comment(author, message)
+
+                if self.comment_queue.full():
+                    self.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
+                    continue
+
+                char_count = len(author) + len(message)
+                with self.queue_lock:
+                    self.queued_char_count += char_count
+                self.comment_queue.put(CommentItem(author, message, char_count))
+
+        # メインループの制御変数
         next_page_token = None
         last_quota_check_time = 0
         last_stream_check_time = time.time()
@@ -172,35 +286,39 @@ class YouTubeTtsApp:
             self.config.reload_if_changed()
 
             if verbose:
-                self.logger.debug(f"Fetching chat messages (pageToken: {next_page_token})")
+                self.logger.debug(f"Fetching chat messages (is_live: {is_live}, pageToken: {next_page_token})")
 
             try:
-                items, next_page_token, polling_interval = chat_client.fetch_chat_messages(
-                    live_chat_id, page_token=next_page_token
-                )
+                if is_live:
+                    items, next_page_token, polling_interval = chat_client.fetch_chat_messages(
+                        live_chat_id, page_token=next_page_token
+                    )
+                else:
+                    # コメントモード時は常に最新の1ページを取得する（page_token=None）
+                    items, _, polling_interval = chat_client.fetch_comment_threads(
+                        video_id, page_token=None, max_results=100
+                    )
             except Exception as e:
                 # クォータエラーなどの致命的なエラー時はスレッド終了
-                self.logger.error(f"Failed to fetch chat messages: {e}")
+                self.logger.error(f"Failed to fetch chat/comments: {e}")
                 self.stop_event.set()
                 return
 
             if verbose:
-                self.logger.debug(f"Fetched {len(items)} messages. next_page_token: {next_page_token}, polling_interval: {polling_interval}ms")
+                self.logger.debug(f"Fetched {len(items)} items. next_page_token: {next_page_token}, polling_interval: {polling_interval}ms")
+
+            # コメントモードの場合は新着順で届いているため、古い順（時系列順）にするために反転する
+            if not is_live:
+                items.reverse()
 
             for item in items:
                 message_id = item["id"]
 
-                if message_id in self.processed_message_ids:
+                if self.is_and_mark_processed(message_id):
                     continue
 
-                self.processed_message_ids.add(message_id)
-                self.processed_message_queue.append(message_id)
-                if len(self.processed_message_queue) > self.max_processed_message_ids:
-                    oldest_message_id = self.processed_message_queue.popleft()
-                    self.processed_message_ids.discard(oldest_message_id)
-
-                # 投稿時刻のチェックによる過去コメントの除外
-                if threshold_time is not None:
+                # 投稿時刻のチェックによる過去コメントの除外（ライブチャットモードのみ）
+                if is_live and threshold_time is not None:
                     published_at_str = item.get("snippet", {}).get("publishedAt")
                     if published_at_str:
                         try:
@@ -220,7 +338,9 @@ class YouTubeTtsApp:
                     self.logger.info(f"[SKIP(NG)] {author}: {message}")
                     continue
 
-                self.logger.info(f"[CHAT] {author}: {message}")
+                # ログのプレフィックスをモードによって変更する
+                log_prefix = "[CHAT]" if is_live else "[COMMENT]"
+                self.logger.info(f"{log_prefix} {author}: {message}")
 
                 author, message = self.text_processor.normalize_comment(author, message)
 
@@ -236,8 +356,8 @@ class YouTubeTtsApp:
             # 配信ステータスとクォータのチェックは共通のタイムスタンプで評価する
             now = time.time()
 
-            # 定期的に配信ステータスをチェックする
-            if now - last_stream_check_time >= stream_check_interval:
+            # 定期的に配信ステータスをチェックする（ライブ配信モードのみ有効）
+            if is_live and (now - last_stream_check_time >= stream_check_interval):
                 if verbose:
                     self.logger.debug("Checking stream active status...")
                 is_active = chat_client.check_stream_active(video_id)
@@ -317,6 +437,7 @@ class YouTubeTtsApp:
         project_id: str = None,
         verbose: bool = False,
         backlog_seconds: int = 10,
+        backlog_counts: int = 100,
     ):
         """スレッドの起動、シグナルハンドラ設定、および実行中のエラー処理をハンドリングする"""
         def handle_signal(signum, frame):
@@ -346,6 +467,7 @@ class YouTubeTtsApp:
                 project_id=project_id,
                 verbose=verbose,
                 backlog_seconds=backlog_seconds,
+                backlog_counts=backlog_counts,
             )
         except Exception as e:
             self.logger.error(f"Unexpected error: {e}")
@@ -422,6 +544,12 @@ def main():
         type=int,
         default=10,
         help="起動時に読み上げる過去コメントの遡り時間（秒）。-1を指定した場合は過去コメントをすべて読み上げます。デフォルトは10秒。"
+    )
+    parser.add_argument(
+        "--backlog-counts",
+        type=int,
+        default=100,
+        help="コメントモード（アーカイブ・投稿動画）の起動時に取得・読み上げる過去コメントの最大件数。-1を指定した場合は過去コメントをすべて読み上げます。デフォルトは100件。"
     )
     parser.add_argument(
         "--quota-interval",
@@ -556,6 +684,7 @@ def main():
             project_id=project_id,
             verbose=args.verbose,
             backlog_seconds=args.backlog_seconds,
+            backlog_counts=args.backlog_counts,
         )
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

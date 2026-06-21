@@ -3,6 +3,10 @@ import wave
 import numpy as np
 import sounddevice as sd
 
+from .logger import get_logger
+
+logger = get_logger()
+
 class AudioPlayer:
     def __init__(self, default_device=None):
         if default_device is None:
@@ -89,4 +93,4 @@ class AudioPlayer:
         try:
             sd.stop()
         except Exception as e:
-            print(f"[WARN] sounddevice stop failed: {e}")
+            logger.warning(f"[WARN] sounddevice stop failed: {e}")

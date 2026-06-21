@@ -3,6 +3,10 @@ from urllib.parse import parse_qs, urlparse
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from .logger import get_logger
+
+logger = get_logger()
+
 class YouTubeChatClient:
     def __init__(self, credentials):
         self.youtube = build("youtube", "v3", credentials=credentials)
@@ -104,18 +108,18 @@ class YouTubeChatClient:
             )
         except HttpError as e:
             self._handle_quota_error(e)  # クォータ超過の場合は詳細ログを出力する
-            print(f"[WARN] Error checking video status: {e}")
+            logger.warning(f"[WARN] Error checking video status: {e}")
             return True  # チェック失敗時は継続を優先（配信中と見なす）
         
         items = vresp.get("items", [])
         if not items:
-            print("[INFO] Video not found; assuming stream ended")
+            logger.info("[INFO] Video not found; assuming stream ended")
             return False
 
         details = items[0].get("liveStreamingDetails", {})
         active_chat = details.get("activeLiveChatId")
         if not active_chat:
-            print("[INFO] activeLiveChatId missing; stream likely ended")
+            logger.info("[INFO] activeLiveChatId missing; stream likely ended")
             return False
 
         return True
@@ -127,6 +131,81 @@ class YouTubeChatClient:
         呼び出し元が例外の種類に応じて動作（継続 or 停止）を選択できるようにするため。
         """
         if e.resp.status == 403 and "quotaExceeded" in str(e):
-            print("\n[ERROR] YouTube API quota exceeded")
-            print("        Please wait 24 hours before running again")
-            print(f"        Error: {e}")
+            logger.error("\n[ERROR] YouTube API quota exceeded")
+            logger.error("        Please wait 24 hours before running again")
+            logger.error(f"        Error: {e}")
+
+    def get_my_channel_id(self):
+        if not hasattr(self, "_my_channel_id"):
+            try:
+                response = self.youtube.channels().list(part="id", mine=True).execute()
+                items = response.get("items", [])
+                if items:
+                    self._my_channel_id = items[0]["id"]
+                else:
+                    self._my_channel_id = None
+            except Exception as ex:
+                logger.warning(f"[WARN] Failed to get my channel ID: {ex}")
+                self._my_channel_id = None
+        return self._my_channel_id
+
+    def get_video_details(self, video_id):
+        try:
+            response = self.youtube.videos().list(part="snippet,liveStreamingDetails", id=video_id).execute()
+        except HttpError as e:
+            self._handle_quota_error(e)
+            raise
+        
+        items = response.get("items", [])
+        if not items:
+            raise RuntimeError("video not found")
+        return items[0]
+
+    def fetch_comment_threads(self, video_id, page_token=None, max_results=100):
+        try:
+            response = (
+                self.youtube.commentThreads()
+                .list(
+                    videoId=video_id,
+                    part="snippet",
+                    pageToken=page_token,
+                    maxResults=max_results,
+                    order="time",
+                )
+                .execute()
+            )
+        except HttpError as e:
+            self._handle_quota_error(e)
+            raise
+
+        raw_items = response.get("items", [])
+        items = []
+        for item in raw_items:
+            try:
+                top_comment = item.get("snippet", {}).get("topLevelComment", {})
+                comment_id = top_comment.get("id")
+                comment_snippet = top_comment.get("snippet", {})
+                author = comment_snippet.get("authorDisplayName", "")
+                message = comment_snippet.get("textOriginal", "")
+                published_at = comment_snippet.get("publishedAt", "")
+                
+                if comment_id:
+                    items.append({
+                        "id": comment_id,
+                        "authorDetails": {
+                            "displayName": author
+                        },
+                        "snippet": {
+                            "type": "commentEvent",
+                            "displayMessage": message,
+                            "publishedAt": published_at
+                        }
+                    })
+            except Exception as ex:
+                logger.warning(f"[WARN] Failed to parse comment: {ex}")
+                continue
+
+        next_page_token = response.get("nextPageToken")
+        polling_interval = 3000
+
+        return items, next_page_token, polling_interval

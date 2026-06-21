@@ -120,11 +120,12 @@ def test_query_devices(mock_sd):
     mock_sd.query_devices.assert_called_with(1, "output")
 
 @patch("youtube_tts.audio.sd")
-def test_audio_stop_exception(mock_sd, capsys):
+def test_audio_stop_exception(mock_sd, caplog):
     mock_sd.stop.side_effect = Exception("sounddevice error")
     player = AudioPlayer()
     
-    player.stop()
-    captured = capsys.readouterr()
-    assert "sounddevice stop failed" in captured.out or "sounddevice stop failed" in captured.err
+    with caplog.at_level("WARNING"):
+        player.stop()
+    
+    assert any("sounddevice stop failed" in record.message for record in caplog.records)
 
