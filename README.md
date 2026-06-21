@@ -20,27 +20,55 @@ Linux 環境に移行したところ、Windows で使っていたコメント読
 
 本ツールを使用するにあたり、以下の環境・サービスの準備が必要です。
 
-1. **VOICEVOX**
+1. **Python 3.12 以上**
+   - 本ツールは Python 3.12 以上で動作します（Ubuntu 24.04 の標準 Python は 3.12 です）。
+   - パッケージ管理には `uv` を使用しています。Python 自体は OS 付属のものや [python.org](https://www.python.org/) からインストールしたものを利用できます。
+2. **VOICEVOX**
    - 音声合成用のエンジンとして、事前に VOICEVOX が起動しており、デフォルトポート `50021` でAPIが利用可能な状態である必要があります。
-2. **OBS (Open Broadcaster Software) とブラウザソース**
+3. **OBS (Open Broadcaster Software) とブラウザソース** *(OBS連携機能を使用する場合のみ必要)*
    - 配信画面上にチャットを表示するため、OBS でチャットを表示するブラウザソースが設定されている必要があります。
    - OBS上のソース一覧で「ブラウザソース」（外部のWebページを配信用にキャプチャ・配置する機能）を追加しておきます。
    - 本ツールは、配信開始時に自動生成される配信・チャットURL（`https://www.youtube.com/live_chat?v=...`）を取得し、OBS WebSocket経由で指定したブラウザソースのURLを自動的に最新の値に更新します。これにより、配信開始時の手動設定の手間を省けます。
-3. **Google Cloud Console & YouTube Data API v3**
+   - OBS連携を使用しない場合は、環境変数 `OBS_WEBSOCKET_PASSWORD` を未設定のままにするとこの機能はスキップされます。
+4. **Google Cloud Console & YouTube Data API v3**
    - YouTube Liveのチャット情報をAPI経由で取得するため、Google Cloudプロジェクトの作成、「YouTube Data API v3」の有効化、および OAuth 2.0 クライアント認証情報（`client_secret.json`）の作成が必要です。
+   - 具体的な手順は [セットアップ手順 ステップ4](#4-google-oauth-認証キーの配置) を参照してください。
 
 > [!NOTE]
 > 本ツールのデバッグや動作確認は Linux 環境でのみ行っており、Windows や macOS での動作は未確認です。
 
 ### セットアップ手順
 
-#### 1. 依存関係のインストール
-本プロジェクトは `uv` をパッケージ管理に使用しています。以下のコマンドで依存関係をインストールします。
+#### 1. リポジトリの取得
+
+**GitHub からダウンロードする場合:**
+[GitHub のリリースページ](https://github.com/tk44fk40/youtube_tts/releases) または [リポジトリのトップページ](https://github.com/tk44fk40/youtube_tts) から「Code」→「Download ZIP」でダウンロードし、任意のディレクトリに展開します。
+
+**Git でクローンする場合:**
+```bash
+git clone https://github.com/tk44fk40/youtube_tts.git
+cd youtube_tts
+```
+
+#### 2. uv のインストール
+
+本プロジェクトは `uv`（高速な Python パッケージ・プロジェクトマネージャー）を使用して依存関係を管理しています。まだインストールしていない場合は、以下のコマンドでインストールします。
+
+```bash
+# Linux / macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+インストール後、ターミナルを再起動するか `source ~/.local/bin/env` を実行してパスを反映してください。  
+その他のインストール方法は [uv の公式ドキュメント](https://docs.astral.sh/uv/getting-started/installation/) を参照してください。
+
+#### 3. 依存関係のインストール
+本プロジェクトのディレクトリ内で以下のコマンドを実行します。依存パッケージが仮想環境にインストールされます（システムのデフォルト Python が 3.12 以上であればそのまま利用されます）。
 ```bash
 uv sync
 ```
 
-#### 2. Google OAuth 認証キーの配置
+#### 4. Google OAuth 認証キーの配置
 
 YouTube Data API v3 を利用するため、Google Cloud Console で認証キー (`client_secret.json`) を取得して配置します。
 
@@ -77,13 +105,13 @@ YouTube Data API v3 を利用するため、Google Cloud Console で認証キー
 
 </details>
 
-#### 3. 初回認証の実行
+#### 5. 初回認証の実行
 以下のスクリプトを実行し、ブラウザでログインして認証を完了します。実行後、ルートディレクトリに `token.json` が生成されます。
 ```bash
 uv run python3 oauth_test.py
 ```
 
-#### 4. VOICEVOX の起動
+#### 6. VOICEVOX の起動
 VOICEVOX（デスクトップ版、または Docker版など）を起動し、デフォルトのポート `50021` でAPIが利用可能な状態にしておきます。
 
 ### 実行方法
@@ -120,9 +148,9 @@ uv run python3 youtube_voicevox.py -d 6
 | `--backlog-counts` | (なし) | コメントモード（アーカイブ・投稿動画）の起動時に取得・読み上げる過去コメントの最大件数。`-1` を指定した場合はすべての過去コメントを読み上げます。※コメントモード時のみ有効。ライブ配信モード時は無効です。 | `100` |
 | `--quota-interval` | (なし) | クォータ使用量を取得・表示する最短時間（秒）。 | `180.0` |
 | `--stream-check-interval` | (なし) | 配信のアクティブ状態をチェックする時間間隔（秒）。 | `180.0` |
-| `--speed` | (なし) | 読み上げスピード（デフォルト: `1.0`）。値が大きいほど早くなります。環境変数 `VOICEVOX_SPEED_SCALE` でも指定可能です。 | `1.0` |
+| `--speed` | (なし) | 読み上げスピード。値が大きいほど早くなります。環境変数 `VOICEVOX_SPEED_SCALE` でも指定可能です。 | `1.0` |
 | `--auto-speed-boost` | (なし) | キュー滞留時に読上げスピードを自動でブーストする機能を有効にします。環境変数 `VOICEVOX_AUTO_SPEED_BOOST` でも指定可能です。 | `False` |
-| `--max-speed` | (なし) | 自動スピードブースト時の最大速度（デフォルト: `2.2`、絶対上限: `2.2`）。環境変数 `VOICEVOX_MAX_SPEED` でも指定可能です。 | `2.2` |
+| `--max-speed` | (なし) | 自動スピードブースト時の最大速度（絶対上限: `2.2`）。環境変数 `VOICEVOX_MAX_SPEED` でも指定可能です。 | `2.2` |
 | `--verbose` | `-v` | 詳細ログ（DEBUGログ）をコンソールに出力します。 | `False` |
 
 ### 配信モードと過去コメント取得（バックログ）の仕様の違い
@@ -136,7 +164,6 @@ uv run python3 youtube_voicevox.py -d 6
 | **無効（無視）となるオプション** | `--backlog-counts` (指定しても動作に影響しません) | `--backlog-seconds` (指定しても動作に影響しません) |
 | **API上の制限（起動時の挙動）** | YouTube API (`liveChatMessages`) の制限により、過去時間指定での絞り込みができません。そのため、起動時に直近のローリングバッファ（最大200件程度）を全件取得し、プログラム側で `--backlog-seconds` に基づき古いコメントを間引きます。※よって、`-1`（無制限）を指定しても、取得できるのは最大200件までとなります。 | YouTube API (`commentThreads`) で取得件数を指定可能です。そのため、起動時の過去コメント取得量は `--backlog-counts`（デフォルト100件）に指定された件数のみをAPIから取得して読み込みます。`-1`（無制限）を指定した場合は、APIクォータの範囲内ですべての過去コメントをページング取得します。 |
 | **配信終了監視 (`check_stream_active`)** | 有効（一定間隔で配信ステータスを確認し、配信終了時に自動停止します） | 無効（アーカイブや投稿動画のため、配信終了監視はスキップしてポーリングを継続します） |
-
 
 ### その他のスクリプトとコマンドラインオプション
 
@@ -250,7 +277,7 @@ uv run python3 youtube_voicevox.py -d 6
 
 #### OAuth クライアント情報ファイル (`client_secret.json`)
 - **役割**: Google Cloud Console で作成した OAuth 2.0 クライアントの認証情報（クライアントID、クライアントシークレットなど）が記述されたファイルです。
-- **入手方法**: Google Cloud Console の API とサービス > 認証情報 から「OAuth 2.0 クライアント ID」（デスクトップ アプリケーション）を作成し、JSON 形式でダウンロードしてルートディレクトリに配置します。詳しくは [Google OAuth 認証キーの配置](#2-google-oauth-認証キーの配置) を参照してください。
+- **入手方法**: Google Cloud Console の API とサービス > 認証情報 から「OAuth 2.0 クライアント ID」（デスクトップ アプリケーション）を作成し、JSON 形式でダウンロードしてルートディレクトリに配置します。詳しくは [Google OAuth 認証キーの配置](#4-google-oauth-認証キーの配置) を参照してください。
 
 #### アクセストークンファイル (`token.json`)
 - **役割**: 初回認証（`oauth_test.py` の実行など）の完了後に自動生成される、YouTube API にアクセスするためのトークン情報（アクセストークン、リフレッシュトークンなど）が記述されたファイルです。
