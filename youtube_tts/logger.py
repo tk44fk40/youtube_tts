@@ -44,7 +44,9 @@ class TaggedLogger(logging.Logger):
         super().error(self._add_prefix(logging.ERROR, msg), *args, **kwargs)
 
     def critical(self, msg, *args, **kwargs):
-        super().critical(self._add_prefix(logging.CRITICAL, msg), *args, **kwargs)
+        super().critical(
+            self._add_prefix(logging.CRITICAL, msg), *args, **kwargs
+        )
 
     def exception(self, msg, *args, **kwargs):
         super().exception(self._add_prefix(logging.ERROR, msg), *args, **kwargs)
@@ -55,24 +57,37 @@ class TaggedLogger(logging.Logger):
 logging.setLoggerClass(TaggedLogger)
 
 def setup_logger(verbose: bool = False) -> logging.Logger:
-    """セットアップ済みのロガーを取得または作成します。
+    """Gets or creates the configured logger.
 
     Args:
-        verbose: True の場合、ログレベルを DEBUG に設定します。False の場合は INFO。
+        verbose: If True, sets log level to DEBUG. Otherwise INFO.
+
+    セットアップ済みのロガーを取得または作成します。
+
+    Args:
+        verbose: True の場合、ログレベルを DEBUG に
+                 設定します。False の場合は INFO。
     """
     logger = logging.getLogger(LOGGER_NAME)
     
+    # Prevent duplicate registration of handlers
+    #
     # ハンドラの重複登録を防ぐ
     if logger.handlers:
         logger.handlers.clear()
         
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)
     
+    # Handler for standard output
+    #
     # 標準出力用ハンドラ
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG if verbose else logging.INFO)
     
-    # タイムスタンプフォーマットの指定 (例: [2026-06-20 22:15:30] メッセージ)
+    # Specifying timestamp format (e.g. [2026-06-20 22:15:30] message)
+    #
+    # タイムスタンプフォーマットの指定
+    # (例: [2026-06-20 22:15:30] メッセージ)
     formatter = logging.Formatter(
         fmt="[%(asctime)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
@@ -81,15 +96,22 @@ def setup_logger(verbose: bool = False) -> logging.Logger:
     
     logger.addHandler(handler)
     
+    # Disable log propagation to prevent duplicate output by parent loggers
+    #
     # ログ伝播を無効化し、親ロガーによる重複出力を防ぐ
     logger.propagate = False
     
     return logger
 
 def get_logger() -> logging.Logger:
-    """現在のロガーインスタンスを取得します。
+    """Gets the current logger instance.
 
-    未セットアップの場合は、デフォルト設定 (verbose=False) でセットアップします。
+    If not configured, configures it with default settings (verbose=False).
+
+    現在のロガーインスタンスを取得します。
+
+    未セットアップの場合は、デフォルト設定
+    (verbose=False) でセットアップします。
     """
     logger = logging.getLogger(LOGGER_NAME)
     if not logger.handlers:

@@ -1,4 +1,6 @@
 # tests/conftest.py
+# Defines common fixtures and helpers across tests.
+#
 # テスト全体で共通のフィクスチャやヘルパーを定義します。
 import io
 import wave
@@ -7,7 +9,11 @@ import pytest
 
 @pytest.fixture
 def dummy_wav_bytes():
-    """0.1秒の無音WAVデータ（24000Hz, モノラル, 16bit）を生成する共通フィクスチャ。"""
+    """Generates a 0.1-second silent WAV data (24000Hz, mono, 16bit).
+    
+    0.1秒の無音WAVデータ（24000Hz, モノラル, 16bit）を
+    生成する共通フィクスチャ。
+    """
     wav_io = io.BytesIO()
     with wave.open(wav_io, "wb") as wav_file:
         wav_file.setnchannels(1)
@@ -19,7 +25,11 @@ def dummy_wav_bytes():
 
 @pytest.fixture
 def dummy_stereo_wav_bytes():
-    """0.1秒の無音WAVデータ（24000Hz, ステレオ, 16bit）を生成する共通フィクスチャ。"""
+    """Generates a 0.1-second silent WAV data (24000Hz, stereo, 16bit).
+    
+    0.1秒の無音WAVデータ（24000Hz, ステレオ, 16bit）を
+    生成する共通フィクスチャ。
+    """
     wav_io = io.BytesIO()
     with wave.open(wav_io, "wb") as wav_file:
         wav_file.setnchannels(2)

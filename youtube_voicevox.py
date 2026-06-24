@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# Read YouTube Live chat using VOICEVOX
 # YouTube Live のチャットを VOICEVOX で読み上げる
 
 import argparse
@@ -41,15 +42,18 @@ from youtube_tts import (
     setup_logger,
 )
 
+# Constant definitions
 # 定数定義
 TOKEN_FILE = "token.json"
 CLIENT_SECRET_FILE = "client_secret.json"
 VOICEVOX_URL = os.getenv("VOICEVOX_URL", "http://127.0.0.1:50021")
 SPEAKER_ID = int(os.getenv("VOICEVOX_SPEAKER_ID", "3"))
 
+# Maximum size of the comment playback queue
 # コメント再生待ちキューの最大数
 QUEUE_MAXSIZE = 50
 
+# History size for processed message IDs
 # 処理済みメッセージIDの履歴長
 MAX_PROCESSED_MESSAGE_IDS = 1000
 
@@ -62,7 +66,12 @@ class CommentItem(tuple):
 
 
 class YouTubeTtsApp:
-    """YouTube Live チャット読み上げツール全体の実行状態・ライフサイクルを管理するクラス"""
+    """Manages the execution state and lifecycle of the entire
+    YouTube Live chat TTS tool.
+
+    YouTube Live チャット読み上げツール全体の実行状態・ライフサイクルを
+    管理するクラス
+    """
 
     def __init__(
         self,
@@ -84,6 +93,8 @@ class YouTubeTtsApp:
         else:
             self.logger = logger
 
+        # Initialize runtime state (for DI and inter-thread sharing)
+        #
         # 実行時状態の初期化 (DI およびスレッド間共有用)
         self.comment_queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
         self.stop_event = threading.Event()
@@ -96,10 +107,14 @@ class YouTubeTtsApp:
         self.verbose = False
 
     def speak(self, text: str, speed_scale: float = None):
-        """指定されたテキストを VOICEVOX で音声合成し再生する"""
+        """Synthesizes and plays the specified text using VOICEVOX.
+
+        指定されたテキストを VOICEVOX で音声合成し再生する。
+        """
         if speed_scale is None:
             speed_scale = self.config.speed_scale
         try:
+            # Audio synthesis
             # 音声合成
             wav_bytes = self.voicevox_client.synthesize(
                 text=text,
@@ -107,19 +122,29 @@ class YouTubeTtsApp:
                 speed_scale=speed_scale,
                 target_sample_rate=self.audio_player.target_sample_rate
             )
+            # Audio playback
             # 音声再生
             self.audio_player.play_wav(wav_bytes)
         except Exception as e:
             self.logger.error("[ERROR] 音声の合成または再生に失敗しました。")
-            self.logger.error("        - VOICEVOX サーバーが起動しているか確認してください。")
-            self.logger.error("        - 出力オーディオデバイスの設定を確認してください。")
+            self.logger.error(
+                "        - VOICEVOX サーバーが起動しているか確認してください。")
+            self.logger.error(
+                "        - 出力オーディオデバイスの設定を確認してください。")
             if getattr(self, "verbose", False):
                 self.logger.debug(f"  (エラー詳細: {e})")
 
     def is_and_mark_processed(self, message_id: str) -> bool:
-        """メッセージIDが処理済みかどうかを判定し、未処理なら履歴に追加する。
+        """Determines whether the message ID has been processed, and adds it to
+        history if not.
+
+        To prevent duplicate read-alouds, the oldest ID is discarded when
+        history size exceeds the limit.
+
+        メッセージIDが処理済みかどうかを判定し、未処理なら履歴に追加する。
         
-        重複読み上げを防止するため、履歴数が上限値(max_processed_message_ids)を超えたら古いIDを破棄する。
+        重複読み上げを防止するため、履歴数が上限値
+        (max_processed_message_ids)を超えたら古いIDを破棄する。
         """
         if message_id in self.processed_message_ids:
             return True
@@ -132,7 +157,10 @@ class YouTubeTtsApp:
         return False
 
     def write_chat_log(self, item: dict, video_id: str):
-        """受信したチャット/コメントのイベントをJSONL形式で保存する"""
+        """Saves received chat/comment events in JSONL format.
+
+        受信したチャット/コメントのイベントをJSONL形式で保存する。
+        """
         import json
         from datetime import datetime, timezone
 
@@ -171,7 +199,11 @@ class YouTubeTtsApp:
             self.logger.error(f"[ERROR] チャットログの保存に失敗しました: {e}")
 
     def playback_worker(self):
-        """コメント再生キューを監視し、順次再生するスレッドワーカー"""
+        """Thread worker that monitors the comment playback queue and plays
+        comments sequentially.
+
+        コメント再生キューを監視し、順次再生するスレッドワーカー。
+        """
         while not self.stop_event.is_set():
             try:
                 item = self.comment_queue.get(timeout=1)
@@ -181,7 +213,9 @@ class YouTubeTtsApp:
                     char_count = len(author) + len(message)
                 
                 with self.queue_lock:
-                    self.queued_char_count = max(0, self.queued_char_count - char_count)
+                    self.queued_char_count = max(
+                        0, self.queued_char_count - char_count
+                    )
                     remaining_chars = self.queued_char_count
             except queue.Empty:
                 continue
@@ -193,7 +227,11 @@ class YouTubeTtsApp:
             
             if self.config.auto_speed_boost and remaining_chars > 0:
                 rate_at_base = 6.0 * base_speed
-                estimated_duration = remaining_chars / rate_at_base if rate_at_base > 0 else 0
+                estimated_duration = (
+                    remaining_chars / rate_at_base
+                    if rate_at_base > 0
+                    else 0
+                )
                 max_speed = min(getattr(self.config, "max_speed", 2.2), 2.2)
                 
                 if base_speed < max_speed:
@@ -213,11 +251,17 @@ class YouTubeTtsApp:
             self.comment_queue.task_done()
 
     def _get_next_quota_reset_time(self):
-        """太平洋時間における次のクォータリセット時刻を算出し、ローカルのタイムゾーンに変換して返す"""
+        """Calculates the next quota reset time in Pacific Time and returns it
+        converted to local timezone.
+
+        太平洋時間における次のクォータリセット時刻を算出し、ローカルのタイムゾーンに変換して返す。
+        """
         try:
             from zoneinfo import ZoneInfo
             tz_la = ZoneInfo("America/Los_Angeles")
         except Exception:
+            # Fallback: roughly switch between PDT/PST based on the
+            # current month
             # フォールバック: 現在時刻の月情報から簡易的にPDT/PSTを切り替える
             now_utc = datetime.now(timezone.utc)
             if 3 <= now_utc.month <= 11:
@@ -226,11 +270,16 @@ class YouTubeTtsApp:
                 tz_la = timezone(timedelta(hours=-8))  # PST
 
         now_la = datetime.now(tz_la)
-        next_reset_la = (now_la + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        next_reset_la = (now_la + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         return next_reset_la.astimezone()
 
     def _format_reset_time_for_speech(self, reset_time):
-        """リセット時刻を音声読み上げ用の文字列にフォーマットする"""
+        """Formats the reset time into a string for read-aloud speech.
+
+        リセット時刻を音声読み上げ用の文字列にフォーマットする。
+        """
         now_local = datetime.now().astimezone()
         delta_days = (reset_time.date() - now_local.date()).days
 
@@ -263,7 +312,12 @@ class YouTubeTtsApp:
         backlog_seconds: int = 10,
         backlog_counts: int = 100,
     ):
-        """YouTube チャットコメントの定期取得を行い、キューへ送るスレッドワーカー"""
+        """Thread worker that periodically fetches YouTube chat comments and
+        puts them into the queue.
+
+        YouTube チャットコメントの定期取得を行い、キューへ送るスレッドワーカー。
+        """
+        # Fetch video details
         # 動画詳細の取得
         try:
             video_details = chat_client.get_video_details(video_id)
@@ -274,6 +328,7 @@ class YouTubeTtsApp:
             self.stop_event.set()
             return
 
+        # Get own channel ID for channel ID matching
         # チャンネルID判定用の自チャンネルID取得
         my_channel_id = chat_client.get_my_channel_id()
         channel_id = video_details.get("snippet", {}).get("channelId")
@@ -281,52 +336,80 @@ class YouTubeTtsApp:
         
         live_details = video_details.get("liveStreamingDetails")
         
+        # Determine mode and log
         # モード判定とログ出力
         if live_details is not None:
             if "actualEndTime" in live_details:
                 is_live = False
-                self.logger.info("[INFO] 動画判定: 過去の配信アーカイブ（コメントを取得します）")
+                self.logger.info(
+                    "[INFO] 動画判定: 過去の配信アーカイブ"
+                    "（コメントを取得します）"
+                )
             else:
                 is_live = True
                 if is_mine:
-                    self.logger.info("[INFO] 動画判定: 自分のライブ配信（チャットを取得します）")
+                    self.logger.info(
+                        "[INFO] 動画判定: 自分のライブ配信"
+                        "（チャットを取得します）"
+                    )
                 else:
-                    self.logger.info("[INFO] 動画判定: 他者のライブ配信（チャットを取得します）")
+                    self.logger.info(
+                        "[INFO] 動画判定: 他者のライブ配信"
+                        "（チャットを取得します）"
+                    )
         else:
             is_live = False
-            self.logger.info("[INFO] 動画判定: 投稿動画（コメントを取得します）")
+            self.logger.info(
+                "[INFO] 動画判定: 投稿動画（コメントを取得します）"
+            )
 
-        # 自分のライブ配信かつ --tts-test 有効時は起動テスト読み上げを行う
+        # Perform startup test read-aloud if it is own live stream
+        # and --tts-test is enabled
+        # 自分のライブ配信かつ --tts-test 有効時は
+        # 起動テスト読み上げを行う
         if is_live and is_mine and tts_test:
             self.logger.info(f"[TTS-TEST] {tts_test}")
             self.speak(tts_test)
 
-        # ライブチャットIDの初期化（ライブ配信モードのみ）
+        # Initialize live chat ID (only for live stream mode)
+        # ライブチャットIDの初期化
+        # （ライブ配信モードのみ）
         live_chat_id = None
         if is_live:
             try:
                 live_chat_id = chat_client.get_live_chat_id(video_id)
                 self.logger.info(f"liveChatId: {live_chat_id}")
             except Exception as e:
-                self.logger.error("[ERROR] liveChatId の取得に失敗しました。")
+                self.logger.error(
+                    "[ERROR] liveChatId の取得に失敗しました。"
+                )
                 if verbose:
                     self.logger.debug(f"  (エラー詳細: {e})")
                 self.stop_event.set()
                 return
 
+        # Calculate threshold time (only effective in live stream mode)
         # しきい値時刻の算出（ライブ配信モードのみ有効）
         from datetime import datetime, timezone, timedelta
         if is_live:
             if backlog_seconds >= 0:
-                threshold_time = datetime.now(timezone.utc) - timedelta(seconds=backlog_seconds)
+                threshold_time = (
+                    datetime.now(timezone.utc)
+                    - timedelta(seconds=backlog_seconds)
+                )
             else:
                 threshold_time = None
         else:
             threshold_time = None
 
-        # コメントモード（is_live = False）の初期バックログ読み込み
+        # Initial backlog loading in comment mode (is_live = False)
+        # コメントモード（is_live = False）の
+        # 初期バックログ読み込み
         if not is_live:
-            self.logger.info(f"Loading initial comments backlog (limit: {backlog_counts})...")
+            self.logger.info(
+                f"Loading initial comments backlog "
+                f"(limit: {backlog_counts})..."
+            )
             backlog_items = []
             page_token = None
             remaining_to_fetch = backlog_counts if backlog_counts >= 0 else None
@@ -334,14 +417,21 @@ class YouTubeTtsApp:
             while not self.stop_event.is_set():
                 if remaining_to_fetch is not None and remaining_to_fetch <= 0:
                     break
-                max_results = min(remaining_to_fetch, 100) if remaining_to_fetch is not None else 100
+                max_results = (
+                    min(remaining_to_fetch, 100)
+                    if remaining_to_fetch is not None
+                    else 100
+                )
                 
                 try:
                     items, page_token, _ = chat_client.fetch_comment_threads(
                         video_id, page_token=page_token, max_results=max_results
                     )
                 except Exception as e:
-                    self.logger.error("[ERROR] 初期コメントスレッドの取得に失敗しました。")
+                    self.logger.error(
+                        "[ERROR] 初期コメントスレッドの取得に"
+                        "失敗しました。"
+                    )
                     if verbose:
                         self.logger.debug(f"  (エラー詳細: {e})")
                     break
@@ -356,6 +446,7 @@ class YouTubeTtsApp:
                 if not page_token:
                     break
 
+            # Reverse to chronological order and add to queue
             # 古い順に反転してキューに追加
             backlog_items.reverse()
             for item in backlog_items:
@@ -372,7 +463,9 @@ class YouTubeTtsApp:
                     continue
 
                 self.logger.info(f"[COMMENT] {author}: {message}")
-                author, message = self.text_processor.normalize_comment(author, message)
+                author, message = (
+                    self.text_processor.normalize_comment(author, message)
+                )
 
                 if self.comment_queue.full():
                     self.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
@@ -383,30 +476,46 @@ class YouTubeTtsApp:
                     self.queued_char_count += char_count
                 self.comment_queue.put(CommentItem(author, message, char_count))
 
+        # Control variables for the main loop
         # メインループの制御変数
         next_page_token = None
         last_quota_check_time = 0
         last_stream_check_time = time.time()
 
         while not self.stop_event.is_set():
+            # Check and reload configuration files automatically if changed
             # 設定の自動更新チェック
             self.config.reload_if_changed()
 
             if verbose:
-                self.logger.debug(f"Fetching chat messages (is_live: {is_live}, pageToken: {next_page_token})")
+                self.logger.debug(
+                    f"Fetching chat messages (is_live: {is_live}, "
+                    f"pageToken: {next_page_token})"
+                )
 
             try:
                 if is_live:
-                    items, next_page_token, polling_interval = chat_client.fetch_chat_messages(
-                        live_chat_id, page_token=next_page_token
+                    items, next_page_token, polling_interval = (
+                        chat_client.fetch_chat_messages(
+                            live_chat_id, page_token=next_page_token
+                        )
                     )
                 else:
-                    # コメントモード時は常に最新の1ページを取得する（page_token=None）
-                    items, _, polling_interval = chat_client.fetch_comment_threads(
-                        video_id, page_token=None, max_results=100
+                    # In comment mode, always fetch the latest page
+                    # (page_token=None)
+                    # コメントモード時は常に最新の1ページを
+                    # 取得する（page_token=None）
+                    items, _, polling_interval = (
+                        chat_client.fetch_comment_threads(
+                            video_id, page_token=None, max_results=100
+                        )
                     )
             except Exception as e:
-                # クォータ超過のエラー（HttpError かつ status=403 かつ "quotaExceeded"）であるかを判定
+                # Determine if it is a quota-exceeded error (HttpError with
+                # status 403 and "quotaExceeded")
+                # クォータ超過のエラー
+                # （HttpError かつ status=403 かつ
+                # "quotaExceeded"）であるかを判定
                 is_quota_exceeded = False
                 try:
                     from googleapiclient.errors import HttpError
@@ -417,13 +526,17 @@ class YouTubeTtsApp:
                                 content_str = e.content.decode("utf-8")
                             except Exception:
                                 pass
-                        if "quotaExceeded" in str(e) or "quotaExceeded" in content_str:
+                        if (
+                            "quotaExceeded" in str(e)
+                            or "quotaExceeded" in content_str
+                        ):
                             is_quota_exceeded = True
                 except ImportError:
                     pass
 
                 if is_quota_exceeded:
                     if quota_talk:
+                        # Clear the comment playback queue
                         # コメント再生キューをクリア
                         while not self.comment_queue.empty():
                             try:
@@ -432,14 +545,26 @@ class YouTubeTtsApp:
                             except queue.Empty:
                                 break
 
+                        # Create a warning message
                         # 警告メッセージを作成
                         try:
                             reset_time = self._get_next_quota_reset_time()
-                            reset_str = self._format_reset_time_for_speech(reset_time)
-                            quota_message = f"ぴんぽーん！残念！クォータを超過しました。{reset_str}頃までお待ち下さい。"
+                            reset_str = (
+                                self._format_reset_time_for_speech(reset_time)
+                            )
+                            quota_message = (
+                                f"ぴんぽーん！残念！"
+                                f"クォータを超過しました。"
+                                f"{reset_str}頃までお待ち下さい。"
+                            )
                         except Exception as ex:
-                            self.logger.warning(f"リセット予定時刻の取得に失敗しました: {ex}")
-                            quota_message = "ぴんぽーん！残念！クォータを超過しました。"
+                            self.logger.warning(
+                                f"リセット予定時刻の取得に失敗しました: {ex}"
+                            )
+                            quota_message = (
+                                "ぴんぽーん！残念！"
+                                "クォータを超過しました。"
+                            )
 
                         self.logger.info(f"[QUOTA] {quota_message}")
 
@@ -447,23 +572,41 @@ class YouTubeTtsApp:
                         char_count = len(quota_message)
                         with self.queue_lock:
                             self.queued_char_count = char_count
-                        self.comment_queue.put(CommentItem(quota_author, quota_message, char_count))
+                        self.comment_queue.put(
+                            CommentItem(quota_author, quota_message, char_count)
+                        )
 
-                        # 再生が完了するのを少し待つ（最大5秒）
+                        # Wait a short time for playback to complete
+                        # (max 5 seconds)
+                        # 再生が完了するのを少し待つ
+                        # （最大5秒）
                         timeout = time.time() + 5.0
-                        while not self.comment_queue.empty() and time.time() < timeout:
+                        while (
+                            not self.comment_queue.empty()
+                            and time.time() < timeout
+                        ):
                             time.sleep(0.1)
 
-                self.logger.error("[ERROR] チャットまたはコメントの取得に失敗しました。")
+                self.logger.error(
+                    "[ERROR] チャットまたはコメントの"
+                    "取得に失敗しました。"
+                )
                 if verbose:
                     self.logger.debug(f"  (エラー詳細: {e})")
                 self.stop_event.set()
                 return
 
             if verbose:
-                self.logger.debug(f"Fetched {len(items)} items. next_page_token: {next_page_token}, polling_interval: {polling_interval}ms")
+                self.logger.debug(
+                    f"Fetched {len(items)} items. "
+                    f"next_page_token: {next_page_token}, "
+                    f"polling_interval: {polling_interval}ms"
+                )
 
-            # コメントモードの場合は新着順で届いているため、古い順（時系列順）にするために反転する
+            # Since comments in comment mode arrive in reverse chronological
+            # order, reverse them to be in chronological order
+            # コメントモードの場合は新着順で届いているため、
+            # 古い順（時系列順）にするために反転する
             if not is_live:
                 items.reverse()
 
@@ -475,19 +618,38 @@ class YouTubeTtsApp:
 
                 self.write_chat_log(item, video_id)
 
-                # 投稿時刻のチェックによる過去コメントの除外（ライブチャットモードのみ）
+                # Exclude past comments by checking the publication time
+                # (only for live chat mode)
+                # 投稿時刻のチェックによる過去コメントの除外
+                # （ライブチャットモードのみ）
                 if is_live and threshold_time is not None:
-                    published_at_str = item.get("snippet", {}).get("publishedAt")
+                    published_at_str = (
+                        item.get("snippet", {}).get("publishedAt")
+                    )
                     if published_at_str:
                         try:
-                            # タイムゾーン対応の比較のために Z を +00:00 に置換
-                            published_at = datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+                            # Replace Z with +00:00 for timezone-aware
+                            # comparison
+                            # タイムゾーン対応の比較のために
+                            # Z を +00:00 に置換
+                            published_at = datetime.fromisoformat(
+                                published_at_str.replace("Z", "+00:00")
+                            )
                             if published_at < threshold_time:
-                                if verbose:
-                                    self.logger.debug(f"[SKIP(PAST)] {item['authorDetails']['displayName']}: {item['snippet']['displayMessage']} (published at {published_at_str})")
+                                author_name = (
+                                    item["authorDetails"]["displayName"]
+                                )
+                                self.logger.debug(
+                                    f"[SKIP(PAST)] {author_name}: "
+                                    f"{item['snippet']['displayMessage']} "
+                                    f"(published at {published_at_str})"
+                                )
                                 continue
                         except ValueError as e:
-                            self.logger.warning(f"Failed to parse publishedAt: {published_at_str}, error: {e}")
+                            self.logger.warning(
+                                f"Failed to parse publishedAt: "
+                                f"{published_at_str}, error: {e}"
+                            )
 
                 author = item["authorDetails"]["displayName"]
                 message = item["snippet"]["displayMessage"]
@@ -496,11 +658,15 @@ class YouTubeTtsApp:
                     self.logger.info(f"[SKIP(NG)] {author}: {message}")
                     continue
 
-                # ログのプレフィックスをモードによって変更する
+                # Change log prefix depending on the mode
+                # ログのプレフィックスを
+                # モードによって変更する
                 log_prefix = "[CHAT]" if is_live else "[COMMENT]"
                 self.logger.info(f"{log_prefix} {author}: {message}")
 
-                author, message = self.text_processor.normalize_comment(author, message)
+                author, message = (
+                    self.text_processor.normalize_comment(author, message)
+                )
 
                 if self.comment_queue.full():
                     self.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
@@ -511,11 +677,18 @@ class YouTubeTtsApp:
                     self.queued_char_count += char_count
                 self.comment_queue.put(CommentItem(author, message, char_count))
 
-            # 配信ステータスとクォータのチェックは共通のタイムスタンプで評価する
+            # Evaluate stream status and quota checks using a common timestamp
+            # 配信ステータスとクォータのチェックは
+            # 共通のタイムスタンプで評価する
             now = time.time()
 
-            # 定期的に配信ステータスをチェックする（ライブ配信モードのみ有効）
-            if is_live and (now - last_stream_check_time >= stream_check_interval):
+            # Periodically check the stream active status
+            # (only effective in live stream mode)
+            # 定期的に配信ステータスをチェックする
+            # （ライブ配信モードのみ有効）
+            if is_live and (
+                now - last_stream_check_time >= stream_check_interval
+            ):
                 if verbose:
                     self.logger.debug("Checking stream active status...")
                 is_active = chat_client.check_stream_active(video_id)
@@ -526,30 +699,60 @@ class YouTubeTtsApp:
                     return
                 last_stream_check_time = now
 
+            # Periodically fetch and log quota usage
             # クォータ使用量を定期的に取得しログ出力する
-            if quota_check and creds and project_id and (now - last_quota_check_time >= quota_interval):
+            if (
+                quota_check
+                and creds
+                and project_id
+                and (now - last_quota_check_time >= quota_interval)
+            ):
                 if verbose:
                     self.logger.debug("Fetching quota info...")
                 try:
                     used, limit = get_quota_info(creds, project_id)
                     remaining = max(0, limit - used)
                     usage_percent = (used / limit) * 100 if limit > 0 else 0
-                    self.logger.info(f"[QUOTA] Used: {used:,} / {limit:,} ({usage_percent:.2f}%), Remaining: {remaining:,}")
+                    self.logger.info(
+                        f"[QUOTA] Used: {used:,} / {limit:,} "
+                        f"({usage_percent:.2f}%), Remaining: {remaining:,}"
+                    )
 
                     if quota_talk and used != self.last_spoken_used:
                         if not self.comment_queue.full():
                             quota_author = ""
-                            quota_message = f"ぴんぽーん！クォータ使用量は {used} ユニットです。"
+                            quota_message = (
+                                "ぴんぽーん！クォータ使用量は "
+                                f"{used} ユニットです。"
+                            )
                             char_count = len(quota_author) + len(quota_message)
                             with self.queue_lock:
                                 self.queued_char_count += char_count
-                            self.comment_queue.put(CommentItem(quota_author, quota_message, char_count))
+                            self.comment_queue.put(
+                                CommentItem(
+                                    quota_author, quota_message, char_count
+                                )
+                            )
                             self.last_spoken_used = used
                 except Exception as e:
-                    self.logger.warning("[WARNING] クォータ情報の取得に失敗しました。")
-                    self.logger.warning("          - Google Cloud Console で「Cloud Monitoring API」が有効化されているか確認してください。")
-                    self.logger.warning("          - 認証したアカウントに「モニタリング閲覧者 (Monitoring Viewer)」権限が付与されているか確認してください。")
-                    self.logger.warning("          ※本機能がエラーになっても、チャットの読み上げ自体は問題なく動作し続けます。")
+                    self.logger.warning(
+                        "[WARNING] クォータ情報の取得に失敗しました。"
+                    )
+                    self.logger.warning(
+                        "          - Google Cloud Console で"
+                        "「Cloud Monitoring API」が"
+                        "有効化されているか確認してください。"
+                    )
+                    self.logger.warning(
+                        "          - 認証したアカウントに"
+                        "「モニタリング閲覧者 (Monitoring Viewer)」"
+                        "権限が付与されているか確認してください。"
+                    )
+                    self.logger.warning(
+                        "          ※本機能がエラーになっても、"
+                        "チャットの読み上げ自体は問題なく"
+                        "動作し続けます。"
+                    )
                     if verbose:
                         self.logger.debug(f"  (エラー詳細: {e})")
                 last_quota_check_time = now
@@ -557,20 +760,35 @@ class YouTubeTtsApp:
             time.sleep(max(polling_interval / 1000, chat_interval))
 
     def cleanup(self, playback_thread=None, wait_seconds=5):
-        """スレッド停止、オーディオ停止、およびキュー内の残存コメント処理を行うクリーンアップ"""
+        """Cleanup method to stop threads, stop audio, and process remaining
+        comments in the queue.
+
+        スレッド停止、オーディオ停止、および
+        キュー内の残存コメント処理を行うクリーンアップ。
+        """
         self.logger.info("Cleaning up...")
         self.stop_event.set()
 
         self.audio_player.stop()
 
-        # 1. playback_worker がキューのアイテムを消化するのを最大 wait_seconds 秒待つ。
-        #    stop_event がセットされていても、キューが空になるまで task_done を待ちたいため。
+        # 1. Wait at most wait_seconds for the playback_worker to process
+        #    items in the queue. Even if stop_event is set, we want to wait
+        #    for task_done until the queue is empty.
+        #    playback_worker がキューのアイテムを
+        #    消化するのを最大 wait_seconds 秒待つ。
+        #    stop_event がセットされていても、キューが
+        #    空になるまで task_done を待ちたいため。
         end_time = time.time() + wait_seconds
         while time.time() < end_time and not self.comment_queue.empty():
             time.sleep(0.1)
 
-        # 2. タイムアウト後も残っているアイテムを強制クリアする。
-        #    get_nowait() + task_done() でキューの内部カウンタを 0 に戻し、
+        # 2. Forcefully clear any remaining items after the timeout.
+        #    Using get_nowait() + task_done() resets the internal queue
+        #    counter to 0, allowing join() to unblock.
+        #    タイムアウト後も残っているアイテムを
+        #    強制クリアする。
+        #    get_nowait() + task_done() で
+        #    キューの内部カウンタを 0 に戻し、
         #    join() のブロックを解除できる状態にする。
         while True:
             try:
@@ -603,7 +821,12 @@ class YouTubeTtsApp:
         backlog_seconds: int = 10,
         backlog_counts: int = 100,
     ):
-        """スレッドの起動、シグナルハンドラ設定、および実行中のエラー処理をハンドリングする"""
+        """Handles starting threads, setting signal handlers, and error
+        handling during execution.
+
+        スレッドの起動、シグナルハンドラ設定、および
+        実行中のエラー処理をハンドリングする。
+        """
         self.verbose = verbose
         def handle_signal(signum, frame):
             self.logger.info("Signal received, shutting down...")
@@ -613,7 +836,10 @@ class YouTubeTtsApp:
             signal.signal(signal.SIGINT, handle_signal)
             signal.signal(signal.SIGTERM, handle_signal)
         except ValueError:
-            # メインスレッド以外から呼び出された場合はシグナル登録エラーを無視する
+            # Ignore signal registration error if not called from the
+            # main thread
+            # メインスレッド以外から呼び出された場合は
+            # シグナル登録エラーを無視する
             pass
 
         playback_thread = threading.Thread(target=self.playback_worker)
@@ -649,7 +875,10 @@ def main():
         except ValueError:
             pass
 
-    env_auto_boost = os.getenv("VOICEVOX_AUTO_SPEED_BOOST", "false").lower() in ("true", "1", "yes")
+    env_auto_boost = (
+        os.getenv("VOICEVOX_AUTO_SPEED_BOOST", "false").lower()
+        in ("true", "1", "yes")
+    )
     env_max_speed = 2.2
     if "VOICEVOX_MAX_SPEED" in os.environ:
         try:
@@ -657,24 +886,35 @@ def main():
         except ValueError:
             pass
 
-    parser = argparse.ArgumentParser(description="YouTube Live Chat TTS with VOICEVOX")
+    parser = argparse.ArgumentParser(
+        description="YouTube Live Chat TTS with VOICEVOX"
+    )
     parser.add_argument(
         "--speed",
         type=float,
         default=env_speed,
-        help="読み上げスピード（デフォルト: 1.0）。環境変数 VOICEVOX_SPEED_SCALE でも指定可能です。"
+        help=(
+            "読み上げスピード（デフォルト: 1.0）。"
+            "環境変数 VOICEVOX_SPEED_SCALE でも指定可能です。"
+        )
     )
     parser.add_argument(
         "--auto-speed-boost",
         action="store_true",
         default=env_auto_boost,
-        help="キュー滞留時に読上げスピードを自動でブーストする機能を有効にする"
+        help=(
+            "キュー滞留時に読上げスピードを"
+            "自動でブーストする機能を有効にする"
+        )
     )
     parser.add_argument(
         "--max-speed",
         type=float,
         default=env_max_speed,
-        help="自動スピードブースト時の最大速度（デフォルト: 2.2）。最大2.2までに制限されます。"
+        help=(
+            "自動スピードブースト時の最大速度（デフォルト: 2.2）。"
+            "最大2.2までに制限されます。"
+        )
     )
     parser.add_argument(
         "video_url_or_id",
@@ -707,7 +947,8 @@ def main():
         default=os.getenv("VOICEVOX_TTS_TEST") or None,
         metavar="TEXT",
         help=(
-            "起動時に自分のライブ配信であれば指定したテキストを読み上げる。"
+            "起動時に自分のライブ配信であれば"
+            "指定したテキストを読み上げる。"
             f"テキストを省略した場合は「{_TTS_TEST_DEFAULT}」を使用。"
             "環境変数 VOICEVOX_TTS_TEST でも指定可能。"
         )
@@ -716,36 +957,57 @@ def main():
         "--chat-interval",
         type=float,
         default=20.0,
-        help="コメント取得の最短時間（秒）。デフォルトは20秒。"
+        help=(
+            "コメント取得の最短時間（秒）。"
+            "デフォルトは20秒。"
+        )
     )
     parser.add_argument(
         "--chat-log",
         default="chat_log.jsonl",
-        help="チャットログの保存先パス（デフォルト: chat_log.jsonl）。"
+        help=(
+            "チャットログの保存先パス"
+            "（デフォルト: chat_log.jsonl）。"
+        )
     )
     parser.add_argument(
         "--backlog-seconds",
         type=int,
         default=10,
-        help="起動時に読み上げる過去コメントの遡り時間（秒）。-1を指定した場合は過去コメントをすべて読み上げます。デフォルトは10秒。"
+        help=(
+            "起動時に読み上げる過去コメントの遡り時間（秒）。"
+            "-1を指定した場合は過去コメントをすべて読み上げます。"
+            "デフォルトは10秒。"
+        )
     )
     parser.add_argument(
         "--backlog-counts",
         type=int,
         default=100,
-        help="コメントモード（アーカイブ・投稿動画）の起動時に取得・読み上げる過去コメントの最大件数。-1を指定した場合は過去コメントをすべて読み上げます。デフォルトは100件。"
+        help=(
+            "コメントモード（アーカイブ・投稿動画）の"
+            "起動時に取得・読み上げる過去コメントの最大件数。"
+            "-1を指定した場合は過去コメントをすべて読み上げます。"
+            "デフォルトは100件。"
+        )
     )
     parser.add_argument(
         "--quota-interval",
         type=float,
         default=180.0,
-        help="使用量の取得の最短時間（秒）。デフォルトは180秒。"
+        help=(
+            "使用量の取得の最短時間（秒）。"
+            "デフォルトは180秒。"
+        )
     )
     parser.add_argument(
         "--stream-check-interval",
         type=float,
         default=180.0,
-        help="配信アクティブ状態チェックの最短時間（秒）。デフォルトは180秒。"
+        help=(
+            "配信アクティブ状態チェックの最短時間（秒）。"
+            "デフォルトは180秒。"
+        )
     )
     parser.add_argument(
         "-v",
@@ -758,9 +1020,11 @@ def main():
     if args.quota_talk:
         args.quota_check = True
 
+    # Initialize logging settings
     # ロギング設定の初期化
     logger = setup_logger(verbose=args.verbose)
 
+    # Initialize configurations and clients
     # 設定・クライアントの初期化
     config = AppConfig(
         dictionary_path="dictionary.txt",
@@ -768,7 +1032,10 @@ def main():
         volume_path="volume.txt",
         chat_log_path=args.chat_log
     )
-    # 環境変数 VOICEVOX_VOLUME_SCALE が設定されている場合はファイル設定より優先する
+    # If VOICEVOX_VOLUME_SCALE env var is set, prioritize it over file
+    # configuration
+    # 環境変数 VOICEVOX_VOLUME_SCALE が
+    # 設定されている場合はファイル設定より優先する
     if "VOICEVOX_VOLUME_SCALE" in os.environ:
         try:
             config.volume_scale = float(os.environ["VOICEVOX_VOLUME_SCALE"])
@@ -780,6 +1047,7 @@ def main():
     config.auto_speed_boost = args.auto_speed_boost
     config.max_speed = min(args.max_speed, 2.2)
 
+    # Apply audio device settings
     # オーディオデバイスの適用
     dev_id = None
     device = args.device
@@ -792,22 +1060,34 @@ def main():
         try:
             import sounddevice as sd
             device_info = sd.query_devices(dev_id, 'output')
-            logger.info(f"出力デバイス: {device_info['name']} (ID: {device_info['index']})")
+            logger.info(
+                f"出力デバイス: {device_info['name']} "
+                f"(ID: {device_info['index']})"
+            )
         except Exception as e:
-            logger.warning(f"デバイス情報の取得に失敗しました: {e}")
+            logger.warning(
+                f"デバイス情報の取得に失敗しました: {e}"
+            )
 
     audio_player = AudioPlayer(default_device=dev_id)
-    voicevox_client = VoicevoxClient(base_url=VOICEVOX_URL, speaker_id=SPEAKER_ID)
+    voicevox_client = VoicevoxClient(
+        base_url=VOICEVOX_URL, speaker_id=SPEAKER_ID
+    )
 
+    # Verify connection to VOICEVOX server
     # VOICEVOX サーバーへの接続確認
     try:
         voicevox_client.get_speakers()
     except Exception as e:
         logger.warning("VOICEVOX サーバーへの接続確認に失敗しました。")
-        logger.warning("      ※VOICEVOXが起動しているか、ホストURLおよびポート番号が正しいか確認してください。")
+        logger.warning(
+            "      ※VOICEVOXが起動しているか、"
+            "ホストURLおよびポート番号が正しいか確認してください。"
+        )
         if args.verbose:
             logger.debug(f"  (エラー詳細: {e})")
 
+    # Initialize authentication info
     # 認証情報の初期化
     scopes = QUOTA_SCOPES if args.quota_check else None
     authenticator = YouTubeAuthenticator(
@@ -832,7 +1112,9 @@ def main():
         try:
             video_id, chat_url = chat_client.get_current_live_video_id()
         except RuntimeError as e:
-            logger.error(f"[ERROR] ライブ動画IDの自動検出に失敗しました: {e}")
+            logger.error(
+                f"[ERROR] ライブ動画IDの自動検出に失敗しました: {e}"
+            )
             sys.exit(1)
 
         logger.info(f"auto-detected current live video_id: {video_id}")
@@ -840,6 +1122,7 @@ def main():
 
     logger.info(f"video_id: {video_id}")
 
+    # OBS integration
     # OBS連携
     obs_password = os.getenv("OBS_WEBSOCKET_PASSWORD")
     obs_host = os.getenv("OBS_WEBSOCKET_HOST", "localhost")
@@ -849,13 +1132,17 @@ def main():
     obs_client = ObsClient(host=obs_host, port=obs_port, password=obs_password)
     obs_client.update_chat_url(obs_source_name, chat_url)
 
+    # Prepare information needed for quota checks
     # クォータチェックに必要な情報を準備
     project_id = None
     if args.quota_check:
         try:
             project_id = get_project_id()
         except Exception as e:
-            logger.warning(f"クォータチェックを有効にできませんでした (project_id 取得失敗): {e}")
+            logger.warning(
+                "クォータチェックを有効にできませんでした "
+                f"(project_id 取得失敗): {e}"
+            )
             args.quota_check = False
             args.quota_talk = False
 

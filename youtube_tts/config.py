@@ -22,16 +22,30 @@ logger = get_logger()
 
 
 def normalize_nfkc(text: str) -> str:
-    """Unicode NFKC 正規化を行うユーティリティ関数。
+    """Utility function to perform Unicode NFKC normalization.
+    
+    Unifies full-width/half-width characters and normalizes compatibility
+    characters.
+    Defined at the module level because it is used by both AppConfig
+    and TextProcessor.
+    
+    Unicode NFKC 正規化を行うユーティリティ関数。
     
     全角/半角の統一、互換文字の正規化を行う。
-    AppConfig と TextProcessor の両方で使用されるため、モジュールレベルで定義している。
+    AppConfig と TextProcessor の両方で使用されるため、
+    モジュールレベルで定義している。
     """
     return unicodedata.normalize("NFKC", text)
 
 
 class AppConfig:
-    def __init__(self, dictionary_path="dictionary.txt", ng_words_path="ng_words.txt", volume_path="volume.txt", chat_log_path="chat_log.jsonl"):
+    def __init__(
+        self,
+        dictionary_path="dictionary.txt",
+        ng_words_path="ng_words.txt",
+        volume_path="volume.txt",
+        chat_log_path="chat_log.jsonl",
+    ):
         self.dictionary_file = Path(dictionary_path)
         self.ng_word_file = Path(ng_words_path)
         self.volume_file = Path(volume_path)
@@ -48,11 +62,17 @@ class AppConfig:
         self._ng_word_mtime = None
         self._volume_mtime = None
 
+        # Load once at startup
         # 起動時に一度ロードする
         self.reload_if_changed()
 
     def _load_replacements(self):
-        """dictionary.txt を読み込んで {正規化済みキー: 置換後文字列} の辞書を返す。"""
+        """Reads dictionary.txt and returns a dictionary of
+        {normalized_key: replaced_string}.
+        
+        dictionary.txt を読み込んで
+        {正規化済みキー: 置換後文字列} の辞書を返す。
+        """
         replacements = {}
         try:
             with open(self.dictionary_file, "r", encoding="utf-8") as f:
@@ -68,7 +88,11 @@ class AppConfig:
         return replacements
 
     def _load_ng_words(self):
-        """ng_words.txt を読み込んで {正規化済みNGワード} の集合を返す。"""
+        """Reads ng_words.txt and returns a set of {normalized_ng_words}.
+        
+        ng_words.txt を読み込んで
+        {正規化済みNGワード} の集合を返す。
+        """
         ng_words = set()
         try:
             with open(self.ng_word_file, "r", encoding="utf-8") as f:
@@ -83,8 +107,13 @@ class AppConfig:
         return ng_words
 
     def reload_if_changed(self):
-        """各設定ファイルのタイムスタンプを確認し、変更があれば再ロードする。"""
-        # dictionary.txt
+        """Checks timestamps of each configuration file and reloads if changed.
+        
+        各設定ファイルのタイムスタンプを確認し、
+        変更があれば再ロードする。
+        """
+        # Check dictionary.txt
+        # dictionary.txt のチェック
         if self.dictionary_file.exists():
             current_mtime = os.path.getmtime(self.dictionary_file)
             if current_mtime != self._dictionary_mtime:
@@ -92,7 +121,9 @@ class AppConfig:
                 self.replacements = self._load_replacements()
                 logger.info("[CONFIG] dictionary reloaded")
 
-        # ng_words.txt
+        # Check ng_words.txt
+        #
+        # ng_words.txt のチェック
         if self.ng_word_file.exists():
             current_mtime = os.path.getmtime(self.ng_word_file)
             if current_mtime != self._ng_word_mtime:
@@ -100,7 +131,9 @@ class AppConfig:
                 self.ng_words = self._load_ng_words()
                 logger.info("[CONFIG] ng words reloaded")
 
-        # volume.txt
+        # Check volume.txt
+        #
+        # volume.txt のチェック
         if self.volume_file.exists():
             current_mtime = os.path.getmtime(self.volume_file)
             if current_mtime != self._volume_mtime:
@@ -110,9 +143,15 @@ class AppConfig:
                         val = float(f.read().strip())
                     if 0.0 <= val <= 2.0:
                         self.volume_scale = val
-                        logger.info(f"[CONFIG] volume scale updated: {self.volume_scale}")
+                        logger.info(
+                            f"[CONFIG] volume scale updated: "
+                            f"{self.volume_scale}"
+                        )
                     else:
-                        logger.info(f"[CONFIG] volume scale out of range (0.0 - 2.0): {val}")
+                        logger.info(
+                            f"[CONFIG] volume scale out of range "
+                            f"(0.0 - 2.0): {val}"
+                        )
                 except OSError as e:
                     logger.warning(f"Failed to read volume.txt: {e}")
                 except ValueError as e:

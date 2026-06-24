@@ -7,11 +7,23 @@ def test_obs_update_missing_password():
     assert client.update_chat_url("source", "http://chat_url") is False
 
 def test_obs_update_success():
-    """接続成功時に True を返し、connect / disconnect が呼ばれることを確認。"""
+    """Verifies that it returns True on successful connection
+    and connect / disconnect are called.
+    
+    接続成功時に True を返し、
+    connect / disconnect が呼ばれることを確認。
+    """
     client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
 
-    # obswebsocket ライブラリが存在することをシミュレートし、モックを直接注入する。
-    # ObsClient の __init__ でキャッシュした _obsws / _obs_requests をインスタンスレベルで差し替える。
+    # Simulate the presence of the obswebsocket library and inject
+    # a mock directly.
+    # Replace _obsws or _obs_requests cached in ObsClient.__init__
+    # at the instance level.
+    #
+    # obswebsocket ライブラリが存在することをシミュレートし、
+    # モックを直接注入する。
+    # ObsClient の __init__ でキャッシュした _obsws や _obs_requests を
+    # インスタンスレベルで差し替える。
     mock_ws = MagicMock()
     client._available = True
     client._obsws = MagicMock(return_value=mock_ws)
@@ -24,15 +36,24 @@ def test_obs_update_success():
     mock_ws.disconnect.assert_called_once()
 
 def test_obs_update_not_available(caplog):
-    """obs-websocket-py が未インストールの場合に False を返す。"""
+    """Returns False if obs-websocket-py is not installed.
+    
+    obs-websocket-py が未インストールの場合に False を返す。
+    """
     client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
-    client._available = False  # インストールされていない状態をシミュレート
+    # Simulate not-installed state
+    #
+    # インストールされていない状態をシミュレート
+    client._available = False
 
     with caplog.at_level("WARNING"):
         result = client.update_chat_url("BrowserSource", "http://chat_url")
 
     assert result is False
-    assert any("obs-websocket library is not installed" in record.message for record in caplog.records)
+    assert any(
+        "obs-websocket library is not installed" in record.message
+        for record in caplog.records
+    )
 
 def test_obs_update_connection_failure():
     client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")

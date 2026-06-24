@@ -64,15 +64,33 @@ def main():
         print(f"\n[エラー] クォータ情報の取得に失敗しました: {e}")
         if "billing to be enabled" in str(e):
             print("\n【原因と対策】")
-            print("Cloud Monitoring API からクォータ情報を取得するには、GCPプロジェクトの課金設定（請求先アカウントの紐付け）が必要です。")
-            print("課金設定を行っても、YouTube Data APIの無料枠（1日10,000ユニット）および Cloud Monitoring APIの無料枠の範囲内であれば料金は発生しません。")
+            print(
+                "Cloud Monitoring API からクォータ情報を取得するには、"
+                "GCPプロジェクトの課金設定（請求先アカウントの紐付け）"
+                "が必要です。"
+            )
+            print(
+                "課金設定を行っても、YouTube Data APIの無料枠"
+                "（1日10,000ユニット）および Cloud Monitoring APIの"
+                "無料枠の範囲内であれば料金は発生しません。"
+            )
             print("以下のURLから課金を有効にしてください:")
-            print(f"  https://console.developers.google.com/billing/enable?project={project_id}")
-            print("\n課金設定を行わずにクォータを確認したい場合は、Google Cloud Console から手動で確認してください:")
-            print(f"  https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas?project={project_id}")
+            print(
+                f"  https://console.developers.google.com/billing/enable"
+                f"?project={project_id}"
+            )
+            print(
+                "\n課金設定を行わずにクォータを確認したい場合は、"
+                "Google Cloud Console から手動で確認してください:"
+            )
+            print(
+                f"  https://console.cloud.google.com/apis/api/"
+                f"youtube.googleapis.com/quotas?project={project_id}"
+            )
         else:
             print(
-                "※GCP プロジェクトで 'Cloud Monitoring API' が有効になっているかご確認ください。"
+                "※GCP プロジェクトで 'Cloud Monitoring API' が"
+                "有効になっているかご確認ください。"
             )
 
 

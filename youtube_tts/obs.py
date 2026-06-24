@@ -22,6 +22,8 @@ class ObsClient:
         self.port = port
         self.password = password
 
+        # Try importing obs-websocket-py once and cache it
+        #
         # obs-websocket-py のインポートを一度だけ試みてキャッシュする
         try:
             from obswebsocket import obsws, requests as obs_requests
@@ -38,12 +40,15 @@ class ObsClient:
             return False
 
         if not self.password:
-            logger.info("[OBS] OBS_WEBSOCKET_PASSWORD is not set; skipping OBS update")
+            logger.info(
+                "[OBS] OBS_WEBSOCKET_PASSWORD is not set; skipping OBS update"
+            )
             return False
 
         if not self._available:
             logger.warning(
-                "[OBS] obs-websocket library is not installed; install obs-websocket-py to enable OBS integration"
+                "[OBS] obs-websocket library is not installed; "
+                "install obs-websocket-py to enable OBS integration"
             )
             return False
 
@@ -52,7 +57,7 @@ class ObsClient:
             ws.connect()
             ws.call(
                 self._obs_requests.SetInputSettings(
-                    inputName=source_name, inputSettings={"url": url}
+                     inputName=source_name, inputSettings={"url": url}
                 )
             )
             ws.disconnect()
@@ -60,6 +65,12 @@ class ObsClient:
             logger.info(f"      URL: {url}")
             return True
         except Exception as e:
-            logger.error(f"[OBS] チャットURL設定失敗 (エラー詳細: {e})")
-            logger.error("      ※OBS Studioが起動しているか、およびWebSocketサーバー(ポート4455)の設定を確認してください。")
+            logger.error(
+                f"[OBS] チャットURL設定失敗 (エラー詳細: {e})"
+            )
+            logger.error(
+                "      ※OBS Studioが起動しているか、"
+                "およびWebSocketサーバー(ポート4455)の"
+                "設定を確認してください。"
+            )
             return False

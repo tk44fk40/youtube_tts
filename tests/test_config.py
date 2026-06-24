@@ -47,6 +47,8 @@ def test_config_reload_on_change(tmp_path):
 
     assert config.volume_scale == 1.0
 
+    # Apply changes
+    #
     # 変更を適用する
     vol_file.write_text("1.5")
     dict_file.write_text("orange = オレンジ")
@@ -68,24 +70,37 @@ def test_config_volume_invalid(tmp_path, caplog):
         volume_path=vol_file
     )
 
+    # Invalid case 1: Not a float
+    #
     # 無効なケース 1: 浮動小数点数ではない
     vol_file.write_text("invalid_float")
     with caplog.at_level("WARNING"):
         config.reload_if_changed()
     assert config.volume_scale == 1.0
-    assert any("Invalid volume value in volume.txt" in record.message for record in caplog.records)
+    assert any(
+        "Invalid volume value in volume.txt" in record.message
+        for record in caplog.records
+    )
     caplog.clear()
 
+    # Invalid case 2: Out of range (max 2.0)
+    #
     # 無効なケース 2: 範囲外 (最大 2.0)
     vol_file.write_text("2.5")
     with caplog.at_level("INFO"):
         config.reload_if_changed()
     assert config.volume_scale == 1.0
-    assert any("volume scale out of range" in record.message for record in caplog.records)
+    assert any(
+        "volume scale out of range" in record.message
+        for record in caplog.records
+    )
 
 def test_config_dictionary_invalid(tmp_path):
     dict_file = tmp_path / "dictionary.txt"
-    dict_file.write_text("apple = 林檎\ninvalid_line_no_equal\nbanana = バナナ", encoding="utf-8")
+    dict_file.write_text(
+        "apple = 林檎\ninvalid_line_no_equal\nbanana = バナナ",
+        encoding="utf-8"
+    )
 
     config = AppConfig(
         dictionary_path=dict_file,
@@ -93,10 +108,14 @@ def test_config_dictionary_invalid(tmp_path):
         volume_path=tmp_path / "vol.txt"
     )
 
+    # Ignore invalid lines and load valid lines
+    #
     # 無効な行を無視し、正常な行をロードする
     assert config.replacements == {"apple": "林檎", "banana": "バナナ"}
 
 def test_config_ng_words_missing_and_empty_lines(tmp_path):
+    # Non-existent file
+    #
     # 存在しないファイル
     config = AppConfig(
         dictionary_path=tmp_path / "dict.txt",
@@ -105,6 +124,8 @@ def test_config_ng_words_missing_and_empty_lines(tmp_path):
     )
     assert config.ng_words == set()
 
+    # Empty or blank lines
+    #
     # 空行または空白行
     ng_file = tmp_path / "ng_words.txt"
     ng_file.write_text("\n   \nspam\n\n", encoding="utf-8")
@@ -135,6 +156,8 @@ def test_config_load_os_errors(tmp_path, caplog):
         volume_path=vol_file
     )
     
+    # Update timestamp to trigger reload
+    #
     # タイムスタンプを更新して再ロードを促す
     time.sleep(0.01)
     dict_file.touch()

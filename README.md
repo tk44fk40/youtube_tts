@@ -1,356 +1,317 @@
 # YouTube Live Chat TTS with VOICEVOX
 
-YouTube Live のチャット（コメント）をリアルタイムで取得し、VOICEVOX を使用して読み上げる Python スクリプトです。
+**[English]** | **[日本語 (Japanese)](README.ja.md)**
 
 ---
 
-## 開発経緯
-
-Linux 環境に移行したところ、Windows で使っていたコメント読み上げツールが使えなくなったため、VOICEVOX を使って自作しました。実際に配信で使い続けるうちに辞書置換・NGワード・OBS連携などの機能を順次追加し、現在の形になりました。
+"Meet Yucha-pon! It reads out YouTube Live chat in real-time, making streaming way more fun."
 
 ---
 
-## 1. 概要と使い方
+## Background
 
-### 概要
-本ツールは、YouTube Live配信のチャットからコメントをリアルタイムに取得し、VOICEVOXの音声合成エンジンを経由してスピーカーから再生する読み上げツールです。
-実行中の設定動的リロードや、OBSの指定ブラウザソースのURL設定自動更新に対応しています。
+When switching to Linux environment, comment read-aloud tools used in Windows became unavailable. Thus, this tool was created from scratch using VOICEVOX. While utilizing it in actual live streaming, features like dictionary replacement, NG words filter, and OBS integration were gradually added to form the current project.
 
-### 前提条件
+---
 
-本ツールを使用するにあたり、以下の環境・サービスの準備が必要です。
+## 1. Overview and Usage
 
-1. **Python 3.12 以上**
-   - 本ツールは Python 3.12 以上で動作します（Ubuntu 24.04 の標準 Python は 3.12 です）。
-   - パッケージ管理には `uv` を使用しています。Python 自体は OS 付属のものや [python.org](https://www.python.org/) からインストールしたものを利用できます。
+### Overview
+This tool retrieves comments from YouTube Live chat in real-time and reads them aloud using the VOICEVOX speech synthesis engine.
+It supports dynamic configuration reloading and automatic URL updates for OBS browser sources.
+
+### Prerequisites
+
+To use this tool, the following environment and services must be prepared:
+
+1. **Python 3.12 or higher**
+   - This tool runs on Python 3.12 or higher (the standard Python for Ubuntu 24.04 is 3.12).
+   - We use `uv` for package management. Python itself can be installed from your OS packages or [python.org](https://www.python.org/).
 2. **VOICEVOX**
-   - 音声合成用のエンジンとして、事前に VOICEVOX が起動しており、デフォルトポート `50021` でAPIが利用可能な状態である必要があります。
-3. **OBS (Open Broadcaster Software) とブラウザソース** *(OBS連携機能を使用する場合のみ必要)*
-   - 配信画面上にチャットを表示するため、OBS でチャットを表示するブラウザソースが設定されている必要があります。
-   - OBS上のソース一覧で「ブラウザソース」（外部のWebページを配信用にキャプチャ・配置する機能）を追加しておきます。
-   - 本ツールは、配信開始時に自動生成される配信・チャットURL（`https://www.youtube.com/live_chat?v=...`）を取得し、OBS WebSocket経由で指定したブラウザソースのURLを自動的に最新の値に更新します。これにより、配信開始時の手動設定の手間を省けます。
-   - OBS連携を使用しない場合は、環境変数 `OBS_WEBSOCKET_PASSWORD` を未設定のままにするとこの機能はスキップされます。
+   - VOICEVOX (Desktop or Docker version) must be running beforehand, with its API accessible on the default port `50021`.
+3. **OBS (Open Broadcaster Software) & Browser Source** *(Required only for OBS integration)*
+   - To display chat on the streaming screen, a browser source must be set up in OBS.
+   - Add a "Browser Source" in your OBS scene.
+   - The tool automatically retrieves the live chat URL (`https://www.youtube.com/live_chat?v=...`) generated at the start of the stream, and automatically updates the specified browser source URL via OBS WebSocket.
+   - If you do not want to use OBS integration, leave the `OBS_WEBSOCKET_PASSWORD` environment variable unset, and this feature will be skipped.
 4. **Google Cloud Console & YouTube Data API v3**
-   - YouTube Liveのチャット情報をAPI経由で取得するため、Google Cloudプロジェクトの作成、「YouTube Data API v3」の有効化、および OAuth 2.0 クライアント認証情報（`client_secret.json`）の作成が必要です。
-   - 具体的な手順は [セットアップ手順 ステップ4](#4-google-oauth-認証キーの配置) を参照してください。
+   - To retrieve YouTube Live chat details via the API, you must create a Google Cloud project, enable "YouTube Data API v3", and create an OAuth 2.0 Client credentials file (`client_secret.json`).
+   - For detailed steps, refer to [Setup Step 4: Placing Google OAuth Credentials](#4-placing-google-oauth-credentials).
 
 > [!NOTE]
-> 本ツールのデバッグや動作確認は Linux 環境でのみ行っており、Windows や macOS での動作は未確認です。
+> This tool has only been verified on Linux. Operation on Windows or macOS has not been verified.
 
-### セットアップ手順
+### Setup Instructions
 
-#### 1. リポジトリの取得
+#### 1. Obtain the Repository
 
-**GitHub からダウンロードする場合:**
-[GitHub のリリースページ](https://github.com/tk44fk40/youtube_tts/releases) または [リポジトリのトップページ](https://github.com/tk44fk40/youtube_tts) から「Code」→「Download ZIP」でダウンロードし、任意のディレクトリに展開します。
+**Download from GitHub:**
+Go to the [GitHub Releases page](https://github.com/tk44fk40/youtube_tts/releases) or the [repository main page](https://github.com/tk44fk40/youtube_tts) and download the ZIP file via "Code" -> "Download ZIP", then extract it to any directory.
 
-**Git でクローンする場合:**
+**Clone with Git:**
 ```bash
 git clone https://github.com/tk44fk40/youtube_tts.git
 cd youtube_tts
 ```
 
-#### 2. uv のインストール
+#### 2. Install uv
 
-本プロジェクトは `uv`（高速な Python パッケージ・プロジェクトマネージャー）を使用して依存関係を管理しています。まだインストールしていない場合は、以下のコマンドでインストールします。
+This project uses `uv` (a fast Python package and project manager) to manage dependencies. If you haven't installed it yet, install it using the following command:
 
 ```bash
 # Linux / macOS
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-インストール後、ターミナルを再起動するか `source ~/.local/bin/env` を実行してパスを反映してください。  
-その他のインストール方法は [uv の公式ドキュメント](https://docs.astral.sh/uv/getting-started/installation/) を参照してください。
+After installation, restart your terminal or run `source ~/.local/bin/env` to apply the path changes.  
+For other installation methods, refer to the [uv Official Documentation](https://docs.astral.sh/uv/getting-started/installation/).
 
-#### 3. 依存関係のインストール
-本プロジェクトのディレクトリ内で以下のコマンドを実行します。依存パッケージが仮想環境にインストールされます（システムのデフォルト Python が 3.12 以上であればそのまま利用されます）。
+#### 3. Install Dependencies
+
+Run the following command inside the project directory. The dependent packages will be installed into a virtual environment (if your system's default Python is 3.12+, it will be used directly):
 ```bash
 uv sync
 ```
 
-#### 4. Google OAuth 認証キーの配置
+#### 4. Placing Google OAuth Credentials
 
-YouTube Data API v3 を利用するため、Google Cloud Console で認証キー (`client_secret.json`) を取得して配置します。
+To use the YouTube Data API v3, retrieve the credentials file (`client_secret.json`) from the Google Cloud Console and place it in the project root.
 
 <details>
-<summary><b>具体的な手順（展開して表示）</b></summary>
+<summary><b>Detailed Steps (Click to expand)</b></summary>
 
-##### 1. Google Cloud プロジェクトの作成
-1. [Google Cloud Console](https://console.cloud.google.com/) にアクセスし、Googleアカウントでログインします。
-2. 画面左上のプロジェクト選択メニューをクリックし、**「新しいプロジェクト」** を作成します（プロジェクト名は任意）。
+##### 1. Create a Google Cloud Project
+1. Access [Google Cloud Console](https://console.cloud.google.com/) and log in with your Google account.
+2. Click the project selection menu at the top-left, and create a **"New Project"** (name it as you like).
 
-##### 2. YouTube Data API v3 の有効化
-1. 作成したプロジェクトが選択されていることを確認します。
-2. 左上のメニューから **「API とサービス」** > **「ライブラリ」** を選択します。
-3. 検索バーに `YouTube Data API v3` と入力し、検索結果から選択して **「有効にする」** をクリックします。
+##### 2. Enable YouTube Data API v3
+1. Verify that your newly created project is selected.
+2. From the top-left menu, choose **"APIs & Services"** > **"Library"**.
+3. Enter `YouTube Data API v3` in the search bar, select it, and click **"Enable"**.
 
-##### 3. OAuth 同意画面の設定（プロジェクトで初めて作成する場合のみ）
-1. 左メニューから **「OAuth 同意画面」** を選択します。
-2. User Type で **「外部」** を選択し、**「作成」** をクリックします。
-3. **「アプリ情報」**（アプリ名、ユーザーサポートメール）および **「デベロッパーの連絡先情報」**（メールアドレス）を入力し、最下部の **「保存して次へ」** をクリックします。
-4. 「スコープ」画面は何も追加せずに **「保存して次へ」** で進みます。
-5. 「テストユーザー」画面で、配信を取得したい（ログインする予定の）Google アカウントを **「+ ADD USERS」** から追加し、**「保存して次へ」** をクリックします。
-6. 最後に **「ダッシュボードに戻る」** をクリックします。
+##### 3. Configure OAuth Consent Screen (If creating for the first time)
+1. Select **"OAuth consent screen"** from the left menu.
+2. Select **"External"** for User Type, and click **"Create"**.
+3. Fill in the **"App information"** (App name, User support email) and **"Developer contact information"** (Email address), then click **"Save and Continue"**.
+4. Skip the "Scopes" screen by clicking **"Save and Continue"**.
+5. On the "Test users" screen, click **"+ ADD USERS"** and add the Google account you intend to use for streaming, then click **"Save and Continue"**.
+6. Finally, click **"Back to Dashboard"**.
 
-##### 4. OAuth クライアント ID の作成とダウンロード
-1. 左メニューから **「認証情報」** を選択します。
-2. 画面上部の **「+ 認証情報を作成」** をクリックし、**「OAuth クライアント ID」** を選択します。
-3. アプリケーションの種類で **「デスクトップ アプリ」** を選択します。
-4. 名前（例: `YouTube TTS`）を入力し、**「作成」** をクリックします。
-5. 認証情報の一覧の「OAuth 2.0 クライアント ID」に作成した項目が表示されるので、右端にある **ダウンロードアイコン（JSON をダウンロード）** をクリックしてファイルを保存します。
+##### 4. Create and Download OAuth Client ID
+1. Select **"Credentials"** from the left menu.
+2. Click **"+ Create Credentials"** at the top, and select **"OAuth client ID"**.
+3. Select **"Desktop app"** for Application type.
+4. Enter a name (e.g., `YouTube TTS`) and click **"Create"**.
+5. Your created item will appear under "OAuth 2.0 Client IDs". Click the **Download icon (Download JSON)** on the far right to save the file.
 
-##### 5. ファイルの配置
-1. ダウンロードした JSON ファイルの名前を **`client_secret.json`** に変更します。
-2. 本プロジェクトのルートディレクトリ（`youtube_voicevox.py` などがある場所）に配置します。
+##### 5. Place the File
+1. Rename the downloaded JSON file to **`client_secret.json`**.
+2. Place it in the root directory of this project (where `youtube_voicevox.py` is located).
 
 </details>
 
-#### 5. 初回認証の実行
-以下のスクリプトを実行し、ブラウザでログインして認証を完了します。実行後、ルートディレクトリに `token.json` が生成されます。
+#### 5. Execute Initial Authentication
+Run the following script and log in via your browser to complete authentication. Upon completion, `token.json` will be generated in the root directory.
 ```bash
 uv run python3 oauth_test.py
 ```
 
-#### 6. VOICEVOX の起動
-VOICEVOX（デスクトップ版、または Docker版など）を起動し、デフォルトのポート `50021` でAPIが利用可能な状態にしておきます。
+#### 6. Start VOICEVOX
+Ensure VOICEVOX is running and its API is accessible at the default port `50021`.
 
-### 実行方法
+### Execution / Usage
 
-#### 配信URLまたは配信IDを直接指定して起動する場合
+#### Direct Video URL or Video ID Specification
 ```bash
 uv run python3 youtube_voicevox.py https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-# または
+# OR
 uv run python3 youtube_voicevox.py YOUR_VIDEO_ID
 ```
 
-#### 配信中の自チャンネルの配信を自動検出して起動する場合
-`client_secret.json` と `token.json` に設定されたチャンネルが現在配信中である場合、引数なしで起動し、Live配信・チャットを自動検出できます。
+#### Auto-Detection of Current Stream (For your own channel)
+If the channel configured in `client_secret.json` / `token.json` is currently live, you can start the application without arguments to auto-detect the stream.
 ```bash
 uv run python3 youtube_voicevox.py
 ```
 
-#### 再生オーディオデバイスを指定して起動する場合
-音声を出力するサウンドデバイス（例: デバイスID 6）を指定して起動することができます。
+#### Specifying the Audio Device
+You can specify a specific sound output device (e.g., Device ID 6) to play audio.
 ```bash
 uv run python3 youtube_voicevox.py -d 6
 ```
 
-#### コマンドラインオプション一覧 (`youtube_voicevox.py`)
+#### Command Line Options (`youtube_voicevox.py`)
 
-| オプション名 | 短縮形 | 役割・設定内容 | デフォルト値 |
+| Option | Short | Description | Default |
 | :--- | :--- | :--- | :--- |
-| `--device` | `-d` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) |
-| `--quota-check` | `-q` | デバッグ用のクォータ情報確認機能を有効にします（定期的にコンソールへ出力）。 | `False` |
-| `--quota-talk` | (なし) | クォータ使用量の音声読上げを有効にします（値が変化した時のみ。「ぴんぽーん！」というお知らせ発声の後にクォータ値を読み上げます。有効にすると自動で `--quota-check` も有効になります。また、YouTube APIのクォータ超過時に、次回リセット予定時刻を含めたアナウンスを自動で読み上げて終了します）。 | `False` |
-| `--tts-test [TEXT]` | (なし) | 起動時に自分のライブ配信であれば指定したテキストを読み上げる。テキストを省略した場合は「ぴんぽーん！チャット読上げのテストです」を使用。環境変数 `VOICEVOX_TTS_TEST` でも指定可能。 | `None`（無効） |
-| `--chat-interval` | (なし) | コメント取得の最短時間（秒）。 | `20.0` |
-| `--chat-log` | (なし) | チャットログの保存先パス。 | `"chat_log.jsonl"` |
-| `--backlog-seconds` | (なし) | 起動時に読み上げる過去コメントの遡り時間（秒）。`-1` を指定した場合はローリングバッファ内の過去コメントをすべて読み上げます（最大200件）。※ライブ配信モード時のみ有効。コメントモード（アーカイブ・投稿動画）時は無効です。 | `10` |
-| `--backlog-counts` | (なし) | コメントモード（アーカイブ・投稿動画）の起動時に取得・読み上げる過去コメントの最大件数。`-1` を指定した場合はすべての過去コメントを読み上げます。※コメントモード時のみ有効。ライブ配信モード時は無効です。 | `100` |
-| `--quota-interval` | (なし) | クォータ使用量を取得・表示する最短時間（秒）。 | `180.0` |
-| `--stream-check-interval` | (なし) | 配信のアクティブ状態をチェックする時間間隔（秒）。 | `180.0` |
-| `--speed` | (なし) | 読み上げスピード。値が大きいほど早くなります。環境変数 `VOICEVOX_SPEED_SCALE` でも指定可能です。 | `1.0` |
-| `--auto-speed-boost` | (なし) | キュー滞留時に読上げスピードを自動でブーストする機能を有効にします。環境変数 `VOICEVOX_AUTO_SPEED_BOOST` でも指定可能です。 | `False` |
-| `--max-speed` | (なし) | 自動スピードブースト時の最大速度（絶対上限: `2.2`）。環境変数 `VOICEVOX_MAX_SPEED` でも指定可能です。 | `2.2` |
-| `--verbose` | `-v` | 詳細ログ（DEBUGログ）をコンソールに出力します。 | `False` |
+| `--device` | `-d` | Index or name of the audio output device. | (System default device) |
+| `--quota-check` | `-q` | Enables the quota info checking feature for debugging (prints to console periodically). | `False` |
+| `--quota-talk` | (None) | Enables speaking the quota usage (only when value changes). After playing a chime, it announces the quota value. Enabling this automatically enables `--quota-check`. If the YouTube API quota is exceeded, it also announces the reset time before exiting. | `False` |
+| `--tts-test [TEXT]` | (None) | Speaks the specified text at startup if it's your own stream. If text is omitted, uses "Ding-dong! Testing chat read-aloud". Can also be specified via the env var `VOICEVOX_TTS_TEST`. | `None` (Disabled) |
+| `--chat-interval` | (None) | Minimum interval (in seconds) between comment fetches. | `20.0` |
+| `--chat-log` | (None) | File path to save chat logs. | `"chat_log.jsonl"` |
+| `--backlog-seconds` | (None) | Time window (in seconds) to backtrack past comments at startup. If `-1` is specified, all past comments in the rolling buffer (up to 200) are read. *Only valid in Live Stream Mode.* | `10` |
+| `--backlog-counts` | (None) | Maximum number of past comments to fetch and read at startup in Archive/Video mode. If `-1` is specified, all past comments are read. *Only valid in Comment Mode.* | `100` |
+| `--quota-interval` | (None) | Minimum interval (in seconds) between quota checks. | `180.0` |
+| `--stream-check-interval` | (None) | Interval (in seconds) to check stream active status. | `180.0` |
+| `--speed` | (None) | Read-aloud speed scale. Larger values are faster. Can also be set via env var `VOICEVOX_SPEED_SCALE`. | `1.0` |
+| `--auto-speed-boost` | (None) | Auto-boosts speaking speed when comments pile up in the queue. Can also be set via env var `VOICEVOX_AUTO_SPEED_BOOST`. | `False` |
+| `--max-speed` | (None) | Maximum speed limit during auto speed boost (hard limit: `2.2`). Can also be set via env var `VOICEVOX_MAX_SPEED`. | `2.2` |
+| `--verbose` | `-v` | Outputs detailed (DEBUG) logs to the console. | `False` |
 
-### 配信モードと過去コメント取得（バックログ）の仕様の違い
+### Differences in Stream Modes & Backlog Handling
 
-本ツールは、指定された動画のメタデータから状態を自動判定し、「ライブ配信モード」または「コメントモード」のいずれかで動作します。それぞれのモードで適用されるコマンドラインオプションや起動時の挙動が以下のように異なります。
+This tool automatically detects the video status and operates in either "Live Stream Mode" or "Comment Mode".
 
-| 項目 | ライブ配信モード（自分・他者の配信中ライブ） | コメントモード（過去の配信アーカイブ・投稿動画） |
+| Item | Live Stream Mode (Active live stream / waiting room) | Comment Mode (Archived streams / uploaded videos) |
 | :--- | :--- | :--- |
-| **対象となる動画状態** | 現在配信中（または待機所状態）のライブ配信 | 終了済みの配信アーカイブ、通常のアップロード投稿動画 |
-| **有効なバックログ制御** | **`--backlog-seconds`** (過去何秒前のコメントまで遡るか) | **`--backlog-counts`** (起動時に過去コメントを何件読み込むか) |
-| **無効（無視）となるオプション** | `--backlog-counts` (指定しても動作に影響しません) | `--backlog-seconds` (指定しても動作に影響しません) |
-| **API上の制限（起動時の挙動）** | YouTube API (`liveChatMessages`) の制限により、過去時間指定での絞り込みができません。そのため、起動時に直近のローリングバッファ（最大200件程度）を全件取得し、プログラム側で `--backlog-seconds` に基づき古いコメントを間引きます。※よって、`-1`（無制限）を指定しても、取得できるのは最大200件までとなります。 | YouTube API (`commentThreads`) で取得件数を指定可能です。そのため、起動時の過去コメント取得量は `--backlog-counts`（デフォルト100件）に指定された件数のみをAPIから取得して読み込みます。`-1`（無制限）を指定した場合は、APIクォータの範囲内ですべての過去コメントをページング取得します。 |
-| **配信終了監視 (`check_stream_active`)** | 有効（一定間隔で配信ステータスを確認し、配信終了時に自動停止します） | 無効（アーカイブや投稿動画のため、配信終了監視はスキップしてポーリングを継続します） |
+| **Target Video Status** | Live streams currently broadcasting or waiting | Completed streams, regular video uploads |
+| **Effective Backlog Options** | **`--backlog-seconds`** (how many seconds to look back) | **`--backlog-counts`** (how many comments to read at start) |
+| **Ignored Options** | `--backlog-counts` | `--backlog-seconds` |
+| **API Limit Behavior** | Due to YouTube API (`liveChatMessages`) limitations, filtering by timestamp is not supported. The tool fetches all comments in the rolling buffer (up to 200) and filters out older ones on the client-side based on `--backlog-seconds`. | Fetch count can be specified in the YouTube API (`commentThreads`). The tool fetches only the number specified in `--backlog-counts` (default 100). If `-1` is set, all comments are fetched using pagination. |
+| **End of Stream Monitoring** | Enabled (stops the tool automatically when stream ends) | Disabled (skipped since it's a pre-recorded video) |
 
-### その他のスクリプトとコマンドラインオプション
+### Helper Scripts and Options
 
-メインスクリプトの他に、認証、APIクォータ確認、および単体発声テスト用のスクリプトが用意されています。
-
-#### 1. OAuth 初回認証テスト (`oauth_test.py`)
-- **概要**: YouTube API 接続のための初回認証を実行し、アクセストークンファイル（`token.json`）を生成・保存します。
-- **実行方法**:
+#### 1. OAuth Initial Authentication (`oauth_test.py`)
+- **Description**: Performs initial authentication for YouTube API and generates/saves the access token to `token.json`.
+- **Usage**:
   ```bash
   uv run python3 oauth_test.py
   ```
 
-#### 2. YouTube API クォータ使用量確認 (`get_quota_info.py`)
-- **概要**: 過去24時間の YouTube Data API のクォータ消費量および本日の残量を集計して表示します。
-- **実行方法**:
+#### 2. YouTube API Quota Check (`get_quota_info.py`)
+- **Description**: Displays the YouTube Data API quota consumption over the last 24 hours and the remaining quota for today.
+- **Usage**:
   ```bash
   uv run python3 get_quota_info.py
   ```
-  *(※Cloud Monitoring API 経由で取得するため、GCPプロジェクトの課金設定が必要です)*
+  *(Requires billing setup in your GCP project as it queries Cloud Monitoring API)*
 
-#### 3. VOICEVOX 発声テスト (`voicevox_test.py`)
-- **概要**: VOICEVOX を用いた単体の発声テストを行います。音声合成、WAVファイル保存、サウンドデバイス再生が機能するか検証できます。
-- **実行方法**:
+#### 3. VOICEVOX Speech Test (`voicevox_test.py`)
+- **Description**: Performs a standalone test using VOICEVOX. Verifies audio synthesis, WAV saving, and playback.
+- **Usage**:
   ```bash
-  uv run python3 voicevox_test.py [オプション]
+  uv run python3 voicevox_test.py [options]
   ```
-- **コマンドラインオプション**:
-  | オプション名 | 短縮形 | 役割・設定内容 | デフォルト値 |
+- **Options**:
+  | Option | Short | Description | Default |
   | :--- | :--- | :--- | :--- |
-  | `--text` | `-t` | 発声させる日本語のテキスト。 | `"これは、ボイスボックスの発声テストです。"` |
-  | `--speaker` | `-s` | VOICEVOXの話者スタイルID。 | `3` (ずんだもん・ノーマル) |
-  | `--volume` | `-v` | 音量比の倍率（`0.0` 〜 `2.0`）。 | `1.0` |
-  | `--speed` | (なし) | 読み上げスピード。環境変数 `VOICEVOX_SPEED_SCALE` でも指定可能です。 | `1.0` |
-  | `--output` | `-o` | 合成したWAV音声ファイルの保存先パス。 | `"test.wav"` |
-  | `--host` | `-H` | VOICEVOX の接続URL。 | `"http://127.0.0.1:50021"` |
-  | `--device` | `-d` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) |
-  | `--samplerate` | `-r` | 音声の生成・再生サンプリングレート(Hz)。 | (デバイスの既定値) |
-  | `--list-speakers` | (なし) | 利用可能な話者（キャラクター）とスタイルIDの一覧を出力して終了。 | (なし) |
-  | `--list-devices` | (なし) | システムで認識されているオーディオ出力デバイス一覧を出力して終了。 | (なし) |
-  | `--no-play` | (なし) | スピーカー再生を行わず、WAVファイルの生成・保存のみ実行。 | (なし) |
+  | `--text` | `-t` | Japanese text to speak. | `"これは、ボイスボックスの発声テストです。"` |
+  | `--speaker` | `-s` | VOICEVOX Speaker Style ID. | `3` (Zundamon Normal) |
+  | `--volume` | `-v` | Volume scale factor (`0.0` - `2.0`). | `1.0` |
+  | `--speed` | (None) | Speaking speed scale. Can also be set via env var `VOICEVOX_SPEED_SCALE`. | `1.0` |
+  | `--output` | `-o` | Output file path for the synthesized WAV. | `"test.wav"` |
+  | `--host` | `-H` | VOICEVOX server URL. | `"http://127.0.0.1:50021"` |
+  | `--device` | `-d` | Audio output device index or name. | (System default device) |
+  | `--samplerate` | `-r` | Audio sampling rate (Hz) for playback. | (Device default value) |
+  | `--list-speakers` | (None) | Prints available speakers and style IDs, then exits. | (None) |
+  | `--list-devices` | (None) | Prints recognized audio output devices, then exits. | (None) |
+  | `--no-play` | (None) | Disables speaker playback, saves WAV file only. | (None) |
 
-### 実行時のコンソール出力
+### Console Output Prefixes
 
-起動後、コンソールには動作状態を示す以下のプレフィックス付きのログが出力されます。
+- **`[CONFIG]`**: Printed when settings files (volume, dictionary, NG words) are loaded or reloaded dynamically.
+  - Example: `[CONFIG] volume scale updated: 0.5`
+- **`[CHAT]`**: Printed when a new chat comment is received.
+  - Example: `[CHAT] Taro: こんにちは`
+- **`[TALK]`**: Printed when VOICEVOX speech playback starts (after adding honorifics and dictionary replacements).
+  - Example: `[TALK] Taroさん こんにちは`
+- **`[SKIP(NG)]`**: Printed when a comment is skipped due to NG words.
+- **`[SKIP(QUEUE)]`**: Printed when a comment is skipped because the queue size limit (50) is reached.
+- **`[OBS]`**: Results of updating the browser source chat URL via OBS WebSocket.
+  - Example: `[OBS] ✓ チャットURL設定成功`
+- **`[QUOTA]`**: Printed when quota checking is active.
+  - Example: `[QUOTA] Used: 963 / 10,000 (9.63%), Remaining: 9,037`
+- **`[TTS-TEST]`**: Printed when test reading is executed at startup.
+- **`[INFO] / [WARN] / [ERROR]`**: System logs indicating startup info, warning on delete/disconnects, or API errors.
 
-- **`[CONFIG]`**: 設定ファイル（音量、辞書、NGワード）がロード、または変更を検知して自動リロードされた際に出力されます。
-  - 例: `[CONFIG] volume scale updated: 0.5`
-- **`[CHAT]`**: YouTube Live から新しくチャットコメントを受信した際に出力される受信ログです。
-  - 例: `[CHAT] Taro: こんにちは`
-- **`[TALK]`**: VOICEVOXによる音声合成・読み上げ再生が開始される際に出力されるログです（さん付けや辞書置換が適用された後の文言）。
-  - 例: `[TALK] Taroさん こんにちは`
-- **`[SKIP(NG)]`**: NGワード判定により、読み上げがスキップされたコメントのログです。
-  - 例: `[SKIP(NG)] Taro: 広告はこちら`
-- **`[SKIP(QUEUE)]`**: コメント再生待ちキューが最大数（50件）に達したため、読み上げがスキップされたログです。
-- **`[OBS]`**: OBS WebSocket経由でブラウザソースのチャットURL設定を更新した結果が出力されます。
-  - 例: `[OBS] ✓ チャットURL設定成功`
-- **`[QUOTA]`**: クォータ確認機能が有効な場合、YouTube APIのクォータ消費量および本日上限などを出力するログです。
-  - 例: `[QUOTA] Used: 963 / 10,000 (9.63%), Remaining: 9,037`
-- **`[TTS-TEST]`**: `--tts-test` 有効かつ自分のライブ配信起動時、テスト読み上げが実行された際に出力されます。
-  - 例: `[TTS-TEST] ぴんぽーん！チャット読上げのテストです`
-- **`[INFO] / [WARN] / [ERROR]`**: システムの起動情報、接続切断時の警告、APIエラーなどのシステム稼働ログです。
+### Environment Variables
 
-### 環境変数設定
-
-以下の環境変数を設定することで、プログラムの初期設定や挙動をカスタマイズできます。
-
-| 環境変数名 | 役割 | デフォルト値 | 設定例 / 補足 |
+| Variable | Description | Default | Example / Note |
 | :--- | :--- | :--- | :--- |
-| `VOICEVOX_AUTHOR_SUFFIX` | 送信者名（ユーザー名）の末尾に付加する敬称。空に設定した場合は敬称付加が無効化されます。 | `さん` | `ちゃん`, `様`, `""`（敬称なし） |
-| `VOICEVOX_URL` | VOICEVOX サーバーの接続先URL。 | `http://127.0.0.1:50021` | `http://localhost:50021` |
-| `VOICEVOX_SPEAKER_ID` | VOICEVOX で生成する音声のキャラクター（話者スタイル）のID。 | `3` (ずんだもん) | `2` (四国めたん), `8` (春日部つむぎ) |
-| `VOICEVOX_VOLUME_SCALE` | `volume.txt` が存在しない場合、またはこの環境変数が設定されている場合の音量初期値。 | `1.0` | `0.5` (音量50%) |
-| `VOICEVOX_SPEED_SCALE` | VOICEVOX の読み上げスピード（話速）の初期値。 | `1.0` | `1.5` (1.5倍速) |
-| `VOICEVOX_AUTO_SPEED_BOOST` | キュー滞留時に読上げスピードを自動でブーストする機能の有効化設定。 | `false` | `true` (ブーストを有効化) |
-| `VOICEVOX_MAX_SPEED` | 自動スピードブースト時の最大速度。絶対上限は `2.2`。 | `2.2` | `2.0` (上限を2.0倍速に制限) |
-| `VOICEVOX_DEVICE` | 音声を出力するオーディオデバイスのインデックスまたは名前。 | (システムの既定デバイス) | `6` または `pipewire` |
-| `VOICEVOX_TTS_TEST` | 起動時に自分のライブ配信であれば読み上げるテキスト。設定した場合 `--tts-test` と同等の動作になる。空文字または未設定で無効。 | (なし) | `ぴんぽーん！チャット読上げのテストです` |
-| `OBS_WEBSOCKET_PASSWORD` | OBS の WebSocket 接続用認証パスワード。未設定時はOBS連携機能がスキップされます。 | (なし) | `your_obs_websocket_password` |
-| `OBS_WEBSOCKET_HOST` | OBS WebSocket が動作しているホスト名。 | `localhost` | `127.0.0.1` |
-| `OBS_WEBSOCKET_PORT` | OBS WebSocket の通信ポート。 | `4455` | `4455` |
-| `OBS_BROWSER_SOURCE_NAME` | チャットURLを動的に更新したい、OBS上のブラウザソースのソース名。 | `チャット` | `LiveChatUrl` |
+| `VOICEVOX_AUTHOR_SUFFIX` | Honorific suffix added to author's name. Set to empty to disable. | `さん` | `ちゃん`, `様`, `""` |
+| `VOICEVOX_URL` | VOICEVOX server URL. | `http://127.0.0.1:50021` | `http://localhost:50021` |
+| `VOICEVOX_SPEAKER_ID` | Speaker Style ID for VOICEVOX synthesis. | `3` (Zundamon) | `2` (Metan), `8` (Tsumugi) |
+| `VOICEVOX_VOLUME_SCALE` | Initial volume if `volume.txt` does not exist or this variable is set. | `1.0` | `0.5` (50% volume) |
+| `VOICEVOX_SPEED_SCALE` | Initial read-aloud speed scale. | `1.0` | `1.5` |
+| `VOICEVOX_AUTO_SPEED_BOOST` | Enables speed boosting when comments pile up. | `false` | `true` |
+| `VOICEVOX_MAX_SPEED` | Maximum speed limit during speed boost. | `2.2` | `2.0` |
+| `VOICEVOX_DEVICE` | Audio device index or name. | (System default) | `6` or `pipewire` |
+| `VOICEVOX_TTS_TEST` | Text to read aloud at startup if it's your own stream. | (None) | `ぴんぽーん！チャット読上げのテストです` |
+| `OBS_WEBSOCKET_PASSWORD` | OBS WebSocket authentication password. | (None) | `your_obs_websocket_password` |
+| `OBS_WEBSOCKET_HOST` | OBS WebSocket host name. | `localhost` | `127.0.0.1` |
+| `OBS_WEBSOCKET_PORT` | OBS WebSocket port. | `4455` | `4455` |
+| `OBS_BROWSER_SOURCE_NAME` | Browser source name in OBS for chat URL update. | `チャット` | `LiveChatUrl` |
 
-### 設定ファイル
+### Configuration Files
 
-起動すると、以下の設定ファイルが自動で読み込まれ、変更があればプログラムを停止せずにリアルタイムにリロードされます。
+These files are reloaded in real-time when changes are detected:
 
-#### 音量設定ファイル (`volume.txt`)
-- **書式**: `0.0` 〜 `2.0` の範囲の浮動小数点数を1行記述します（デフォルト値は `1.0`）。
-- **記載例（読上げ音量を５０％に設定）**:
-  ```text
-  0.5
-  ```
+#### Volume Configuration File (`volume.txt`)
+- **Format**: A single float value between `0.0` and `2.0`.
+- **Example**: `0.5` (Sets volume to 50%)
 
-#### 読み替え辞書ファイル (`dictionary.txt`)
-- **書式**: `置換前 = 置換後` の形式で1行ずつ記述します（全角半角の揺れは内部で自動正規化されます）。
-- **記載例**:
+#### Pronunciation Dictionary File (`dictionary.txt`)
+- **Format**: `WordBefore = WordAfter` per line.
+- **Example**:
   ```text
   google = グーグル
   w = わら
   初見 = しょけん
   ```
 
-#### NGワードファイル (`ng_words.txt`)
-- **書式**: 読み上げをスキップしたい単語を1行に1語ずつ記述します。空行やスペースだけの行は自動的に無視されます。
-- **記載例**:
+#### NG Words File (`ng_words.txt`)
+- **Format**: One word per line to skip reading.
+- **Example**:
   ```text
-  スパムワード
-  広告
+  spamword
+  ad
   ```
 
-### 認証・トークンファイル (`client_secret.json` / `token.json`)
+### Credentials & Token Files (`client_secret.json` / `token.json`)
 
-本ツールは Google API (YouTube Data API v3) の認証情報をローカルファイルに保存して利用します。これらのファイルには機密情報が含まれるため、**絶対に GitHub 等のパブリックなリポジトリにコミット（公開）しないでください。**（本プロジェクトの `.gitignore` ではあらかじめ除外設定されています）
+These files contain sensitive information. **Never commit them to a public repository.** (They are excluded via `.gitignore`).
 
-#### OAuth クライアント情報ファイル (`client_secret.json`)
-- **役割**: Google Cloud Console で作成した OAuth 2.0 クライアントの認証情報（クライアントID、クライアントシークレットなど）が記述されたファイルです。
-- **入手方法**: Google Cloud Console の API とサービス > 認証情報 から「OAuth 2.0 クライアント ID」（デスクトップ アプリケーション）を作成し、JSON 形式でダウンロードしてルートディレクトリに配置します。詳しくは [Google OAuth 認証キーの配置](#4-google-oauth-認証キーの配置) を参照してください。
+#### OAuth Client Info (`client_secret.json`)
+Contains client credentials for YouTube API. Download from Google Cloud Console.
 
-#### アクセストークンファイル (`token.json`)
-- **役割**: 初回認証（`oauth_test.py` の実行など）の完了後に自動生成される、YouTube API にアクセスするためのトークン情報（アクセストークン、リフレッシュトークンなど）が記述されたファイルです。
-- **挙動**: トークンの有効期限が切れた場合、プログラムは `client_secret.json` を使用して自動的にトークンを更新（リフレッシュ）し、`token.json` を最新の情報で上書き保存します。
-- **注意（再認証について）**: コメント取得だけで作成された既存の `token.json` がある場合、`--quota-check` や `--quota-talk` を指定して起動すると、Cloud Monitoring API の読み取り権限（`monitoring.read` スコープ）が不足しているため、初回起動時（またはトークン更新時）にブラウザによる再認証（追加権限の承認）が必要になります。認証が完了すると `token.json` が更新され、次回以降は自動で動作します。
+#### Access Token File (`token.json`)
+Automatically generated after initial authentication. Automatically refreshed using `client_secret.json`. Re-authorization may be needed if new permissions (e.g. `monitoring.read` scope) are requested.
 
 ---
 
-## 2. ライブラリの概要
+## 2. Library Overview
 
-ツールを構成する処理は、役割ごとに `youtube_tts` パッケージ配下のモジュール及びクラスとして実装されています。
+Modules and classes inside `youtube_tts` package:
 
-### ディレクトリ構成
+### Directory Structure
 ```text
 youtube_tts/
-├── __init__.py           # パッケージのエントリポイント
-├── auth.py               # Google API 認証管理 (YouTubeAuthenticator)
-├── youtube.py            # YouTubeチャット取得・配信監視 (YouTubeChatClient)
-├── voicevox.py           # VOICEVOX連携 (VoicevoxClient)
-├── audio.py              # 音声デコード・再生・リサンプリング (AudioPlayer)
-├── config.py             # 設定ファイル動的読み込み (AppConfig)
-├── dictionary.py         # コメントの正規化・置換・NGワード適用 (TextProcessor)
-└── obs.py                # OBS WebSocket連携 (ObsClient)
+├── __init__.py           # Package entry point
+├── auth.py               # Google API OAuth management (YouTubeAuthenticator)
+├── youtube.py            # YouTube chat fetcher & stream monitoring (YouTubeChatClient)
+├── voicevox.py           # VOICEVOX API integration (VoicevoxClient)
+├── audio.py              # WAV decode, playback, resampling (AudioPlayer)
+├── config.py             # Config files dynamic watcher (AppConfig)
+├── dictionary.py         # Chat text normalization and filtering (TextProcessor)
+└── obs.py                # OBS WebSocket integration (ObsClient)
 ```
-
-### 各クラスの説明
-- **`AppConfig`** (モジュール: `youtube_tts/config.py`):
-  `volume.txt`、`dictionary.txt`、`ng_words.txt` などの設定ファイルを監視し、ファイルのタイムスタンプに変更があった際に自動で再ロードします。
-- **`TextProcessor`** (モジュール: `youtube_tts/dictionary.py`):
-  チャットの送信者名への「さん」付け、URLの除去、顔文字などの絵文字除去、「草」表現（wwww）の圧縮、および登録された辞書やNGワードの適用によるテキストの正規化とフィルタリングを担います。
-- **`YouTubeAuthenticator`** (モジュール: `youtube_tts/auth.py`):
-  `token.json` のロード、期限切れ時のリフレッシュ、新規OAuth認証（InstalledAppFlow）など、Google API のトークンライフサイクル管理を行います。
-- **`YouTubeChatClient`** (モジュール: `youtube_tts/youtube.py`):
-  配信IDの抽出、YouTube Data APIを使用したアクティブチャットIDの取得、定期的なチャットメッセージの取得、配信ステータスの継続チェックを管理します。
-- **`VoicevoxClient`** (モジュール: `youtube_tts/voicevox.py`):
-  VOICEVOX API（`/audio_query`、`/synthesis`）と接続し、指定話者による音声の合成を制御します。
-- **`AudioPlayer`** (モジュール: `youtube_tts/audio.py`):
-  合成されたWAVのデコード、オーディオデバイスの管理、サンプリングレートが異なる場合のリサンプリング処理、`sounddevice` による再生・停止制御を担当します。
-- **`ObsClient`** (モジュール: `youtube_tts/obs.py`):
-  OBS WebSocket（4455ポート）経由でOBSと通信し、配信チャットが埋め込まれたブラウザソースのURLを自動で同期更新します。
 
 ---
 
-## 3. テストに関する記述
+## 3. Testing
 
-本ツールには、外部APIやハードウェアに依存しないモックベースのテスト環境が同梱されています。
+The repository contains mock-based unit and integration tests.
 
-### テスト環境の構成
-`tests/` ディレクトリに各クラスの単体テスト、および一連のパイプライン処理を確認する簡易統合テストを配置しています。
-
-- **`test_config.py`**: ファイル変更時の再読み込み、破損ファイルや範囲外の値（音量）が書き込まれた際のフォールバック挙動の検証。
-- **`test_dictionary.py`**: Unicode正規化、辞書置換、NGワード検知、不正または極端な入力時の安定した文字列生成の検証。
-- **`test_auth.py`**: 有効なキャッシュのロード、リフレッシュ失敗時のOAuthフォールバック、ファイル破損時の自動削除等の検証。
-- **`test_youtube.py`**: URL解析、API制限（403 Quota Exceeded）や未検出時のエラー制御、配信監視メソッドの動作検証。
-- **`test_voicevox.py`**: VOICEVOXサーバー未起動等の通信例外やHTTPエラーのハンドリングの検証。
-- **`test_audio.py`**: 音声の再生・リサンプリング、ステレオ音声の変換、物理出力デバイスがない環境（CI環境等）でのサンプリングレートの自動フォールバックの検証。
-- **`test_obs.py`**: OBS websocketの認証、タイムアウト、およびソース名未指定時の早期リターンの検証。
-- **`test_integration.py`**: 複数モジュールを組み合わせ、コメント受信から読み上げ再生までのデータパイプラインが正しく機能するかを検証する統合テスト。
-
-### テストの実行方法
-`pytest` およびカバレッジ測定用の `pytest-cov` を使用してテストを実行できます。
-
+### Running Tests
+Execute unit tests and measure coverage:
 ```bash
-# テストの実行とカバレッジ（コード網羅率）の測定
 uv run pytest --cov=youtube_tts --cov=youtube_voicevox --cov-report=term-missing
 ```
 
 ---
 
-## 4. ライセンス
+## 4. License
 
-本プロジェクトは [Apache License 2.0](LICENSE) の下でオープンソースソフトウェアとして公開されています。
+This project is licensed under the [Apache License 2.0](LICENSE).
