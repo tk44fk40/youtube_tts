@@ -26,7 +26,9 @@ def test_auth_valid_cache(mock_creds_class, tmp_path):
 
 @patch("youtube_tts.auth.Request")
 @patch("youtube_tts.auth.Credentials")
-def test_auth_expired_refresh_success(mock_creds_class, mock_request_class, tmp_path):
+def test_auth_expired_refresh_success(
+    mock_creds_class, mock_request_class, tmp_path
+):
     token_file = tmp_path / "token.json"
     token_file.write_text('{"token": "expired_token"}', encoding="utf-8")
 
@@ -85,7 +87,9 @@ def test_auth_corrupted_json(mock_creds_class, mock_flow_class, tmp_path):
     token_file = tmp_path / "token.json"
     token_file.write_text("{corrupted_json", encoding="utf-8")
 
-    mock_creds_class.from_authorized_user_file.side_effect = Exception("JSONDecodeError")
+    mock_creds_class.from_authorized_user_file.side_effect = Exception(
+        "JSONDecodeError"
+    )
 
     mock_flow = MagicMock()
     mock_creds = MagicMock()
@@ -116,13 +120,17 @@ def test_auth_missing_client_secret(tmp_path):
 @patch("youtube_tts.auth.InstalledAppFlow")
 @patch("youtube_tts.auth.Credentials")
 @patch("youtube_tts.auth.Path.unlink")
-def test_auth_corrupted_json_unlink_oserror(mock_unlink, mock_creds_class, mock_flow_class, tmp_path):
+def test_auth_corrupted_json_unlink_oserror(
+    mock_unlink, mock_creds_class, mock_flow_class, tmp_path
+):
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"
     token_file.write_text("{corrupted_json", encoding="utf-8")
 
-    mock_creds_class.from_authorized_user_file.side_effect = Exception("JSONDecodeError")
+    mock_creds_class.from_authorized_user_file.side_effect = Exception(
+        "JSONDecodeError"
+    )
     mock_unlink.side_effect = OSError("Permission denied")
 
     mock_flow = MagicMock()
@@ -142,7 +150,9 @@ def test_auth_corrupted_json_unlink_oserror(mock_unlink, mock_creds_class, mock_
 @patch("youtube_tts.auth.InstalledAppFlow")
 @patch("youtube_tts.auth.Credentials")
 @patch("youtube_tts.auth.Request")
-def test_auth_refresh_exception(mock_request_class, mock_creds_class, mock_flow_class, tmp_path):
+def test_auth_refresh_exception(
+    mock_request_class, mock_creds_class, mock_flow_class, tmp_path
+):
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"

@@ -8,7 +8,10 @@ from youtube_tts import AudioPlayer
 
 @patch("youtube_tts.audio.sd")
 def test_audio_initialization_success(mock_sd):
-    mock_sd.query_devices.return_value = {"name": "default", "default_samplerate": 48000}
+    mock_sd.query_devices.return_value = {
+        "name": "default",
+        "default_samplerate": 48000,
+    }
     player = AudioPlayer(default_device="custom_device")
     assert player.target_sample_rate == 48000
     assert mock_sd.default.device == "custom_device"
@@ -16,11 +19,18 @@ def test_audio_initialization_success(mock_sd):
 
 @patch("youtube_tts.audio.sd")
 def test_audio_initialization_default_none(mock_sd):
-    mock_sd.query_devices.return_value = {"name": "default", "default_samplerate": 48000}
+    mock_sd.query_devices.return_value = {
+        "name": "default",
+        "default_samplerate": 48000,
+    }
+    # Create mock property to verify it was not set
+    #
     # 設定されなかったことを検証するためにモックプロパティを作成する
     mock_sd.default = MagicMock()
     player = AudioPlayer()
     assert player.target_sample_rate == 48000
+    # Verify sd.default.device is not assigned
+    #
     # sd.default.device が割り当てられていないことを検証する
     assert not mock_sd.default.mock_calls
 
@@ -28,7 +38,10 @@ def test_audio_initialization_default_none(mock_sd):
 def test_audio_initialization_no_device(mock_sd):
     mock_sd.query_devices.side_effect = Exception("No output device found")
     player = AudioPlayer()
-    # 画面なし（headless）やCI環境などのためのフォールバックサンプリングレート
+    # Fallback sampling rate for headless or CI environments
+    #
+    # 画面なし（headless）やCI環境などのための
+    # フォールバックサンプリングレート
     assert player.target_sample_rate == 24000
 
 @patch("youtube_tts.audio.sd")
@@ -72,7 +85,10 @@ def test_resample_audio():
 
 @patch("youtube_tts.audio.sd")
 def test_play_wav_success(mock_sd, dummy_wav_bytes):
-    mock_sd.query_devices.return_value = {"name": "default", "default_samplerate": 24000}
+    mock_sd.query_devices.return_value = {
+        "name": "default",
+        "default_samplerate": 24000,
+    }
     player = AudioPlayer()
     
     player.play_wav(dummy_wav_bytes)
@@ -84,13 +100,22 @@ def test_play_wav_success(mock_sd, dummy_wav_bytes):
 
 @patch("youtube_tts.audio.sd")
 def test_play_wav_with_device_switch(mock_sd, dummy_wav_bytes):
-    mock_sd.query_devices.return_value = {"name": "default", "default_samplerate": 24000}
+    mock_sd.query_devices.return_value = {
+        "name": "default",
+        "default_samplerate": 24000,
+    }
     player = AudioPlayer()
     
     player.play_wav(dummy_wav_bytes, device="3")
-    # グローバルな default.device が書き換えられていないことを確認
+    # Verify that global default.device is not modified
+    #
+    # グローバルな default.device が
+    # 書き換えられていないことを確認
     assert mock_sd.default.device != 3
-    # 代わりに、sd.play の引数に渡されていることをアサートする
+    # Assert that it is passed to sd.play instead
+    #
+    # 代わりに、sd.play の引数に
+    # 渡されていることをアサートする
     mock_sd.play.assert_called_once()
     args, kwargs = mock_sd.play.call_args
     assert kwargs["device"] == 3
@@ -100,13 +125,22 @@ def test_play_wav_with_device_switch(mock_sd, dummy_wav_bytes):
 
 @patch("youtube_tts.audio.sd")
 def test_play_wav_invalid_device_name(mock_sd, dummy_wav_bytes):
-    mock_sd.query_devices.return_value = {"name": "default", "default_samplerate": 24000}
+    mock_sd.query_devices.return_value = {
+        "name": "default",
+        "default_samplerate": 24000,
+    }
     player = AudioPlayer()
     
     player.play_wav(dummy_wav_bytes, device="default")
-    # グローバルな default.device が書き換えられていないことを確認
+    # Verify that global default.device is not modified
+    #
+    # グローバルな default.device が
+    # 書き換えられていないことを確認
     assert mock_sd.default.device != "default"
-    # 代わりに、sd.play の引数に渡されていることをアサートする
+    # Assert that it is passed to sd.play instead
+    #
+    # 代わりに、sd.play の引数に
+    # 渡されていることをアサートする
     mock_sd.play.assert_called_once()
     args, kwargs = mock_sd.play.call_args
     assert kwargs["device"] == "default"
@@ -127,5 +161,8 @@ def test_audio_stop_exception(mock_sd, caplog):
     with caplog.at_level("WARNING"):
         player.stop()
     
-    assert any("sounddevice stop failed" in record.message for record in caplog.records)
+    assert any(
+        "sounddevice stop failed" in record.message
+        for record in caplog.records
+    )
 

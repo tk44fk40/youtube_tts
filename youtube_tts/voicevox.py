@@ -25,9 +25,15 @@ class VoicevoxClient:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            raise RuntimeError(f"VOICEVOXサーバーへの接続に失敗しました: {e}") from e
+            raise RuntimeError(
+                f"VOICEVOXサーバーへの接続に失敗しました: {e}"
+            ) from e
 
-    def synthesize(self, text, volume_scale=1.0, speed_scale=1.0, target_sample_rate=None) -> bytes:
+    def synthesize(
+        self, text, volume_scale=1.0, speed_scale=1.0, target_sample_rate=None
+    ) -> bytes:
+        # 1. Create an audio query
+        #
         # 1. 音声クエリを作成する
         query_response = requests.post(
             f"{self.base_url}/audio_query",
@@ -36,16 +42,24 @@ class VoicevoxClient:
         query_response.raise_for_status()
         query_data = query_response.json()
 
+        # Set sampling rate if target_sample_rate is specified
+        #
         # サンプリングレートが指定されている場合は設定する
         if target_sample_rate:
             query_data["outputSamplingRate"] = target_sample_rate
 
+        # Set volume scale
+        #
         # 音量比を設定する
         query_data["volumeScale"] = volume_scale
 
+        # Set speaking speed scale
+        #
         # 読上げスピードを設定する
         query_data["speedScale"] = speed_scale
 
+        # 2. Perform speech synthesis
+        #
         # 2. 音声合成を実行する
         synthesis_response = requests.post(
             f"{self.base_url}/synthesis",

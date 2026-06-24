@@ -32,16 +32,22 @@ class YouTubeChatClient:
 
         parsed = urlparse(value)
 
+        # Extract video ID from youtu.be/<id> format URL
+        #
         # youtu.be/<id> 形式のURLから動画IDを抽出する
         if parsed.netloc == "youtu.be":
             return parsed.path.lstrip("/")
 
+        # Extract video ID from youtube.com/watch?v=<id> format URL
+        #
         # youtube.com/watch?v=<id> 形式のURLから動画IDを抽出する
         if parsed.path == "/watch":
             query = parse_qs(parsed.query)
             if "v" in query:
                 return query["v"][0]
 
+        # Extract video ID from youtube.com/live/<id> format URL
+        #
         # youtube.com/live/<id> 形式のURLから動画IDを抽出する
         if parsed.path.startswith("/live/"):
             parts = parsed.path.split("/")
@@ -52,10 +58,17 @@ class YouTubeChatClient:
 
     def get_live_chat_id(self, video_id):
         try:
-            response = self.youtube.videos().list(part="liveStreamingDetails", id=video_id).execute()
+            response = (
+                self.youtube.videos()
+                .list(part="liveStreamingDetails", id=video_id)
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e)
-            raise  # 例外の再スローは呼び出し元に委ねる
+            # Delegate re-throwing exceptions to the caller
+            #
+            # 例外の再スローは呼び出し元に委ねる
+            raise
 
         items = response.get("items", [])
         if not items:
@@ -70,17 +83,26 @@ class YouTubeChatClient:
 
     def get_current_live_video_id(self):
         try:
-            response = self.youtube.liveBroadcasts().list(part="id,status", mine=True).execute()
+            response = (
+                self.youtube.liveBroadcasts()
+                .list(part="id,status", mine=True)
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e)
-            raise  # 例外の再スローは呼び出し元に委ねる
+            # Delegate re-throwing exceptions to the caller
+            #
+            # 例外の再スローは呼び出し元に委ねる
+            raise
 
         items = response.get("items", [])
         for item in items:
             status = item.get("status", {}).get("lifeCycleStatus")
             if status == "live":
                 vid = item.get("id")
-                chat_url = f"https://www.youtube.com/live_chat?v={vid}&is_popout=1"
+                chat_url = (
+                    f"https://www.youtube.com/live_chat?v={vid}&is_popout=1"
+                )
                 return vid, chat_url
 
         raise RuntimeError(
@@ -102,7 +124,10 @@ class YouTubeChatClient:
             )
         except HttpError as e:
             self._handle_api_error(e)
-            raise  # 例外の再スローは呼び出し元に委ねる
+            # Delegate re-throwing exceptions to the caller
+            #
+            # 例外の再スローは呼び出し元に委ねる
+            raise
 
         items = response.get("items", [])
         next_page_token = response.get("nextPageToken")
@@ -124,7 +149,10 @@ class YouTubeChatClient:
         except HttpError as e:
             self._handle_api_error(e)
             logger.warning(f"Error checking video status: {e}")
-            return True  # チェック失敗時は継続を優先（配信中と見なす）
+            # Prioritize continuation on check failure (assume streaming)
+            #
+            # チェック失敗時は継続を優先（配信中と見なす）
+            return True
         
         items = vresp.get("items", [])
         if not items:
@@ -140,27 +168,68 @@ class YouTubeChatClient:
         return True
 
     def _handle_api_error(self, e: HttpError):
-        """YouTube APIの例外を検知し、発生原因に応じた詳細なガイダンスを日本語で出力する。
+        """Detects YouTube API exceptions and outputs detailed guidance
+        according to the cause.
+
+        This method only logs the error and does not re-throw the exception,
+        allowing the caller to decide the action (continue or stop) based on
+        the exception type.
+
+        YouTube APIの例外を検知し、
+        発生原因に応じた詳細なガイダンスを日本語で出力する。
 
         このメソッドはログ出力のみ行い、例外の再スローは行わない。
-        呼び出し元が例外の種類に応じて動作（継続 or 停止）を選択できるようにするため。
+        呼び出し元が例外の種類に応じて動作（継続 or 停止）を選択
+        できるようにするため。
         """
         err_msg = str(e)
         if e.resp.status == 403:
             if "quotaExceeded" in err_msg:
-                logger.error("[ERROR] YouTube API の本日の無料枠上限（クォータ）を超過しました。")
-                logger.error("        - 太平洋時間 0:00（日本時間の午後4時〜5時頃）に制限がリセットされるまでお待ちください。")
-                logger.error("        - または、別の Google Cloud プロジェクトの client_secret.json を使用してください。")
+                logger.error(
+                    "[ERROR] YouTube API の本日の"
+                    "無料枠上限（クォータ）を超過しました。"
+                )
+                logger.error(
+                    "        - 太平洋時間 0:00"
+                    "（日本時間の午後4時〜5時頃）に"
+                    "制限がリセットされるまでお待ちください。"
+                )
+                logger.error(
+                    "        - または、別の "
+                    "Google Cloud プロジェクトの "
+                    "client_secret.json を使用してください。"
+                )
             elif "commentsDisabled" in err_msg:
-                logger.error("[ERROR] この動画・アーカイブはコメント機能がオフ（無効）に設定されています。")
-                logger.error("        - コメント（チャット）機能が有効な動画・配信のURLを指定してください。")
+                logger.error(
+                    "[ERROR] この動画・アーカイブは"
+                    "コメント機能がオフ（無効）に設定されています。"
+                )
+                logger.error(
+                    "        - コメント（チャット）機能が"
+                    "有効な動画・配信のURLを指定してください。"
+                )
             else:
+                # Insufficient permissions, members-only, or private video, etc.
                 # 権限不足・メンバー限定・非公開動画など
-                logger.error("[ERROR] 指定された動画・配信へのアクセス権限がありません。")
-                logger.error("        - メンバー限定配信、非公開、または限定公開の動画ではないかご確認ください。")
-                logger.error("        - 閲覧権限がある正しい Google アカウントで再認証（token.json を削除して再実行）してください。")
+                logger.error(
+                    "[ERROR] 指定された動画・配信への"
+                    "アクセス権限がありません。"
+                )
+                logger.error(
+                    "        - メンバー限定配信、非公開、または"
+                    "限定公開の動画ではないかご確認ください。"
+                )
+                logger.error(
+                    "        - 閲覧権限がある正しい "
+                    "Google アカウントで"
+                    "再認証（token.json を削除して再実行）"
+                    "してください。"
+                )
         else:
-            logger.error(f"[ERROR] YouTube API エラーが発生しました (ステータスコード: {e.resp.status})")
+            logger.error(
+                f"[ERROR] YouTube API エラーが発生しました "
+                f"(ステータスコード: {e.resp.status})"
+            )
 
         if getattr(self, "verbose", False):
             logger.debug(f"  (エラー詳細: {err_msg.strip()})")
@@ -168,7 +237,11 @@ class YouTubeChatClient:
     def get_my_channel_id(self):
         if not hasattr(self, "_my_channel_id"):
             try:
-                response = self.youtube.channels().list(part="id", mine=True).execute()
+                response = (
+                    self.youtube.channels()
+                    .list(part="id", mine=True)
+                    .execute()
+                )
                 items = response.get("items", [])
                 if items:
                     self._my_channel_id = items[0]["id"]
@@ -181,7 +254,11 @@ class YouTubeChatClient:
 
     def get_video_details(self, video_id):
         try:
-            response = self.youtube.videos().list(part="snippet,liveStreamingDetails", id=video_id).execute()
+            response = (
+                self.youtube.videos()
+                .list(part="snippet,liveStreamingDetails", id=video_id)
+                .execute()
+            )
         except HttpError as e:
             self._handle_api_error(e)
             raise
@@ -218,7 +295,10 @@ class YouTubeChatClient:
                 author = comment_snippet.get("authorDisplayName", "")
                 message = comment_snippet.get("textOriginal", "")
                 published_at = comment_snippet.get("publishedAt", "")
-                author_channel_id = comment_snippet.get("authorChannelId", {}).get("value", "")
+                author_channel_id = (
+                    comment_snippet.get("authorChannelId", {})
+                    .get("value", "")
+                )
                 
                 if comment_id:
                     items.append({

@@ -24,9 +24,17 @@ logger = get_logger()
 class AudioPlayer:
     def __init__(self, default_device=None):
         if default_device is None:
-            # サウンドサーバーデバイス（pipewire または pulse）の自動検出を試みる。
-            # Linux環境におけるオーディオサーバーの競合を回避し、接続の安定性を高めるために、
-            # pipewire や pulse などのモダンなサウンドサーバーを優先する。
+            # Try to auto-detect sound server devices (pipewire or pulse).
+            # To avoid audio server conflicts on Linux and
+            # improve connection stability,
+            # modern sound servers such as pipewire and pulse are preferred.
+            #
+            # サウンドサーバーデバイス（pipewire または
+            # pulse）の自動検出を試みる。
+            # Linux環境におけるオーディオサーバーの競合を回避し、
+            # 接続の安定性を高めるために、
+            # pipewire や pulse などのモダンな
+            # サウンドサーバーを優先する。
             try:
                 devices = sd.query_devices()
                 if isinstance(devices, dict):
@@ -51,6 +59,8 @@ class AudioPlayer:
         if default_device is not None:
             sd.default.device = default_device
 
+        # Query the default sampling rate of the output device
+        #
         # 出力デバイスのデフォルトサンプリングレートを問い合わせる
         try:
             device_info = sd.query_devices(None, 'output')
@@ -63,8 +73,13 @@ class AudioPlayer:
     def query_devices(self, device=None, kind=None):
         return sd.query_devices(device, kind)
 
+    # Simple linear interpolation resampling.
+    # Used for simple playback rate conversion, not for high-quality
+    # or complex audio transformation.
+    #
     # 簡易的な線形補間によるリサンプリング処理。
-    # 高音質化や複雑なオーディオ変換用ではなく、簡易的な再生用レート変換に使用される。
+    # 高音質化や複雑なオーディオ変換用ではなく、
+    # 簡易的な再生用レート変換に使用される。
     def resample_audio(self, audio, source_sample_rate, target_sample_rate):
         if source_sample_rate == target_sample_rate:
             return audio
@@ -84,8 +99,15 @@ class AudioPlayer:
 
         audio = np.frombuffer(pcm_data, dtype=np.int16)
 
-        # デバイスが指定された場合は、sd.play の引数に渡すために play_device を特定する。
-        # デバイス未指定の場合は self.default_device (None または初期化時のもの) を使用する。
+        # If a device is specified, identify play_device to pass
+        # as an argument to sd.play.
+        # If not specified, use self.default_device
+        # (None or the one from initialization).
+        #
+        # デバイスが指定された場合は、sd.play の引数に渡すために
+        # play_device を特定する。
+        # デバイス未指定の場合は self.default_device
+        # (None または初期化時のもの) を使用する。
         play_device = None
         if device is not None:
             try:
@@ -95,11 +117,17 @@ class AudioPlayer:
         else:
             play_device = self.default_device
 
+        # Determine the sampling rate for playback
+        #
         # 再生時のサンプリングレートを決定する
         play_rate = target_sample_rate or self.target_sample_rate
         audio = self.resample_audio(audio, sample_rate, play_rate)
 
-        # sd.play に直接デバイスを渡すことで、グローバルな sd.default.device の書き換えを防ぐ
+        # Pass the device directly to sd.play to prevent rewriting
+        # global sd.default.device
+        #
+        # sd.play に直接デバイスを渡すことで、グローバルな
+        # sd.default.device の書き換えを防ぐ
         sd.play(audio, samplerate=play_rate, device=play_device)
         sd.wait()
 
