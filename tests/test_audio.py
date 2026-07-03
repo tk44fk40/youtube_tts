@@ -1,11 +1,10 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 
 from youtube_tts import AudioPlayer
 
 
-@patch("youtube_tts.audio.sd")
 def test_audio_initialization_success(mock_sd):
     mock_sd.query_devices.return_value = {
         "name": "default",
@@ -17,7 +16,6 @@ def test_audio_initialization_success(mock_sd):
     mock_sd.query_devices.assert_called_once_with(None, "output")
 
 
-@patch("youtube_tts.audio.sd")
 def test_audio_initialization_default_none(mock_sd):
     mock_sd.query_devices.return_value = {
         "name": "default",
@@ -35,7 +33,6 @@ def test_audio_initialization_default_none(mock_sd):
     assert not mock_sd.default.mock_calls
 
 
-@patch("youtube_tts.audio.sd")
 def test_audio_initialization_no_device(mock_sd):
     mock_sd.query_devices.side_effect = Exception("No output device found")
     player = AudioPlayer()
@@ -46,7 +43,6 @@ def test_audio_initialization_no_device(mock_sd):
     assert player.target_sample_rate == 24000
 
 
-@patch("youtube_tts.audio.sd")
 def test_audio_initialization_autodetect_pipewire(mock_sd):
     mock_sd.query_devices.side_effect = [
         [
@@ -61,7 +57,6 @@ def test_audio_initialization_autodetect_pipewire(mock_sd):
     assert player.target_sample_rate == 44100
 
 
-@patch("youtube_tts.audio.sd")
 def test_audio_initialization_autodetect_pulse(mock_sd):
     mock_sd.query_devices.side_effect = [
         [
@@ -88,7 +83,6 @@ def test_resample_audio():
     assert resampled[1] == 400
 
 
-@patch("youtube_tts.audio.sd")
 def test_play_wav_success(mock_sd, dummy_wav_bytes):
     mock_sd.query_devices.return_value = {
         "name": "default",
@@ -104,7 +98,6 @@ def test_play_wav_success(mock_sd, dummy_wav_bytes):
     mock_sd.wait.assert_called_once()
 
 
-@patch("youtube_tts.audio.sd")
 def test_play_wav_with_device_switch(mock_sd, dummy_wav_bytes):
     mock_sd.query_devices.return_value = {
         "name": "default",
@@ -127,7 +120,6 @@ def test_play_wav_with_device_switch(mock_sd, dummy_wav_bytes):
     assert kwargs["device"] == 3
 
 
-@patch("youtube_tts.audio.sd")
 def test_play_wav_invalid_device_name(mock_sd, dummy_wav_bytes):
     mock_sd.query_devices.return_value = {
         "name": "default",
@@ -150,7 +142,6 @@ def test_play_wav_invalid_device_name(mock_sd, dummy_wav_bytes):
     assert kwargs["device"] == "default"
 
 
-@patch("youtube_tts.audio.sd")
 def test_query_devices(mock_sd):
     mock_sd.query_devices.return_value = {"name": "dummy"}
     player = AudioPlayer()
@@ -159,7 +150,6 @@ def test_query_devices(mock_sd):
     mock_sd.query_devices.assert_called_with(1, "output")
 
 
-@patch("youtube_tts.audio.sd")
 def test_audio_stop_exception(mock_sd, caplog):
     mock_sd.stop.side_effect = Exception("sounddevice error")
     player = AudioPlayer()

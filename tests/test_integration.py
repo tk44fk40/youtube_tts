@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 from youtube_tts import AppConfig, AudioPlayer, TextProcessor, VoicevoxClient
 
 
-@patch("youtube_tts.audio.sd")
 @patch("requests.post")
 def test_tts_pipeline_integration(
     mock_post, mock_sd, tmp_path, dummy_wav_bytes
