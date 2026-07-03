@@ -32,7 +32,7 @@ DEFAULT_VOLUME = 1.0
 def list_speakers(client: VoicevoxClient):
     try:
         speakers = client.get_speakers()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"{e}")
         sys.exit(1)
 
@@ -135,17 +135,11 @@ def main():
     # 出力デバイスの規定サンプリングレートを調べる
     target_sample_rate = args.samplerate
     if target_sample_rate is None and not args.no_play and player is not None:
-        try:
-            device_info = player.query_devices(args.device, "output")
-            target_sample_rate = int(device_info["default_samplerate"])
-            logger.info(
-                f"出力デバイス: {device_info['name']} "
-                f"(ID: {device_info['index']})"
-            )
-        except Exception as e:
-            logger.warning(
-                f"デバイスのサンプリングレート取得に失敗しました: {e}"
-            )
+        target_sample_rate = player.target_sample_rate
+        logger.info(
+            f"出力デバイス: {args.device or 'Default'} "
+            f"(想定サンプリングレート: {target_sample_rate}Hz)"
+        )
 
     try:
         logger.info(f"音声合成中: 「{args.text}」 (話者ID: {args.speaker})")
@@ -155,7 +149,7 @@ def main():
             speed_scale=args.speed,
             target_sample_rate=target_sample_rate,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"音声合成に失敗しました: {e}")
         sys.exit(1)
 
@@ -164,7 +158,7 @@ def main():
         with open(args.output, "wb") as f:
             f.write(wav_content)
         logger.info(f"音声ファイルを保存しました: {args.output}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"ファイルの保存に失敗しました: {e}")
 
     if not args.no_play:
@@ -179,7 +173,7 @@ def main():
                 target_sample_rate=target_sample_rate,
             )
             logger.info("再生完了")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"再生に失敗しました: {e}")
             print("\n利用可能なオーディオデバイス一覧:", file=sys.stderr)
             print(player.query_devices())

@@ -14,6 +14,7 @@
 #
 """AudioPlayer クラスの単体テストを行うモジュール。"""
 
+import os
 import shutil
 import subprocess
 from unittest.mock import MagicMock, patch
@@ -134,8 +135,53 @@ def test_query_devices_no_tools(monkeypatch):
     assert "見つかりませんでした" in res
 
 
+def test_play_wav_pacat(monkeypatch):
+    """pacat を使用した再生処理のテスト。"""
+    monkeypatch.setattr(
+        shutil, "which", lambda cmd: "/usr/bin/pacat" if cmd == "pacat" else None
+    )
+
+    mock_popen = MagicMock()
+    mock_process = MagicMock()
+    mock_popen.return_value = mock_process
+    monkeypatch.setattr(subprocess, "Popen", mock_popen)
+
+    player = AudioPlayer()
+    player.play_wav(b"dummy_wav_data", device="my_device")
+
+    mock_popen.assert_called_once()
+    cmd = mock_popen.call_args[0][0]
+    assert "pacat" in cmd
+    assert "-d" in cmd
+    assert "my_device" in cmd
+    assert mock_popen.call_args[1].get("stdin") == subprocess.PIPE
+    mock_process.communicate.assert_called_once_with(input=b"dummy_wav_data")
+
+
+def test_play_wav_pacat_no_device(monkeypatch):
+    """deviceが指定されない（None）場合の pacat での再生テスト。"""
+    monkeypatch.setattr(
+        shutil, "which", lambda cmd: "/usr/bin/pacat" if cmd == "pacat" else None
+    )
+
+    mock_popen = MagicMock()
+    mock_process = MagicMock()
+    mock_popen.return_value = mock_process
+    monkeypatch.setattr(subprocess, "Popen", mock_popen)
+
+    player = AudioPlayer()
+    player.play_wav(b"dummy")
+
+    mock_popen.assert_called_once()
+    cmd = mock_popen.call_args[0][0]
+    assert "pacat" in cmd
+    assert "-d" not in cmd
+    assert mock_popen.call_args[1].get("stdin") == subprocess.PIPE
+    mock_process.communicate.assert_called_once_with(input=b"dummy")
+
+
 def test_play_wav_pw_play(monkeypatch):
-    """pw-play を使用した再生処理のテスト。"""
+    """pw-play を使用した再生処理（一時ファイル経由）のテスト。"""
     monkeypatch.setattr(
         shutil,
         "which",
@@ -147,16 +193,32 @@ def test_play_wav_pw_play(monkeypatch):
     mock_popen.return_value = mock_process
     monkeypatch.setattr(subprocess, "Popen", mock_popen)
 
+    # os.unlink をスパイしてパスを記録する
+    unlinked_paths = []
+    original_unlink = os.unlink
+
+    def mock_unlink(path):
+        unlinked_paths.append(path)
+        original_unlink(path)
+
+    monkeypatch.setattr(os, "unlink", mock_unlink)
+
     player = AudioPlayer()
     player.play_wav(b"dummy_wav_data", device="my_device")
 
-    # pw-play に --target my_device が渡されたか確認
     mock_popen.assert_called_once()
     cmd = mock_popen.call_args[0][0]
     assert "pw-play" in cmd
     assert "--target" in cmd
     assert "my_device" in cmd
-    mock_process.communicate.assert_called_once_with(input=b"dummy_wav_data")
+
+    temp_path = cmd[1]
+    assert temp_path.endswith(".wav")
+    assert os.path.exists(temp_path) is False  # 既に削除されていること
+    assert temp_path in unlinked_paths
+    assert mock_popen.call_args[1].get("stdin") is None
+    mock_process.wait.assert_called_once()
+    mock_process.communicate.assert_not_called()
 
 
 def test_play_wav_aplay(monkeypatch):
@@ -182,10 +244,12 @@ def test_play_wav_aplay(monkeypatch):
     assert "aplay" in cmd
     assert "-D" in cmd
     assert "my_device" in cmd
+    assert mock_popen.call_args[1].get("stdin") == subprocess.PIPE
+    mock_process.communicate.assert_called_once_with(input=b"dummy_wav_data")
 
 
 def test_play_wav_paplay(monkeypatch):
-    """paplay を使用した再生処理のテスト。"""
+    """paplay を使用した再生処理（一時ファイル経由）のテスト。"""
 
     def mock_which(cmd):
         if cmd == "paplay":
@@ -199,6 +263,16 @@ def test_play_wav_paplay(monkeypatch):
     mock_popen.return_value = mock_process
     monkeypatch.setattr(subprocess, "Popen", mock_popen)
 
+    # os.unlink をスパイ
+    unlinked_paths = []
+    original_unlink = os.unlink
+
+    def mock_unlink(path):
+        unlinked_paths.append(path)
+        original_unlink(path)
+
+    monkeypatch.setattr(os, "unlink", mock_unlink)
+
     player = AudioPlayer()
     player.play_wav(b"dummy_wav_data", device="my_device")
 
@@ -207,6 +281,42 @@ def test_play_wav_paplay(monkeypatch):
     assert "paplay" in cmd
     assert "-d" in cmd
     assert "my_device" in cmd
+
+    temp_path = cmd[1]
+    assert temp_path.endswith(".wav")
+    assert os.path.exists(temp_path) is False
+    assert temp_path in unlinked_paths
+    assert mock_popen.call_args[1].get("stdin") is None
+    mock_process.wait.assert_called_once()
+    mock_process.communicate.assert_not_called()
+
+
+def test_play_wav_tempfile_unlink_error(monkeypatch):
+    """一時ファイル削除例外をキャッチして debug ログ出力するテスト。"""
+    monkeypatch.setattr(
+        shutil,
+        "which",
+        lambda cmd: "/usr/bin/pw-play" if cmd == "pw-play" else None,
+    )
+
+    mock_popen = MagicMock()
+    mock_process = MagicMock()
+    mock_popen.return_value = mock_process
+    monkeypatch.setattr(subprocess, "Popen", mock_popen)
+
+    # os.unlink を例外発生させる
+    def mock_unlink(path):
+        raise OSError("Unlink failed")
+
+    monkeypatch.setattr(os, "unlink", mock_unlink)
+
+    player = AudioPlayer()
+    with patch("youtube_tts.audio.logger.debug") as mock_debug:
+        player.play_wav(b"dummy_wav_data")
+
+        # ログメッセージが含まれているか確認
+        called_args = [call[0][0] for call in mock_debug.call_args_list]
+        assert any("一時ファイルの削除に失敗しました" in arg for arg in called_args)
 
 
 def test_play_wav_no_commands_raise_error(monkeypatch):
@@ -224,7 +334,7 @@ def test_play_wav_kills_existing_process(monkeypatch):
     monkeypatch.setattr(
         shutil,
         "which",
-        lambda cmd: "/usr/bin/pw-play" if cmd == "pw-play" else None,
+        lambda cmd: "/usr/bin/aplay" if cmd == "aplay" else None,
     )
 
     mock_old_process = MagicMock()
@@ -254,7 +364,7 @@ def test_play_wav_interrupt_and_stop(monkeypatch):
     monkeypatch.setattr(
         shutil,
         "which",
-        lambda cmd: "/usr/bin/pw-play" if cmd == "pw-play" else None,
+        lambda cmd: "/usr/bin/aplay" if cmd == "aplay" else None,
     )
 
     mock_process = MagicMock()
