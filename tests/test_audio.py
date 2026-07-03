@@ -93,9 +93,32 @@ def test_play_wav_success(mock_sd, dummy_wav_bytes):
     player.play_wav(dummy_wav_bytes)
 
     mock_sd.play.assert_called_once()
-    args, kwargs = mock_sd.play.call_args
+    _, kwargs = mock_sd.play.call_args
     assert kwargs["samplerate"] == 24000
-    mock_sd.wait.assert_called_once()
+    mock_sd.get_stream.assert_called_once()
+
+
+def test_play_wav_loop_waits_for_stream_completion(
+    mock_sd, dummy_wav_bytes
+):
+    """ストリーム完了までの待機ループを検証する。"""
+    mock_sd.query_devices.return_value = {
+        "name": "default",
+        "default_samplerate": 24000,
+    }
+    player = AudioPlayer()
+
+    # 1回目は active=True、2回目は active=False を返すようにモックを設定
+    from unittest.mock import PropertyMock
+
+    type(mock_sd.get_stream.return_value).active = PropertyMock(
+        side_effect=[True, False]
+    )
+
+    player.play_wav(dummy_wav_bytes)
+
+    mock_sd.play.assert_called_once()
+    mock_sd.get_stream.assert_called_once()
 
 
 def test_play_wav_with_device_switch(mock_sd, dummy_wav_bytes):
@@ -116,7 +139,7 @@ def test_play_wav_with_device_switch(mock_sd, dummy_wav_bytes):
     # 代わりに、sd.play の引数に
     # 渡されていることをアサートする
     mock_sd.play.assert_called_once()
-    args, kwargs = mock_sd.play.call_args
+    _, kwargs = mock_sd.play.call_args
     assert kwargs["device"] == 3
 
 
@@ -138,7 +161,7 @@ def test_play_wav_invalid_device_name(mock_sd, dummy_wav_bytes):
     # 代わりに、sd.play の引数に
     # 渡されていることをアサートする
     mock_sd.play.assert_called_once()
-    args, kwargs = mock_sd.play.call_args
+    _, kwargs = mock_sd.play.call_args
     assert kwargs["device"] == "default"
 
 
@@ -192,6 +215,6 @@ def test_audio_initialization_autodetect_invalid_hostapi_index(mock_sd):
         {"name": "Default Sink", "default_samplerate": 48000},
     ]
     mock_sd.default = MagicMock()
-    player = AudioPlayer()
+    AudioPlayer()
     assert mock_sd.default.device == 1
 
