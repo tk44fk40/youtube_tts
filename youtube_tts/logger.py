@@ -32,7 +32,16 @@ class StripAndCleanupFilter(logging.Filter):
     """ログメッセージの整形および重複プリフィックスの除去を行うフィルター。"""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        """メッセージの前後スペースをトリムし、レベル名との重複を防止します。"""
+        """ログレコードにフィルターを適用し、メッセージを整形します。
+
+        メッセージの前後スペースをトリムし、レベル名との重複を防止します。
+
+        Args:
+            record: 整形対象のログレコード。
+
+        Returns:
+            常に True。
+        """
         if isinstance(record.msg, str):
             msg_str = record.msg.strip()
             pfx = f"[{record.levelname}]"
@@ -50,6 +59,13 @@ def setup_logger(verbose: bool = False) -> logging.Logger:
 
     メッセージの先頭に識別子を付与するカスタムロガーを初期化し、
     ログの出力閾値を指定されたレベル（DEBUG または INFO）に設定します。
+
+    Args:
+        verbose: True の場合はログレベルを DEBUG に、
+            False の場合は INFO に設定します。
+
+    Returns:
+        初期化済みのロガーインスタンス。
     """
     logger = logging.getLogger(LOGGER_NAME)
 
@@ -77,7 +93,13 @@ def setup_logger(verbose: bool = False) -> logging.Logger:
 
 
 def get_logger() -> logging.Logger:
-    """ロガーを取得します。未初期化の場合は初期設定を実行します。"""
+    """ロガーを取得します。
+
+    未初期化の場合は初期設定を実行します。
+
+    Returns:
+        取得されたロガーインスタンス。
+    """
     logger = logging.getLogger(LOGGER_NAME)
     if not logger.handlers:
         setup_logger(verbose=False)
