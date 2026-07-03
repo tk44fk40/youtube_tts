@@ -12,15 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""VOICEVOX エンジンと連携して音声合成を行うモジュール。
+
+このモジュールは、VOICEVOX エンジンの REST API を呼び出して
+テキストから音声を合成し、WAV 形式のバイナリデータを
+返す機能を提供します。
+"""
+
 import requests
 
 
 class VoicevoxClient:
+    """VOICEVOX エンジンの REST API クライアントクラス。"""
+
     def __init__(self, base_url="http://127.0.0.1:50021", speaker_id=3):
+        """VoicevoxClient クラスを初期化します。
+
+        Args:
+            base_url: VOICEVOX エンジンの REST API のベース URL。
+            speaker_id: 音声合成に使用するスピーカー ID。
+        """
         self.base_url = base_url
         self.speaker_id = speaker_id
 
     def get_speakers(self) -> list:
+        """VOICEVOX エンジンから利用可能なスピーカー一覧を取得します。
+
+        Returns:
+            スピーカー情報のリスト。
+
+        Raises:
+            RuntimeError: VOICEVOX サーバーへの接続に失敗した場合。
+        """
         try:
             response = requests.get(f"{self.base_url}/speakers")
             response.raise_for_status()
@@ -31,6 +54,18 @@ class VoicevoxClient:
     def synthesize(
         self, text, volume_scale=1.0, speed_scale=1.0, target_sample_rate=None
     ) -> bytes:
+        """VOICEVOX エンジンでテキストを音声合成します。
+
+        Args:
+            text: 音声合成するテキスト。
+            volume_scale: 音量のスケール係数。デフォルトは 1.0。
+            speed_scale: 読上げスピードのスケール係数。デフォルトは 1.0。
+            target_sample_rate: 出力サンプリングレート（Hz）。
+                None の場合は VOICEVOX のデフォルト値を使用。
+
+        Returns:
+            WAV 形式の音声データのバイト列。
+        """
         # 1. 音声クエリを作成する
         query_response = requests.post(
             f"{self.base_url}/audio_query",
