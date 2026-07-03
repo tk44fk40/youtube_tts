@@ -76,6 +76,27 @@ def test_synthesize_success():
         assert second_call[1]["json"]["outputSamplingRate"] == 48000
 
 
+def test_synthesize_success_no_rate():
+    client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
+
+    with patch("requests.post") as mock_post:
+        mock_query_resp = MagicMock()
+        mock_query_resp.json.return_value = {
+            "outputSamplingRate": 24000,
+            "volumeScale": 1.0,
+            "speedScale": 1.0,
+        }
+
+        mock_synth_resp = MagicMock()
+        mock_synth_resp.content = b"fake_wav_data"
+
+        mock_post.side_effect = [mock_query_resp, mock_synth_resp]
+
+        wav_data = client.synthesize("こんにちは")
+        assert wav_data == b"fake_wav_data"
+        assert mock_post.call_count == 2
+
+
 def test_synthesize_http_error():
     client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
 

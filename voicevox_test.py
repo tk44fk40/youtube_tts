@@ -118,19 +118,23 @@ def main():
     args = parser.parse_args()
 
     client = VoicevoxClient(base_url=args.host, speaker_id=args.speaker)
-    player = AudioPlayer(default_device=args.device)
 
     if args.list_speakers:
         list_speakers(client)
         return
 
+    player = None
+    if args.list_devices or not args.no_play:
+        player = AudioPlayer(default_device=args.device)
+
     if args.list_devices:
-        print(player.query_devices())
+        if player is not None:
+            print(player.query_devices())
         return
 
     # 出力デバイスの規定サンプリングレートを調べる
     target_sample_rate = args.samplerate
-    if target_sample_rate is None and not args.no_play:
+    if target_sample_rate is None and not args.no_play and player is not None:
         try:
             device_info = player.query_devices(args.device, "output")
             target_sample_rate = int(device_info["default_samplerate"])

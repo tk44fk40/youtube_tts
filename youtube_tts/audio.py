@@ -15,26 +15,30 @@
 import io
 import wave
 import numpy as np
-import sounddevice as sd
 
 from .logger import get_logger
 
 logger = get_logger()
 
+
 class AudioPlayer:
+    """音声の再生およびオーディオデバイスの制御を行うクラス。"""
+
     def __init__(self, default_device=None):
+        """オーディオプレイヤーを初期化する。
+
+        Args:
+            default_device (int or str, optional):
+                デフォルトで使用する出力オーディオデバイスの名前またはID。
+                指定しない場合は、pipewire または pulse を自動検出します。
+        """
+        import sounddevice as sd
+
         if default_device is None:
-            # Try to auto-detect sound server devices (pipewire or pulse).
-            # To avoid audio server conflicts on Linux and
-            # improve connection stability,
-            # modern sound servers such as pipewire and pulse are preferred.
-            #
-            # サウンドサーバーデバイス（pipewire または
-            # pulse）の自動検出を試みる。
-            # Linux環境におけるオーディオサーバーの競合を回避し、
-            # 接続の安定性を高めるために、
-            # pipewire や pulse などのモダンな
-            # サウンドサーバーを優先する。
+            # サウンドサーバーデバイス（pipewire または pulse）の
+            # 自動検出を試みる。
+            # Linux環境における競合を回避し、接続の安定性を高めるため、
+            # pipewire や pulse を優先する。
             try:
                 devices = sd.query_devices()
                 if isinstance(devices, dict):
@@ -43,8 +47,8 @@ class AudioPlayer:
                 found_device = None
                 for keyword in preferred_keywords:
                     for i, dev in enumerate(devices):
-                        if dev.get('max_output_channels', 0) > 0:
-                            name = dev.get('name', '').lower()
+                        if dev.get("max_output_channels", 0) > 0:
+                            name = dev.get("name", "").lower()
                             if keyword in name:
                                 found_device = i
                                 break
@@ -59,28 +63,43 @@ class AudioPlayer:
         if default_device is not None:
             sd.default.device = default_device
 
-        # Query the default sampling rate of the output device
-        #
         # 出力デバイスのデフォルトサンプリングレートを問い合わせる
         try:
-            device_info = sd.query_devices(None, 'output')
-            self.target_sample_rate = int(device_info['default_samplerate'])
+            device_info = sd.query_devices(None, "output")
+            self.target_sample_rate = int(device_info["default_samplerate"])
         except Exception:
             self.target_sample_rate = 24000
 
         sd.default.samplerate = self.target_sample_rate
 
     def query_devices(self, device=None, kind=None):
+        """利用可能なオーディオデバイスの情報を取得する。
+
+        Args:
+            device (int or str, optional): デバイス名またはID。
+            kind (str, optional): 'input' または 'output'。
+
+        Returns:
+            dict or list: デバイス情報。
+        """
+        import sounddevice as sd
+
         return sd.query_devices(device, kind)
 
-    # Simple linear interpolation resampling.
-    # Used for simple playback rate conversion, not for high-quality
-    # or complex audio transformation.
-    #
-    # 簡易的な線形補間によるリサンプリング処理。
-    # 高音質化や複雑なオーディオ変換用ではなく、
-    # 簡易的な再生用レート変換に使用される。
     def resample_audio(self, audio, source_sample_rate, target_sample_rate):
+        """簡易的な線形補間によるリサンプリング処理。
+
+        高音質化や複雑なオーディオ変換用ではなく、
+        簡易的な再生用レート変換に使用されます。
+
+        Args:
+            audio (numpy.ndarray): 元のオーディオデータ。
+            source_sample_rate (int): 元のサンプリングレート。
+            target_sample_rate (int): 変換先のサンプリングレート。
+
+        Returns:
+            numpy.ndarray: リサンプリングされたオーディオデータ。
+        """
         if source_sample_rate == target_sample_rate:
             return audio
 
@@ -92,6 +111,15 @@ class AudioPlayer:
         return resampled_audio
 
     def play_wav(self, wav_content, device=None, target_sample_rate=None):
+        """WAV音声データを再生する。
+
+        Args:
+            wav_content (bytes): WAVファイルのバイナリデータ。
+            device (int or str, optional): 再生に使用するデバイス。
+            target_sample_rate (int, optional): 再生サンプリングレート。
+        """
+        import sounddevice as sd
+
         wav_io = io.BytesIO(wav_content)
         with wave.open(wav_io, "rb") as wav_file:
             sample_rate = wav_file.getframerate()
@@ -99,15 +127,8 @@ class AudioPlayer:
 
         audio = np.frombuffer(pcm_data, dtype=np.int16)
 
-        # If a device is specified, identify play_device to pass
-        # as an argument to sd.play.
-        # If not specified, use self.default_device
-        # (None or the one from initialization).
-        #
-        # デバイスが指定された場合は、sd.play の引数に渡すために
-        # play_device を特定する。
-        # デバイス未指定の場合は self.default_device
-        # (None または初期化時のもの) を使用する。
+        # デバイスが指定された場合は sd.play の引数に渡す play_device を特定。
+        # デバイス未指定の場合は self.default_device を使用。
         play_device = None
         if device is not None:
             try:
@@ -117,22 +138,20 @@ class AudioPlayer:
         else:
             play_device = self.default_device
 
-        # Determine the sampling rate for playback
-        #
-        # 再生時のサンプリングレートを決定する
+        # 再生時のサンプリングレートを決定
         play_rate = target_sample_rate or self.target_sample_rate
         audio = self.resample_audio(audio, sample_rate, play_rate)
 
-        # Pass the device directly to sd.play to prevent rewriting
-        # global sd.default.device
-        #
-        # sd.play に直接デバイスを渡すことで、グローバルな
-        # sd.default.device の書き換えを防ぐ
+        # sd.play に直接デバイスを渡すことで、
+        # グローバルな sd.default.device の書き換えを防ぐ
         sd.play(audio, samplerate=play_rate, device=play_device)
         sd.wait()
 
     def stop(self):
+        """再生中の音声を停止する。"""
         try:
+            import sounddevice as sd
+
             sd.stop()
         except Exception as e:
             logger.warning(f"sounddevice stop failed: {e}")

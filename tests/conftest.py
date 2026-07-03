@@ -25,6 +25,21 @@ from youtube_tts import (
 
 
 @pytest.fixture
+def mock_sd():
+    """sounddevice のモックをクリーンな状態で提供するフィクスチャ。
+
+    Yields:
+        MagicMock: テストごとに新しく生成された sounddevice のモック。
+    """
+    original_sd = sys.modules.get("sounddevice")
+    new_sd = MagicMock()
+    sys.modules["sounddevice"] = new_sd
+    yield new_sd
+    if original_sd is not None:
+        sys.modules["sounddevice"] = original_sd
+
+
+@pytest.fixture
 def dummy_wav_bytes():
     """Generates a 0.1-second silent WAV data (24000Hz, mono, 16bit).
 

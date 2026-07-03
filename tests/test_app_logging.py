@@ -66,6 +66,8 @@ def test_logger_filter():
         logger.info("  Whitespace  ")
         # 重複なし
         logger.info("Normal message")
+        # 文字列以外
+        logger.info(12345)
 
         output = captured_output.getvalue()
         lines = output.splitlines()
@@ -73,5 +75,6 @@ def test_logger_filter():
         assert lines[0] == "[INFO] Hello World"
         assert lines[1] == "[INFO] Whitespace"
         assert lines[2] == "[INFO] Normal message"
+        assert lines[3] == "[INFO] 12345"
     finally:
         logger.removeHandler(handler)

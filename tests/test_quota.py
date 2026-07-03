@@ -201,3 +201,48 @@ def test_get_quota_info_midnight_boundary(mock_client_class):
             # datetime モックの挙動によって失敗することがあるが、
             # 境界補正ロジックのカバレッジが目的
             pass
+
+
+@patch("youtube_tts.quota.monitoring_v3.MetricServiceClient")
+def test_get_quota_info_limit_empty(mock_client_class):
+    """上限値リストが空の場合にデフォルト値 10000 が使われることを検証。"""
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    mock_point_usage = MagicMock()
+    mock_point_usage.value.int64_value = 100
+    mock_result_usage = MagicMock()
+    mock_result_usage.points = [mock_point_usage]
+
+    mock_client.list_time_series.side_effect = [
+        [mock_result_usage],
+        [],
+    ]
+
+    creds = MagicMock()
+    _, limit = get_quota_info(creds, "my-project")
+    assert limit == 10000
+
+
+@patch("youtube_tts.quota.monitoring_v3.MetricServiceClient")
+def test_get_quota_info_limit_no_points(mock_client_class):
+    """上限値リザルトに points が存在しない場合にデフォルト値になることを検証。"""
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    mock_point_usage = MagicMock()
+    mock_point_usage.value.int64_value = 100
+    mock_result_usage = MagicMock()
+    mock_result_usage.points = [mock_point_usage]
+
+    mock_result_limit = MagicMock()
+    mock_result_limit.points = []
+
+    mock_client.list_time_series.side_effect = [
+        [mock_result_usage],
+        [mock_result_limit],
+    ]
+
+    creds = MagicMock()
+    _, limit = get_quota_info(creds, "my-project")
+    assert limit == 10000

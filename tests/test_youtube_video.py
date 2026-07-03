@@ -122,6 +122,17 @@ def test_fetch_comment_threads_parse_error(mock_client, caplog):
                     }
                 }
             },
+            {
+                "snippet": {
+                    "topLevelComment": {
+                        "id": None,
+                        "snippet": {
+                            "authorDisplayName": "No ID",
+                            "textOriginal": "Msg",
+                        },
+                    }
+                }
+            },
             "invalid_item_not_a_dict",
         ]
     }
@@ -157,3 +168,29 @@ def test_get_video_details_comment_disabled(mock_client, verbose, expect_debug):
         mock_logger.debug.assert_called_once_with(Contains("(エラー詳細:"))
     else:
         mock_logger.debug.assert_not_called()
+
+
+def test_handle_api_error_decode_failure(mock_client):
+    """APIエラー発生時に e.content のデコードに失敗しても安全に処理されるか。"""
+    client, mock_service = mock_client
+    resp = Response({"status": 500, "reason": "Internal Server Error"})
+    content = b"\xff\xff\xff"  # 不正なUTF-8バイト
+    mock_service.videos().list().execute.side_effect = HttpError(resp, content)
+
+    with pytest.raises(HttpError):
+        client.get_video_details("vid")
+
+
+def test_handle_api_error_no_content(mock_client):
+    """APIエラーの e.content が存在しない場合でも安全に処理されるか。"""
+    client, mock_service = mock_client
+
+    resp = Response({"status": 500, "reason": "Internal Server Error"})
+    mock_e = HttpError(resp, b"")
+    if hasattr(mock_e, "content"):
+        del mock_e.content
+
+    mock_service.videos().list().execute.side_effect = mock_e
+
+    with pytest.raises(HttpError):
+        client.get_video_details("vid")
