@@ -17,23 +17,23 @@
 # OAuth 初回認証(トークンJSON保存)スクリプト
 
 import sys
-from youtube_tts import YouTubeAuthenticator
+from youtube_tts import YouTubeAuthenticator, get_logger
 
 TOKEN_FILE = "token.json"
 CLIENT_SECRET_FILE = "client_secret.json"
 
 
 def main():
+    logger = get_logger()
     try:
         authenticator = YouTubeAuthenticator(
             client_secret_path=CLIENT_SECRET_FILE,
             token_path=TOKEN_FILE
         )
         creds = authenticator.get_credentials()
-        print("認証成功")
-        print(creds.token[:32] + "...")
+        logger.info("認証成功: %s...", creds.token[:32])
     except Exception as e:
-        print(f"[ERROR] 認証に失敗しました: {e}", file=sys.stderr)
+        logger.error(f"認証に失敗しました: {e}")
         sys.exit(1)
 
 
