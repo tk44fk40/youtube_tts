@@ -35,21 +35,37 @@ class AudioPlayer:
         import sounddevice as sd
 
         if default_device is None:
-            # サウンドサーバーデバイス（pipewire または pulse）の
-            # 自動検出を試みる。
-            # Linux環境における競合を回避し、接続の安定性を高めるため、
-            # pipewire や pulse を優先する。
+            # サウンドサーバーデバイスの自動検出を試みる。
+            # Linux環境での競合回避と接続安定化のため、
+            # pipewire, pulse, pulseaudio, default を優先して検索する。
             try:
                 devices = sd.query_devices()
                 if isinstance(devices, dict):
                     devices = [devices]
-                preferred_keywords = ["pipewire", "pulse"]
+                hostapis = sd.query_hostapis()
+                preferred_keywords = [
+                    "pipewire",
+                    "pulse",
+                    "pulseaudio",
+                    "default",
+                ]
                 found_device = None
                 for keyword in preferred_keywords:
                     for i, dev in enumerate(devices):
                         if dev.get("max_output_channels", 0) > 0:
                             name = dev.get("name", "").lower()
-                            if keyword in name:
+                            # ホストAPI名も判定対象に含める
+                            api_idx = dev.get("hostapi")
+                            api_name = ""
+                            if (
+                                api_idx is not None
+                                and 0 <= api_idx < len(hostapis)
+                            ):
+                                api_name = (
+                                    hostapis[api_idx].get("name", "").lower()
+                                )
+
+                            if keyword in name or keyword in api_name:
                                 found_device = i
                                 break
                     if found_device is not None:

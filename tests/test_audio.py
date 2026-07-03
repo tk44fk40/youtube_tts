@@ -160,3 +160,38 @@ def test_audio_stop_exception(mock_sd, caplog):
     assert any(
         "sounddevice stop failed" in record.message for record in caplog.records
     )
+
+
+def test_audio_initialization_autodetect_hostapi_pulse(mock_sd):
+    """ホストAPI名が PulseAudio の場合に自動検出されることを検証する。"""
+    mock_sd.query_hostapis.return_value = [
+        {"name": "ALSA"},
+        {"name": "PulseAudio"},
+    ]
+    mock_sd.query_devices.side_effect = [
+        [
+            {"name": "HDMI 1", "max_output_channels": 8, "hostapi": 0},
+            {"name": "Default Sink", "max_output_channels": 32, "hostapi": 1},
+        ],
+        {"name": "Default Sink", "default_samplerate": 48000},
+    ]
+    mock_sd.default = MagicMock()
+    player = AudioPlayer()
+    assert mock_sd.default.device == 1
+    assert player.target_sample_rate == 48000
+
+
+def test_audio_initialization_autodetect_invalid_hostapi_index(mock_sd):
+    """ホストAPIインデックスが範囲外でも正常に処理されることを検証する。"""
+    mock_sd.query_hostapis.return_value = [{"name": "ALSA"}]
+    mock_sd.query_devices.side_effect = [
+        [
+            {"name": "HDMI 1", "max_output_channels": 8, "hostapi": 99},
+            {"name": "Default Sink", "max_output_channels": 32, "hostapi": 0},
+        ],
+        {"name": "Default Sink", "default_samplerate": 48000},
+    ]
+    mock_sd.default = MagicMock()
+    player = AudioPlayer()
+    assert mock_sd.default.device == 1
+
