@@ -1,10 +1,6 @@
-import pytest
-import io
-import wave
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-from youtube_tts import AppConfig, TextProcessor, VoicevoxClient, AudioPlayer
+from unittest.mock import MagicMock, patch
 
+from youtube_tts import AppConfig, AudioPlayer, TextProcessor, VoicevoxClient
 
 
 @patch("youtube_tts.audio.sd")
@@ -27,9 +23,7 @@ def test_tts_pipeline_integration(
     #
     # 2. 各クラスを初期化する
     config = AppConfig(
-        dictionary_path=dict_file,
-        ng_words_path=ng_file,
-        volume_path=vol_file
+        dictionary_path=dict_file, ng_words_path=ng_file, volume_path=vol_file
     )
     processor = TextProcessor(config)
     vox_client = VoicevoxClient(base_url="http://mock-vox", speaker_id=3)
@@ -61,8 +55,8 @@ def test_tts_pipeline_integration(
     # A. Normalization (TextProcessor)
     #
     # A. 正規化 (TextProcessor)
-    normalized_author, normalized_msg = (
-        processor.normalize_comment(author, message)
+    normalized_author, normalized_msg = processor.normalize_comment(
+        author, message
     )
     assert normalized_author == "Taroさん"
     assert normalized_msg == "I like 林檎"
@@ -75,7 +69,7 @@ def test_tts_pipeline_integration(
     wav_data = vox_client.synthesize(
         text=talk_text,
         volume_scale=config.volume_scale,
-        target_sample_rate=player.target_sample_rate
+        target_sample_rate=player.target_sample_rate,
     )
     assert wav_data == dummy_wav_bytes
 

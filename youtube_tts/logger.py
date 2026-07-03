@@ -12,109 +12,73 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""YouTube TTS アプリケーション用のカスタムロギングモジュール。
+
+このモジュールは、タイムスタンプおよびログレベルの識別子を自動付与する
+ロガーを提供します。メッセージの整形や重複プリフィックスの除去を
+標準の Filter 機能を用いて処理します。
+
+提供機能:
+    - setup_logger: ロガーの初期化とフォーマット設定
+    - get_logger: 初期化済みのロガーインスタンスの取得
+"""
+
 import logging
-import sys
 
 LOGGER_NAME = "youtube_tts"
 
-class TaggedLogger(logging.Logger):
-    def _add_prefix(self, level: int, msg) -> str:
-        msg_str = str(msg)
-        stripped = msg_str.lstrip()
-        if not stripped.startswith("["):
-            level_name = logging.getLevelName(level)
-            if level_name == "WARNING":
-                level_name = "WARN"
-            return f"[{level_name}] {msg_str}"
-        return msg_str
 
-    def debug(self, msg, *args, **kwargs):
-        super().debug(self._add_prefix(logging.DEBUG, msg), *args, **kwargs)
+class StripAndCleanupFilter(logging.Filter):
+    """ログメッセージの整形および重複プリフィックスの除去を行うフィルター。"""
 
-    def info(self, msg, *args, **kwargs):
-        super().info(self._add_prefix(logging.INFO, msg), *args, **kwargs)
+    def filter(self, record: logging.LogRecord) -> bool:
+        """メッセージの前後スペースをトリムし、レベル名との重複を防止します。"""
+        if isinstance(record.msg, str):
+            msg_str = record.msg.strip()
+            pfx = f"[{record.levelname}]"
 
-    def warning(self, msg, *args, **kwargs):
-        super().warning(self._add_prefix(logging.WARNING, msg), *args, **kwargs)
+            # メッセージ先頭に同名のプリフィックスがある場合は除去
+            if msg_str.startswith(pfx):
+                msg_str = msg_str[len(pfx) :].strip()
 
-    def warn(self, msg, *args, **kwargs):
-        self.warning(msg, *args, **kwargs)
+            record.msg = msg_str
+        return True
 
-    def error(self, msg, *args, **kwargs):
-        super().error(self._add_prefix(logging.ERROR, msg), *args, **kwargs)
-
-    def critical(self, msg, *args, **kwargs):
-        super().critical(
-            self._add_prefix(logging.CRITICAL, msg), *args, **kwargs
-        )
-
-    def exception(self, msg, *args, **kwargs):
-        super().exception(self._add_prefix(logging.ERROR, msg), *args, **kwargs)
-
-    def log(self, level, msg, *args, **kwargs):
-        super().log(level, self._add_prefix(level, msg), *args, **kwargs)
-
-logging.setLoggerClass(TaggedLogger)
 
 def setup_logger(verbose: bool = False) -> logging.Logger:
-    """Gets or creates the configured logger.
+    """タイムスタンプとレベル名付きのロガーをセットアップします。
 
-    Args:
-        verbose: If True, sets log level to DEBUG. Otherwise INFO.
-
-    セットアップ済みのロガーを取得または作成します。
-
-    Args:
-        verbose: True の場合、ログレベルを DEBUG に
-                 設定します。False の場合は INFO。
+    メッセージの先頭に識別子を付与するカスタムロガーを初期化し、
+    ログの出力閾値を指定されたレベル（DEBUG または INFO）に設定します。
     """
     logger = logging.getLogger(LOGGER_NAME)
-    
-    # Prevent duplicate registration of handlers
-    #
-    # ハンドラの重複登録を防ぐ
+
     if logger.handlers:
         logger.handlers.clear()
-        
+
+    # 引数に応じてログの出力閾値を DEBUG または INFO に設定
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)
-    
-    # Handler for standard output
-    #
-    # 標準出力用ハンドラ
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG if verbose else logging.INFO)
-    
-    # Specifying timestamp format (e.g. [2026-06-20 22:15:30] message)
-    #
-    # タイムスタンプフォーマットの指定
-    # (例: [2026-06-20 22:15:30] メッセージ)
+
+    # 標準エラー出力ストリームへ出力するハンドラを生成
+    handler = logging.StreamHandler()
+
+    # タイムスタンプ、ログレベル、メッセージを半角スペース区切りで指定
     formatter = logging.Formatter(
-        fmt="[%(asctime)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        fmt="[%(asctime)s] [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     handler.setFormatter(formatter)
-    
+    handler.addFilter(StripAndCleanupFilter())
+
     logger.addHandler(handler)
-    
-    # Disable log propagation to prevent duplicate output by parent loggers
-    #
-    # ログ伝播を無効化し、親ロガーによる重複出力を防ぐ
     logger.propagate = False
-    
+
     return logger
 
+
 def get_logger() -> logging.Logger:
-    """Gets the current logger instance.
-
-    If not configured, configures it with default settings (verbose=False).
-
-    現在のロガーインスタンスを取得します。
-
-    未セットアップの場合は、デフォルト設定
-    (verbose=False) でセットアップします。
-    """
+    """ロガーを取得します。未初期化の場合は初期設定を実行します。"""
     logger = logging.getLogger(LOGGER_NAME)
     if not logger.handlers:
         setup_logger(verbose=False)
     return logger
-StandardLogger = get_logger()

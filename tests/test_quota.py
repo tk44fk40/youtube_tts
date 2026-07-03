@@ -1,6 +1,8 @@
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from youtube_tts.quota import get_project_id, get_quota_info
 
 
@@ -35,10 +37,7 @@ def test_get_project_id_missing_id(tmp_path):
 
     with pytest.raises(
         RuntimeError,
-        match=(
-            "client_secret.json から project_id を"
-            "取得できませんでした。"
-        ),
+        match=("client_secret.json から project_id を取得できませんでした。"),
     ):
         get_project_id(secret_file)
 
@@ -152,13 +151,13 @@ def test_get_quota_info_tz_error_fallback(mock_zoneinfo, mock_client_class):
 def test_get_quota_info_midnight_boundary(mock_client_class):
     """Verifies that end_sec is adjusted when LA time is exactly
     midnight (start_sec >= end_sec).
-    
+
     LA時刻が午前0時ちょうどの場合
     （start_sec >= end_sec）に end_sec を
     補正することを確認。
     """
-    from unittest.mock import patch as _patch
     from datetime import datetime as real_datetime
+    from unittest.mock import patch as _patch
     from zoneinfo import ZoneInfo
 
     tz_la = ZoneInfo("America/Los_Angeles")
@@ -202,4 +201,3 @@ def test_get_quota_info_midnight_boundary(mock_client_class):
             # datetime モックの挙動によって失敗することがあるが、
             # 境界補正ロジックのカバレッジが目的
             pass
-

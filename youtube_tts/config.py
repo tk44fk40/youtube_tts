@@ -22,15 +22,8 @@ logger = get_logger()
 
 
 def normalize_nfkc(text: str) -> str:
-    """Utility function to perform Unicode NFKC normalization.
-    
-    Unifies full-width/half-width characters and normalizes compatibility
-    characters.
-    Defined at the module level because it is used by both AppConfig
-    and TextProcessor.
-    
-    Unicode NFKC 正規化を行うユーティリティ関数。
-    
+    """Unicode NFKC 正規化を行うユーティリティ関数。
+
     全角/半角の統一、互換文字の正規化を行う。
     AppConfig と TextProcessor の両方で使用されるため、
     モジュールレベルで定義している。
@@ -62,14 +55,12 @@ class AppConfig:
         self._ng_word_mtime = None
         self._volume_mtime = None
 
-        # Load once at startup
         # 起動時に一度ロードする
         self.reload_if_changed()
 
     def _load_replacements(self):
-        """Reads dictionary.txt and returns a dictionary of
-        {normalized_key: replaced_string}.
-        
+        """変換辞書のロード
+
         dictionary.txt を読み込んで
         {正規化済みキー: 置換後文字列} の辞書を返す。
         """
@@ -88,8 +79,8 @@ class AppConfig:
         return replacements
 
     def _load_ng_words(self):
-        """Reads ng_words.txt and returns a set of {normalized_ng_words}.
-        
+        """NGワードのロード
+
         ng_words.txt を読み込んで
         {正規化済みNGワード} の集合を返す。
         """
@@ -107,12 +98,11 @@ class AppConfig:
         return ng_words
 
     def reload_if_changed(self):
-        """Checks timestamps of each configuration file and reloads if changed.
-        
+        """設定ファイルのリロード
+
         各設定ファイルのタイムスタンプを確認し、
         変更があれば再ロードする。
         """
-        # Check dictionary.txt
         # dictionary.txt のチェック
         if self.dictionary_file.exists():
             current_mtime = os.path.getmtime(self.dictionary_file)
@@ -121,8 +111,6 @@ class AppConfig:
                 self.replacements = self._load_replacements()
                 logger.info("[CONFIG] dictionary reloaded")
 
-        # Check ng_words.txt
-        #
         # ng_words.txt のチェック
         if self.ng_word_file.exists():
             current_mtime = os.path.getmtime(self.ng_word_file)
@@ -131,8 +119,6 @@ class AppConfig:
                 self.ng_words = self._load_ng_words()
                 logger.info("[CONFIG] ng words reloaded")
 
-        # Check volume.txt
-        #
         # volume.txt のチェック
         if self.volume_file.exists():
             current_mtime = os.path.getmtime(self.volume_file)

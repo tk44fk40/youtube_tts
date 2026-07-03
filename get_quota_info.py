@@ -16,15 +16,10 @@
 #
 # YouTube Data API クォータ使用量・使用率確認スクリプト
 
-import json
-import sys
-from pathlib import Path
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 
 from youtube_tts import (
-    YouTubeAuthenticator,
     QUOTA_SCOPES,
+    YouTubeAuthenticator,
     get_project_id,
     get_quota_info,
 )
@@ -42,7 +37,7 @@ def main():
         authenticator = YouTubeAuthenticator(
             client_secret_path=CLIENT_SECRET_FILE,
             token_path=TOKEN_FILE,
-            scopes=SCOPES
+            scopes=SCOPES,
         )
         creds = authenticator.get_credentials()
 

@@ -8,6 +8,12 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "callee"
+version = "0.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7c/a9/cc2ee5fb2686292610e743324854059a6da6780479fa38999d725bd729ab/callee-0.3.1.tar.gz", hash = "sha256:056f95d7760c87ce470aa4ab83bab5f9bdf090d4ecf77d52efe9c4559c0aefd3", size = 19824, upload-time = "2019-12-24T14:58:38.579Z" }
+
+[[package]]
 name = "certifi"
 version = "2026.6.17"
 source = { registry = "https://pypi.org/simple" }
@@ -780,6 +786,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "callee" },
     { name = "pytest" },
     { name = "pytest-cov" },
 ]
@@ -798,6 +805,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "callee", specifier = ">=0.3.1" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
 ]
