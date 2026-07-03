@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""YouTube Data API との通信および共通処理を提供する基盤モジュール。
+
+このモジュールは、YouTube API クライアントの基底クラスと、
+認証情報の管理・エラーハンドリングの共通機能を提供します。
+"""
+
+import contextlib
+
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -21,24 +29,24 @@ logger = get_logger()
 
 
 class BaseYouTubeClient:
-    """YouTube APIとの通信および共通処理を管理する基盤クラス"""
+    """YouTube APIとの通信および共通処理を管理する基盤クラス。"""
 
     def __init__(self, credentials, verbose: bool = False):
-        """BaseYouTubeClient を初期化する。
+        """BaseYouTubeClient を初期化します。
 
         Args:
-            credentials: Google APIの認証情報オブジェクト。
-            verbose (bool, optional): 詳細なデバッグログを出力するかどうか。
+            credentials: Google API の認証情報オブジェクト。
+            verbose: 詳細なデバッグログを出力するかどうか。
                 デフォルトは False。
         """
         self.youtube = build("youtube", "v3", credentials=credentials)
         self.verbose = verbose
 
     def get_my_channel_id(self) -> str | None:
-        """認証されたユーザー自身のYouTubeチャンネルIDを取得する。
+        """認証ユーザー自身の YouTube チャンネル ID を取得します。
 
         Returns:
-            str | None: チャンネルID。取得に失敗した場合は None。
+            チャンネル ID。取得に失敗した場合は None。
         """
         if not hasattr(self, "_my_channel_id"):
             try:
@@ -48,24 +56,28 @@ class BaseYouTubeClient:
                     self._my_channel_id = items[0]["id"]
                 else:
                     self._my_channel_id = None
-            except Exception as ex:
-                logger.warning(f"Failed to get my channel ID: {ex}")
+            except Exception as ex:  # noqa: BLE001
+                logger.warning(
+                    f"自分のチャンネル ID の取得に失敗しました: {ex}"
+                )
                 self._my_channel_id = None
         return self._my_channel_id
 
     def get_video_details(self, video_id: str) -> dict:
-        """指定された動画IDの詳細情報
-            （snippet, liveStreamingDetails）を取得する。
+        """YouTube 動画の詳細情報を取得します。
+
+        snippet および liveStreamingDetails を含む詳細情報を
+        取得します。
 
         Args:
-            video_id (str): YouTubeの動画ID。
+            video_id: YouTube の動画 ID。
 
         Returns:
-            dict: 動画の詳細情報を含むAPIレスポンスのオブジェクト（アイテム）。
+            動画の詳細情報を含む API レスポンスのアイテムオブジェクト。
 
         Raises:
             RuntimeError: 動画が見つからない場合。
-            HttpError: YouTube APIの呼び出しに失敗した場合。
+            HttpError: YouTube API の呼び出しに失敗した場合。
         """
         try:
             response = (
@@ -83,24 +95,19 @@ class BaseYouTubeClient:
         return items[0]
 
     def _handle_api_error(self, e: HttpError) -> None:
-        """詳細なガイダンスをログ出力する。
+        """YouTube API エラーを検知し、原因に応じたガイダンスをログ出力します。
 
-        YouTube APIの例外を検知し、
-        発生原因に応じた詳細なガイダンスをログ出力する。
-
-        このメソッドはログ出力のみ行い、例外の再スローは行わない。
+        このメソッドはログ出力のみ行い、例外の再スローは行いません。
         呼び出し元が例外の種類に応じて
-        動作（継続 or 停止）を選択できるようにするため。
+        動作（継続 / 停止）を選択できるようにするためです。
 
         Args:
-            e (HttpError): 発生した YouTube API のエラーオブジェクト。
+            e: 発生した YouTube API のエラーオブジェクト。
         """
         err_msg = str(e)
         if getattr(e, "content", None):
-            try:
+            with contextlib.suppress(Exception):
                 err_msg += " " + e.content.decode("utf-8")
-            except Exception:
-                pass
 
         if e.resp.status == 403:
             if "quotaExceeded" in err_msg:

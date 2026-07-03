@@ -140,7 +140,10 @@ def test_fetch_comment_threads_parse_error(mock_client, caplog):
 
     assert len(items) == 1
     assert items[0]["id"] == "c_ok"
-    assert any("コメントのパースに失敗しました" in r.message for r in caplog.records)
+    assert any(
+        "コメントのパースに失敗しました" in r.message
+        for r in caplog.records
+    )
 
 
 @pytest.mark.parametrize("verbose, expect_debug", [(False, False), (True, True)])
