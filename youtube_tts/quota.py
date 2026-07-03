@@ -12,14 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""YouTube Data API のクォータ使用状況を取得するモジュール。
+
+このモジュールは、Google Cloud Monitoring API を利用して、
+YouTube Data API の本日分のクォータ消費量および上限値を取得する
+機能を提供します。
+"""
+
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from google.cloud import monitoring_v3
 
 from .auth import YOUTUBE_SCOPE
+from .logger import get_logger
+
+logger = get_logger()
 
 CLIENT_SECRET_FILE = "client_secret.json"
 
@@ -30,7 +40,19 @@ QUOTA_SCOPES = [
 
 
 def get_project_id(client_secret_path=CLIENT_SECRET_FILE):
-    """client_secret.json からプロジェクトIDを自動取得する。"""
+    """client_secret.json からプロジェクトIDを自動取得します。
+
+    Args:
+        client_secret_path: Google Cloud Console から取得した
+            OAuth 2.0 クライアントシークレットファイルのパス。
+
+    Returns:
+        取得されたプロジェクトID。
+
+    Raises:
+        RuntimeError: クライアントシークレットファイルが見つからない、
+            または project_id が見つからない場合に発生します。
+    """
     path = Path(client_secret_path)
     if not path.exists():
         raise RuntimeError(f"{path.name} が見つかりません。")
@@ -46,10 +68,18 @@ def get_project_id(client_secret_path=CLIENT_SECRET_FILE):
 
 
 def get_quota_info(creds, project_id):
-    """クォータ消費量の取得
+    """YouTube API のクォータ消費量と上限値を取得します。
 
-    Cloud Monitoring API からクォータ制限と
-    太平洋時間（PT）本日の消費量を取得する。
+    Cloud Monitoring API を使用して、太平洋時間（PT）の本日午前0時から
+    現在までの消費量と、プロジェクトに設定されている1日あたりの
+    クォータ制限の上限値を取得します。
+
+    Args:
+        creds: Google API クライアントライブラリの認証情報オブジェクト。
+        project_id: クォータ情報を取得する Google Cloud プロジェクトのID。
+
+    Returns:
+        消費されたクォータ（int）と、クォータの上限値（int）のタプル。
     """
     client = monitoring_v3.MetricServiceClient(credentials=creds)
     project_name = f"projects/{project_id}"
@@ -68,8 +98,8 @@ def get_quota_info(creds, project_id):
         end_sec = int(now_la.timestamp())
         if start_sec >= end_sec:
             end_sec = start_sec + 1
-    except Exception:
-        now = datetime.now(timezone.utc)
+    except Exception:  # noqa: BLE001
+        now = datetime.now(UTC)
         start_sec = int((now - timedelta(days=1)).timestamp())
         end_sec = int(now.timestamp())
 
@@ -127,7 +157,7 @@ def get_quota_info(creds, project_id):
             if result.points:
                 quota_limit = result.points[0].value.int64_value
                 break
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"クォータ上限値の取得に失敗しました（デフォルト値を使用）: {e}")
 
     return total_used, quota_limit
