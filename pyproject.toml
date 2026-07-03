@@ -9,10 +9,8 @@ dependencies = [
     "google-auth>=2.55.0",
     "google-auth-oauthlib>=1.4.0",
     "google-cloud-monitoring>=2.31.0",
-    "numpy>=2.4.6",
     "obs-websocket-py>=1.0",
     "requests>=2.34.2",
-    "sounddevice>=0.5.5",
 ]
 
 [dependency-groups]

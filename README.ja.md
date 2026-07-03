@@ -27,6 +27,15 @@ Linux 環境に移行したところ、Windows で使っていたコメント読
 1. **Python 3.12 以上**
    - 本ツールは Python 3.12 以上で動作します（Ubuntu 24.04 の標準 Python は 3.12 です）。
    - パッケージ管理には `uv` を使用しています。Python 自体は OS 付属のものや [python.org](https://www.python.org/) からインストールしたものを利用できます。
+1. **Linux 環境とシステム音声再生コマンド**
+   - 本ツールは **Linux 専用** です。Windows や macOS はサポート対象外です。
+   - 音声再生のために、システムに `pw-play` (PipeWire)、`aplay` (ALSA)、
+     `paplay` (PulseAudio) のいずれかのコマンドがインストールされている
+     必要があります（通常、一般的な Linux 環境では標準搭載されています）。
+   - デバイス一覧を表示する機能（`--list-devices`）で数値IDや詳細な名前を
+     確認しやすくするために、システムに `pactl` コマンドがインストール
+     されていることを推奨します（`pactl` がない場合は `aplay` による
+     簡易一覧表示にフォールバックします。詳細は[オーディオデバイスの確認と指定方法](#オーディオデバイスの確認と指定方法)を参照）。
 2. **VOICEVOX**
    - 音声合成用のエンジンとして、事前に VOICEVOX が起動しており、デフォルトポート `50021` でAPIが利用可能な状態である必要があります。
 3. **OBS (Open Broadcaster Software) とブラウザソース** *(OBS連携機能を使用する場合のみ必要)*
@@ -38,8 +47,8 @@ Linux 環境に移行したところ、Windows で使っていたコメント読
    - YouTube Liveのチャット情報をAPI経由で取得するため、Google Cloudプロジェクトの作成、「YouTube Data API v3」の有効化、および OAuth 2.0 クライアント認証情報（`client_secret.json`）の作成が必要です。
    - 具体的な手順は [セットアップ手順 ステップ4](#4-google-oauth-認証キーの配置) を参照してください。
 
-> [!NOTE]
-> 本ツールのデバッグや動作確認は Linux 環境でのみ行っており、Windows や macOS での動作は未確認です。
+> [!IMPORTANT]
+> 本ツールは Linux 環境専用です。Windows や macOS での動作はサポートしていません。
 
 ### セットアップ手順
 
@@ -250,6 +259,49 @@ uv run python3 youtube_voicevox.py -d 6
 | `OBS_WEBSOCKET_HOST` | OBS WebSocket が動作しているホスト名。 | `localhost` | `127.0.0.1` |
 | `OBS_WEBSOCKET_PORT` | OBS WebSocket の通信ポート。 | `4455` | `4455` |
 | `OBS_BROWSER_SOURCE_NAME` | チャットURLを動的に更新したい、OBS上のブラウザソースのソース名。 | `チャット` | `LiveChatUrl` |
+
+### オーディオデバイスの確認と指定方法
+
+音声の出力先スピーカーを変更したい場合は、`--list-devices` オプションを
+使ってシステムに存在するデバイスの一覧を取得し、`--device` 引数や
+環境変数 `VOICEVOX_DEVICE` で指定します。
+
+#### 1. pactl がインストールされている場合（推奨）
+`pactl` コマンドがシステムで利用可能な場合、PipeWire や PulseAudio の
+「シンク」のIDと名前が以下のように分かりやすく一覧表示されます。
+
+```text
+利用可能なオーディオ出力デバイス (pactl):
+  ID: 7 -> alsa_output.pci-0000_00_1f.3.analog-stereo
+  ID: 12 -> alsa_output.pci-0000_00_1f.3.hdmi-stereo
+```
+
+**指定例**:
+* 数値IDで指定する場合:
+  ```bash
+  uv run voicevox_test.py --device 7
+  ```
+* デバイス名で指定する場合:
+  ```bash
+  uv run voicevox_test.py --device alsa_output.pci-0000_00_1f.3.analog-stereo
+  ```
+
+#### 2. pactl がなく aplay のみにフォールバックされる場合
+`pactl` が利用できない環境では、ALSA の物理・論理デバイス名が以下のように
+簡易表示されます。
+
+```text
+利用可能なオーディオ出力デバイス (aplay):
+  default
+  sysdefault:CARD=PCH
+  hdmi:CARD=PCH,DEV=0
+```
+
+**指定例**:
+* デバイスの接続識別子で指定する場合:
+  ```bash
+  uv run voicevox_test.py --device sysdefault:CARD=PCH
+  ```
 
 ### 設定ファイル
 

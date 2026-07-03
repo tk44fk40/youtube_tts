@@ -27,6 +27,15 @@ To use this tool, the following environment and services must be prepared:
 1. **Python 3.12 or higher**
    - This tool runs on Python 3.12 or higher (the standard Python for Ubuntu 24.04 is 3.12).
    - We use `uv` for package management. Python itself can be installed from your OS packages or [python.org](https://www.python.org/).
+1. **Linux Environment & System Audio Playback Commands**
+   - This tool is **Linux-exclusive**. Windows and macOS are not supported.
+   - For audio playback, one of the following commands must be installed
+     on your system: `pw-play` (PipeWire), `aplay` (ALSA), or `paplay` (PulseAudio).
+     (These are usually pre-installed on most Linux distributions.)
+   - To easily identify numerical IDs and detailed names with the device
+     list feature (`--list-devices`), it is recommended to have `pactl`
+     installed on your system (falls back to `aplay` for a simplified list
+     if `pactl` is not available; see [Checking and Specifying Audio Devices](#checking-and-specifying-audio-devices) for details).
 2. **VOICEVOX**
    - VOICEVOX (Desktop or Docker version) must be running beforehand, with its API accessible on the default port `50021`.
 3. **OBS (Open Broadcaster Software) & Browser Source** *(Required only for OBS integration)*
@@ -38,8 +47,8 @@ To use this tool, the following environment and services must be prepared:
    - To retrieve YouTube Live chat details via the API, you must create a Google Cloud project, enable "YouTube Data API v3", and create an OAuth 2.0 Client credentials file (`client_secret.json`).
    - For detailed steps, refer to [Setup Step 4: Placing Google OAuth Credentials](#4-placing-google-oauth-credentials).
 
-> [!NOTE]
-> This tool has only been verified on Linux. Operation on Windows or macOS has not been verified.
+> [!IMPORTANT]
+> This tool is designed for Linux environments only. Operating on Windows or macOS is not supported.
 
 ### Setup Instructions
 
@@ -243,6 +252,49 @@ This tool automatically detects the video status and operates in either "Live St
 | `OBS_WEBSOCKET_HOST` | OBS WebSocket host name. | `localhost` | `127.0.0.1` |
 | `OBS_WEBSOCKET_PORT` | OBS WebSocket port. | `4455` | `4455` |
 | `OBS_BROWSER_SOURCE_NAME` | Browser source name in OBS for chat URL update. | `チャット` | `LiveChatUrl` |
+
+### Checking and Specifying Audio Devices
+
+To change the audio output destination, use the `--list-devices` option to
+get a list of available devices on your system, and specify it with the
+`--device` argument or the `VOICEVOX_DEVICE` environment variable.
+
+#### 1. When pactl is installed (Recommended)
+If the `pactl` command is available, the IDs and names of the PipeWire/
+PulseAudio "sinks" are listed clearly as follows:
+
+```text
+利用可能なオーディオ出力デバイス (pactl):
+  ID: 7 -> alsa_output.pci-0000_00_1f.3.analog-stereo
+  ID: 12 -> alsa_output.pci-0000_00_1f.3.hdmi-stereo
+```
+
+**Examples**:
+* Specifying by numerical ID:
+  ```bash
+  uv run voicevox_test.py --device 7
+  ```
+* Specifying by device name:
+  ```bash
+  uv run voicevox_test.py --device alsa_output.pci-0000_00_1f.3.analog-stereo
+  ```
+
+#### 2. When falling back to aplay (pactl not available)
+If `pactl` is not available, the physical/logical device names of ALSA
+are displayed as a simplified list:
+
+```text
+利用可能なオーディオ出力デバイス (aplay):
+  default
+  sysdefault:CARD=PCH
+  hdmi:CARD=PCH,DEV=0
+```
+
+**Example**:
+* Specifying by connection identifier:
+  ```bash
+  uv run voicevox_test.py --device sysdefault:CARD=PCH
+  ```
 
 ### Configuration Files
 
