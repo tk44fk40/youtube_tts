@@ -12,24 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""YouTube 関連のユーティリティ関数を提供するモジュール。
+
+このモジュールは、YouTube の動画URLやIDから動画IDを抽出する
+ユーティリティ関数を提供します。
+"""
+
 from urllib.parse import parse_qs, urlparse
 
 
 def extract_video_id(value: str) -> str:
-    """URLまたは文字列からYouTubeの動画IDを抽出する。
+    """URLまたは文字列からYouTubeの動画IDを抽出します。
 
-    youtu.be/<id>, youtube.com/watch?v=<id>, youtube.com/live/<id> 形式に対応。
-    URL形式でない場合は入力値をそのまま返す。
+    youtu.be/<id>、youtube.com/watch?v=<id>、youtube.com/live/<id>
+    の形式に対応しています。URL形式でない場合は入力値をそのまま返します。
 
     Args:
-        value (str): YouTubeの動画URL（各種形式）、または動画IDの文字列。
+        value: YouTubeの動画URL（各種形式）、または動画IDの文字列。
 
     Returns:
-        str: 抽出されたYouTubeの動画ID。
+        抽出されたYouTubeの動画ID。
 
     Raises:
         RuntimeError: 対応しているURL形式であるにもかかわらず、
-        動画IDの抽出に失敗した場合。
+            動画IDの抽出に失敗した場合。
     """
     if "youtube.com" not in value and "youtu.be" not in value:
         return value
