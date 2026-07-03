@@ -22,6 +22,7 @@ from youtube_tts import (
     YouTubeAuthenticator,
     get_project_id,
     get_quota_info,
+    get_logger,
 )
 
 SCOPES = QUOTA_SCOPES
@@ -31,9 +32,10 @@ CLIENT_SECRET_FILE = "client_secret.json"
 
 
 def main():
+    logger = get_logger()
     try:
         project_id = get_project_id()
-        print("認証情報を確認中...")
+        logger.info("認証情報を確認中...")
         authenticator = YouTubeAuthenticator(
             client_secret_path=CLIENT_SECRET_FILE,
             token_path=TOKEN_FILE,
@@ -41,7 +43,7 @@ def main():
         )
         creds = authenticator.get_credentials()
 
-        print("クォータ情報を取得中...")
+        logger.info("クォータ情報を取得中...")
         used, limit = get_quota_info(creds, project_id)
 
         remaining = max(0, limit - used)
@@ -56,7 +58,7 @@ def main():
         print("==========================================================")
 
     except Exception as e:
-        print(f"\n[エラー] クォータ情報の取得に失敗しました: {e}")
+        logger.error(f"クォータ情報の取得に失敗しました: {e}")
         if "billing to be enabled" in str(e):
             print("\n【原因と対策】")
             print(

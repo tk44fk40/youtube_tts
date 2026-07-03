@@ -18,7 +18,9 @@ import argparse
 import os
 import sys
 
-from youtube_tts import AudioPlayer, VoicevoxClient
+from youtube_tts import AudioPlayer, VoicevoxClient, get_logger
+
+logger = get_logger()
 
 DEFAULT_HOST = "http://127.0.0.1:50021"
 DEFAULT_SPEAKER = 3
@@ -31,7 +33,7 @@ def list_speakers(client: VoicevoxClient):
     try:
         speakers = client.get_speakers()
     except Exception as e:
-        print(f"[ERROR] {e}", file=sys.stderr)
+        logger.error(f"{e}")
         sys.exit(1)
 
     print(f"{'ID':<6} | {'話者名':<15} | {'スタイル':<15}")
@@ -132,18 +134,17 @@ def main():
         try:
             device_info = player.query_devices(args.device, "output")
             target_sample_rate = int(device_info["default_samplerate"])
-            print(
-                f"[INFO] 出力デバイス: {device_info['name']} "
+            logger.info(
+                f"出力デバイス: {device_info['name']} "
                 f"(ID: {device_info['index']})"
             )
         except Exception as e:
-            print(
-                f"[WARN] デバイスのサンプリングレート取得に失敗しました: {e}",
-                file=sys.stderr,
+            logger.warning(
+                f"デバイスのサンプリングレート取得に失敗しました: {e}"
             )
 
     try:
-        print(f"[INFO] 音声合成中: 「{args.text}」 (話者ID: {args.speaker})")
+        logger.info(f"音声合成中: 「{args.text}」 (話者ID: {args.speaker})")
         wav_content = client.synthesize(
             text=args.text,
             volume_scale=args.volume,
@@ -151,20 +152,20 @@ def main():
             target_sample_rate=target_sample_rate,
         )
     except Exception as e:
-        print(f"[ERROR] 音声合成に失敗しました: {e}", file=sys.stderr)
+        logger.error(f"音声合成に失敗しました: {e}")
         sys.exit(1)
 
     # WAVファイル保存
     try:
         with open(args.output, "wb") as f:
             f.write(wav_content)
-        print(f"[INFO] 音声ファイルを保存しました: {args.output}")
+        logger.info(f"音声ファイルを保存しました: {args.output}")
     except Exception as e:
-        print(f"[ERROR] ファイルの保存に失敗しました: {e}", file=sys.stderr)
+        logger.error(f"ファイルの保存に失敗しました: {e}")
 
     if not args.no_play:
-        print(
-            f"[INFO] 再生中... (サンプリングレート: "
+        logger.info(
+            f"再生中... (サンプリングレート: "
             f"{target_sample_rate or player.target_sample_rate}Hz)"
         )
         try:
@@ -173,9 +174,9 @@ def main():
                 device=args.device,
                 target_sample_rate=target_sample_rate,
             )
-            print("[INFO] 再生完了")
+            logger.info("再生完了")
         except Exception as e:
-            print(f"[ERROR] 再生に失敗しました: {e}", file=sys.stderr)
+            logger.error(f"再生に失敗しました: {e}")
             print("\n利用可能なオーディオデバイス一覧:", file=sys.stderr)
             print(player.query_devices())
             print(
