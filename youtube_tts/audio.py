@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import io
-import time
-import wave
+"""音声の再生およびオーディオデバイスの制御を行うモジュール。"""
 
-import numpy as np
+import os
+import shutil
+import subprocess
+import tempfile
+import threading
 
 from .logger import get_logger
 
@@ -24,7 +26,11 @@ logger = get_logger()
 
 
 class AudioPlayer:
-    """音声の再生およびオーディオデバイスの制御を行うクラス。"""
+    """音声の再生およびオーディオデバイスの制御を行うクラス。
+
+    システムにインストールされている外部再生コマンド (pacat や aplay 等)
+    を利用して、WAV 音声データの再生とデバイスの問い合わせを行います。
+    """
 
     def __init__(self, default_device=None):
         """オーディオプレイヤーを初期化する。
@@ -32,107 +38,87 @@ class AudioPlayer:
         Args:
             default_device (int or str, optional):
                 デフォルトで使用する出力オーディオデバイスの名前またはID。
-                指定しない場合は、pipewire または pulse を自動検出します。
         """
-        import sounddevice as sd
+        self.default_device = default_device
+        self.target_sample_rate = 24000
+        self.process = None
+        self._lock = threading.Lock()
 
-        if default_device is None:
-            # サウンドサーバーデバイスの自動検出を試みる。
-            # Linux環境での競合回避と接続安定化のため、
-            # pipewire, pulse, pulseaudio, default を優先して検索する。
+        # デスクトップのデフォルトサンプリングレートの取得を試みる
+        if shutil.which("pactl"):
             try:
-                devices = sd.query_devices()
-                if isinstance(devices, dict):
-                    devices = [devices]
-                hostapis = sd.query_hostapis()
-                preferred_keywords = [
-                    "pipewire",
-                    "pulse",
-                    "pulseaudio",
-                    "default",
-                ]
-                found_device = None
-                for keyword in preferred_keywords:
-                    for i, dev in enumerate(devices):
-                        if dev.get("max_output_channels", 0) > 0:
-                            name = dev.get("name", "").lower()
-                            # ホストAPI名も判定対象に含める
-                            api_idx = dev.get("hostapi")
-                            api_name = ""
-                            if (
-                                api_idx is not None
-                                and 0 <= api_idx < len(hostapis)
-                            ):
-                                api_name = (
-                                    hostapis[api_idx].get("name", "").lower()
-                                )
-
-                            if keyword in name or keyword in api_name:
-                                found_device = i
+                res = subprocess.run(
+                    ["pactl", "info"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=2.0,
+                )
+                for line in res.stdout.splitlines():
+                    if "Default Sample Specification" in line:
+                        parts = line.split()
+                        for part in parts:
+                            if part.endswith("Hz"):
+                                self.target_sample_rate = int(part[:-2])
                                 break
-                    if found_device is not None:
-                        break
-                if found_device is not None:
-                    default_device = found_device
             except Exception as e:  # noqa: BLE001
                 logger.debug(
-                    f"デフォルトデバイスの自動検出に失敗しました: {e}"
+                    "pactl によるデフォルトサンプリングレート取得に"
+                    f"失敗しました: {e}"
                 )
-
-        self.default_device = default_device
-        if default_device is not None:
-            sd.default.device = default_device
-
-        # 出力デバイスのデフォルトサンプリングレートを問い合わせる
-        try:
-            device_info = sd.query_devices(None, "output")
-            self.target_sample_rate = int(device_info["default_samplerate"])
-        except Exception as e:  # noqa: BLE001
-            logger.debug(
-                "デフォルトサンプリングレートの取得に失敗しました。 "
-                f"24000Hzをデフォルトとして使用します: {e}"
-            )
-            self.target_sample_rate = 24000
-
-        sd.default.samplerate = self.target_sample_rate
 
     def query_devices(self, device=None, kind=None):
         """利用可能なオーディオデバイスの情報を取得する。
 
         Args:
-            device (int or str, optional): デバイス名またはID。
-            kind (str, optional): 'input' または 'output'。
+            device (int or str, optional): デバイス名またはID（未使用）。
+            kind (str, optional): デバイスの種類（未使用）。
 
         Returns:
-            dict or list: デバイス情報。
+            str: 整形されたデバイス情報の一覧文字列。
         """
-        import sounddevice as sd
+        if shutil.which("pactl"):
+            try:
+                res = subprocess.run(
+                    ["pactl", "list", "short", "sinks"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=2.0,
+                )
+                lines = res.stdout.strip().splitlines()
+                output = ["利用可能なオーディオ出力デバイス (pactl):"]
+                for line in lines:
+                    parts = line.split("\t")
+                    if len(parts) >= 2:
+                        output.append(f"  ID: {parts[0]} -> {parts[1]}")
+                return "\n".join(output)
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"pactl の実行に失敗しました: {e}")
 
-        return sd.query_devices(device, kind)
+        if shutil.which("aplay"):
+            try:
+                res = subprocess.run(
+                    ["aplay", "-L"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=2.0,
+                )
+                lines = res.stdout.strip().splitlines()
+                output = ["利用可能なオーディオ出力デバイス (aplay):"]
+                for line in lines:
+                    if line.startswith((" ", "\t")):
+                        continue
+                    output.append(f"  {line.strip()}")
+                return "\n".join(output)
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"aplay の実行に失敗しました: {e}")
 
-    def resample_audio(self, audio, source_sample_rate, target_sample_rate):
-        """簡易的な線形補間によるリサンプリング処理。
-
-        高音質化や複雑なオーディオ変換用ではなく、
-        簡易的な再生用レート変換に使用されます。
-
-        Args:
-            audio (numpy.ndarray): 元のオーディオデータ。
-            source_sample_rate (int): 元のサンプリングレート。
-            target_sample_rate (int): 変換先のサンプリングレート。
-
-        Returns:
-            numpy.ndarray: リサンプリングされたオーディオデータ。
-        """
-        if source_sample_rate == target_sample_rate:
-            return audio
-
-        duration = len(audio) / source_sample_rate
-        old_time = np.linspace(0, duration, num=len(audio))
-        new_length = int(duration * target_sample_rate)
-        new_time = np.linspace(0, duration, num=new_length)
-        resampled_audio = np.interp(new_time, old_time, audio).astype(np.int16)
-        return resampled_audio
+        return (
+            "利用可能なオーディオデバイス検出コマンド "
+            "(pactl, aplay) が見つかりませんでした。"
+        )
 
     def play_wav(self, wav_content, device=None, target_sample_rate=None):
         """WAV音声データを再生する。
@@ -140,50 +126,101 @@ class AudioPlayer:
         Args:
             wav_content (bytes): WAVファイルのバイナリデータ。
             device (int or str, optional): 再生に使用するデバイス。
-            target_sample_rate (int, optional): 再生サンプリングレート。
+            target_sample_rate (int, optional): 再生サンプリングレート（未使用）。
+
+        Raises:
+            RuntimeError: 利用可能な再生コマンドが見つからない場合。
         """
-        import sounddevice as sd
+        play_device = device if device is not None else self.default_device
+        temp_file_path = None
 
-        wav_io = io.BytesIO(wav_content)
-        with wave.open(wav_io, "rb") as wav_file:
-            sample_rate = wav_file.getframerate()
-            pcm_data = wav_file.readframes(wav_file.getnframes())
-
-        audio = np.frombuffer(pcm_data, dtype=np.int16)
-
-        # デバイスが指定された場合は sd.play の引数に渡す play_device を特定。
-        # デバイス未指定の場合は self.default_device を使用。
-        play_device = None
-        if device is not None:
-            try:
-                play_device = int(device)
-            except ValueError:
-                play_device = device
+        # コマンドの特定と引数の組み立て
+        if shutil.which("pacat"):
+            cmd = ["pacat", "--playback", "--file-format=wav"]
+            if play_device is not None:
+                cmd += ["-d", str(play_device)]
+            use_stdin = True
+        elif shutil.which("aplay"):
+            cmd = ["aplay", "-"]
+            if play_device is not None:
+                cmd += ["-D", str(play_device)]
+            use_stdin = True
+        elif shutil.which("pw-play"):
+            # pw-play は標準入力を受け付けないため、一時ファイルを作成する
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+                f.write(wav_content)
+                temp_file_path = f.name
+            cmd = ["pw-play", temp_file_path]
+            if play_device is not None:
+                cmd += ["--target", str(play_device)]
+            use_stdin = False
+        elif shutil.which("paplay"):
+            # paplay は標準入力を受け付けないため、一時ファイルを作成する
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+                f.write(wav_content)
+                temp_file_path = f.name
+            cmd = ["paplay", temp_file_path]
+            if play_device is not None:
+                cmd += ["-d", str(play_device)]
+            use_stdin = False
         else:
-            play_device = self.default_device
+            raise RuntimeError(
+                "利用可能な再生コマンド (pacat, aplay, pw-play, paplay) "
+                "が見つかりません。"
+            )
 
-        # 再生時のサンプリングレートを決定
-        play_rate = target_sample_rate or self.target_sample_rate
-        audio = self.resample_audio(audio, sample_rate, play_rate)
+        with self._lock:
+            # 既に動いているプロセスがあれば念のため停止する
+            if self.process and self.process.poll() is None:
+                try:
+                    self.process.kill()
+                    self.process.wait()
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(
+                        "古いプロセスの強制終了中にエラーが発生しました: "
+                        f"{e}"
+                    )
+            if use_stdin:
+                self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+            else:
+                self.process = subprocess.Popen(cmd)
 
-        # sd.play に直接デバイスを渡すことで、
-        # グローバルな sd.default.device の書き換えを防ぐ
-        sd.play(audio, samplerate=play_rate, device=play_device)
         try:
-            # 再生中のストリームが存在する間、安全に待機する。
-            stream = sd.get_stream()
-            while stream and stream.active:
-                time.sleep(0.1)
+            if use_stdin:
+                # 標準入力に WAV を流し込み、終了を待機する
+                self.process.communicate(input=wav_content)
+            else:
+                # プロセスの終了を直接待機する
+                self.process.wait()
         except KeyboardInterrupt:
-            sd.stop()
+            logger.info("再生がユーザーによって中断されました。")
+            self.stop()
             raise
-
+        finally:
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(
+                        f"一時ファイルの削除に失敗しました: {temp_file_path}, {e}"
+                    )
 
     def stop(self):
         """再生中の音声を停止する。"""
-        try:
-            import sounddevice as sd
-
-            sd.stop()
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"sounddevice stop failed: {e}")
+        with self._lock:
+            if self.process and self.process.poll() is None:
+                try:
+                    self.process.terminate()
+                    # 猶予を与えて終了を待つ
+                    try:
+                        self.process.wait(timeout=1.0)
+                    except subprocess.TimeoutExpired:
+                        self.process.kill()
+                        self.process.wait()
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "外部再生プロセスの停止中にエラーが発生しました: "
+                        f"{e}"
+                    )
+                finally:
+                    self.process = None

@@ -4,8 +4,9 @@ from youtube_tts import AppConfig, AudioPlayer, TextProcessor, VoicevoxClient
 
 
 @patch("requests.post")
+@patch.object(AudioPlayer, "play_wav")
 def test_tts_pipeline_integration(
-    mock_post, mock_sd, tmp_path, dummy_wav_bytes
+    mock_play_wav, mock_post, tmp_path, dummy_wav_bytes
 ):
     # 1. Set up config files in temporary directory
     #
@@ -39,11 +40,6 @@ def test_tts_pipeline_integration(
     mock_synth_resp = MagicMock()
     mock_synth_resp.content = dummy_wav_bytes
     mock_post.side_effect = [mock_query_resp, mock_synth_resp]
-
-    mock_sd.query_devices.return_value = {
-        "name": "default",
-        "default_samplerate": 24000,
-    }
 
     # 4. Run pipeline: fetch chat -> normalize -> synthesize -> play
     #
@@ -86,8 +82,7 @@ def test_tts_pipeline_integration(
     synthesis_call_json = mock_post.call_args_list[1][1]["json"]
     assert synthesis_call_json["volumeScale"] == 1.2
 
-    # Verify sounddevice calls
+    # Verify AudioPlayer call
     #
-    # sounddevice の呼び出し検証
-    mock_sd.play.assert_called_once()
-    mock_sd.get_stream.assert_called_once()
+    # AudioPlayer の呼び出し検証
+    mock_play_wav.assert_called_once_with(wav_data)
