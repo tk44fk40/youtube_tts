@@ -15,10 +15,12 @@
 """YouTube API 接続用の認証管理モジュール。
 
 このモジュールは、OAuth2 認証フローを処理し、YouTube API への
-アクセス資格情報を取得・保存するための YouTubeAuthenticator クラスを提供します。
+アクセス資格情報を取得・保存するための YouTubeAuthenticator クラスを
+提供します。
 """
 
 from pathlib import Path
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -42,7 +44,7 @@ class YouTubeAuthenticator:
                 OAuth 2.0 クライアントシークレットファイルのパス。
             token_path: 認証トークンをキャッシュとして保存・ロードする
                 ためのファイルパス。
-            scopes: 要求する OAuth2 スコープ of リスト。デフォルトは
+            scopes: 要求する OAuth2 スコープのリスト。デフォルトは
                 YouTube への書き込み権限（YOUTUBE_SCOPE）です。
         """
         self.client_secret_path = Path(client_secret_path)
@@ -70,7 +72,7 @@ class YouTubeAuthenticator:
                 creds = Credentials.from_authorized_user_file(
                     str(self.token_path), self.scopes
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001
                 # キャッシュファイルが破損している、又はパースできない場合に、
                 # 一旦ファイルを削除して再認証を促す
                 try:
@@ -83,7 +85,7 @@ class YouTubeAuthenticator:
             if creds and creds.expired and creds.refresh_token:
                 try:
                     creds.refresh(Request())
-                except Exception:
+                except Exception:  # noqa: BLE001
                     creds = None
 
             if not creds:
