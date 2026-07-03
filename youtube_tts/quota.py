@@ -13,14 +13,15 @@
 # limitations under the License.
 #
 import json
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
+
 from google.cloud import monitoring_v3
 
-CLIENT_SECRET_FILE = "client_secret.json"
-
 from .auth import YOUTUBE_SCOPE
+
+CLIENT_SECRET_FILE = "client_secret.json"
 
 QUOTA_SCOPES = [
     YOUTUBE_SCOPE,
@@ -29,10 +30,7 @@ QUOTA_SCOPES = [
 
 
 def get_project_id(client_secret_path=CLIENT_SECRET_FILE):
-    """Auto-retrieves project ID from client_secret.json.
-    
-    client_secret.json からプロジェクトIDを自動取得する。
-    """
+    """client_secret.json からプロジェクトIDを自動取得する。"""
     path = Path(client_secret_path)
     if not path.exists():
         raise RuntimeError(f"{path.name} が見つかりません。")
@@ -44,27 +42,18 @@ def get_project_id(client_secret_path=CLIENT_SECRET_FILE):
         if key in data and "project_id" in data[key]:
             return data[key]["project_id"]
 
-    raise RuntimeError(
-        f"{path.name} から project_id を取得できませんでした。"
-    )
+    raise RuntimeError(f"{path.name} から project_id を取得できませんでした。")
 
 
 def get_quota_info(creds, project_id):
-    """Retrieves quota limit and today's consumption in Pacific Time (PT)
-    from Cloud Monitoring API.
-    
+    """クォータ消費量の取得
+
     Cloud Monitoring API からクォータ制限と
     太平洋時間（PT）本日の消費量を取得する。
     """
     client = monitoring_v3.MetricServiceClient(credentials=creds)
     project_name = f"projects/{project_id}"
 
-    # Since the YouTube Data API quota limit (Queries per day) resets at
-    # midnight Pacific Time, aggregate the data from midnight today based on
-    # Pacific Time (America/Los_Angeles).
-    # If retrieving the timezone fails, fall back to aggregating over the
-    # last 24 hours (UTC).
-    #
     # YouTube Data APIのクォータ制限（Queries per day）は
     # 太平洋時間の午前0時にリセットされるため、
     # 太平洋時間（America/Los_Angeles）基準で
@@ -93,16 +82,12 @@ def get_quota_info(creds, project_id):
         }
     )
 
-    # Quota usage (net_usage) filter
-    #
     # クォータ消費量 (net_usage) フィルター
     usage_filter = (
         'metric.type="serviceruntime.googleapis.com/quota/rate/net_usage" '
         'AND resource.labels.service="youtube.googleapis.com"'
     )
 
-    # Fetch usage metrics
-    #
     # 使用量の取得
     usage_results = client.list_time_series(
         request={
@@ -117,8 +102,6 @@ def get_quota_info(creds, project_id):
         for point in result.points:
             total_used += point.value.int64_value
 
-    # Fetch limit. Defaults to 10000 if it fails.
-    #
     # 上限値 (Limit) の取得。
     # 失敗した場合はデフォルト値 10000 とする
     quota_limit = 10000

@@ -16,17 +16,18 @@ from .logger import get_logger
 
 logger = get_logger()
 
+
 class ObsClient:
     def __init__(self, host="localhost", port=4455, password=None):
         self.host = host
         self.port = port
         self.password = password
 
-        # Try importing obs-websocket-py once and cache it
-        #
         # obs-websocket-py のインポートを一度だけ試みてキャッシュする
         try:
-            from obswebsocket import obsws, requests as obs_requests
+            from obswebsocket import obsws
+            from obswebsocket import requests as obs_requests
+
             self._obsws = obsws
             self._obs_requests = obs_requests
             self._available = True
@@ -57,7 +58,7 @@ class ObsClient:
             ws.connect()
             ws.call(
                 self._obs_requests.SetInputSettings(
-                     inputName=source_name, inputSettings={"url": url}
+                    inputName=source_name, inputSettings={"url": url}
                 )
             )
             ws.disconnect()
@@ -65,9 +66,7 @@ class ObsClient:
             logger.info(f"      URL: {url}")
             return True
         except Exception as e:
-            logger.error(
-                f"[OBS] チャットURL設定失敗 (エラー詳細: {e})"
-            )
+            logger.error(f"[OBS] チャットURL設定失敗 (エラー詳細: {e})")
             logger.error(
                 "      ※OBS Studioが起動しているか、"
                 "およびWebSocketサーバー(ポート4455)の"

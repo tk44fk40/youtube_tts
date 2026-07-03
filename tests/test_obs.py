@@ -1,15 +1,17 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from youtube_tts import ObsClient
+
 
 def test_obs_update_missing_password():
     client = ObsClient(password=None)
     assert client.update_chat_url("source", "http://chat_url") is False
 
+
 def test_obs_update_success():
     """Verifies that it returns True on successful connection
     and connect / disconnect are called.
-    
+
     接続成功時に True を返し、
     connect / disconnect が呼ばれることを確認。
     """
@@ -35,9 +37,10 @@ def test_obs_update_success():
     mock_ws.connect.assert_called_once()
     mock_ws.disconnect.assert_called_once()
 
+
 def test_obs_update_not_available(caplog):
     """Returns False if obs-websocket-py is not installed.
-    
+
     obs-websocket-py が未インストールの場合に False を返す。
     """
     client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
@@ -55,6 +58,7 @@ def test_obs_update_not_available(caplog):
         for record in caplog.records
     )
 
+
 def test_obs_update_connection_failure():
     client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
     client._available = True
@@ -66,6 +70,7 @@ def test_obs_update_connection_failure():
     result = client.update_chat_url("BrowserSource", "http://chat_url")
     assert result is False
 
+
 def test_obs_update_missing_source_name():
     client = ObsClient(password="secret_password")
     assert client.update_chat_url("", "http://chat_url") is False
@@ -73,6 +78,7 @@ def test_obs_update_missing_source_name():
 
 def test_obs_client_import_error():
     import builtins
+
     original_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):

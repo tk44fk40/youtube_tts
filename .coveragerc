@@ -1,0 +1,20 @@
+[run]
+branch = True
+source = youtube_tts
+omit =
+    youtube_live_voicevox.py
+    youtube_video_voicevox.py
+    tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self\.debug
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    except\s
+    self\.logger\.
+    logger\.
+    if verbose:
