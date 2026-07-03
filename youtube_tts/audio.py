@@ -13,7 +13,9 @@
 # limitations under the License.
 #
 import io
+import time
 import wave
+
 import numpy as np
 
 from .logger import get_logger
@@ -72,8 +74,10 @@ class AudioPlayer:
                         break
                 if found_device is not None:
                     default_device = found_device
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001
+                logger.debug(
+                    f"デフォルトデバイスの自動検出に失敗しました: {e}"
+                )
 
         self.default_device = default_device
         if default_device is not None:
@@ -83,7 +87,11 @@ class AudioPlayer:
         try:
             device_info = sd.query_devices(None, "output")
             self.target_sample_rate = int(device_info["default_samplerate"])
-        except Exception:
+        except Exception as e:  # noqa: BLE001
+            logger.debug(
+                "デフォルトサンプリングレートの取得に失敗しました。 "
+                f"24000Hzをデフォルトとして使用します: {e}"
+            )
             self.target_sample_rate = 24000
 
         sd.default.samplerate = self.target_sample_rate
@@ -161,7 +169,15 @@ class AudioPlayer:
         # sd.play に直接デバイスを渡すことで、
         # グローバルな sd.default.device の書き換えを防ぐ
         sd.play(audio, samplerate=play_rate, device=play_device)
-        sd.wait()
+        try:
+            # 再生中のストリームが存在する間、安全に待機する。
+            stream = sd.get_stream()
+            while stream and stream.active:
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            sd.stop()
+            raise
+
 
     def stop(self):
         """再生中の音声を停止する。"""
@@ -169,5 +185,5 @@ class AudioPlayer:
             import sounddevice as sd
 
             sd.stop()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"sounddevice stop failed: {e}")

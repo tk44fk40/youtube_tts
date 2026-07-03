@@ -90,4 +90,4 @@ def test_tts_pipeline_integration(
     #
     # sounddevice の呼び出し検証
     mock_sd.play.assert_called_once()
-    mock_sd.wait.assert_called_once()
+    mock_sd.get_stream.assert_called_once()

@@ -5,22 +5,21 @@
 
 import io
 import sys
+import wave
 from unittest.mock import MagicMock
+
+import pytest
 
 # Mock sounddevice to avoid PortAudio dependency in test environments
 # テスト環境における PortAudio 依存を回避するために sounddevice をモックする
 sys.modules["sounddevice"] = MagicMock()
 
-import wave
-
-import pytest
-
 from youtube_tts import (
     AppConfig,
     AudioPlayer,
     VoicevoxClient,
-    setup_logger,
     YouTubeTtsApp,
+    setup_logger,
 )
 
 
@@ -33,6 +32,8 @@ def mock_sd():
     """
     original_sd = sys.modules.get("sounddevice")
     new_sd = MagicMock()
+    # stream.active ループが無限ループになるのを防ぐため、初期状態で False に設定する
+    new_sd.get_stream.return_value.active = False
     sys.modules["sounddevice"] = new_sd
     yield new_sd
     if original_sd is not None:
