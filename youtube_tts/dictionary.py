@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""コメントの読み上げ用テキスト整形および正規化を行うモジュール。
+
+このモジュールは、YouTube チャットやコメント内の URL 除去、顔文字除去、
+草の変換、辞書による単語置換などのテキスト処理を提供する
+TextProcessor クラスを提供します。
+"""
+
 import os
 import re
 
@@ -19,7 +26,14 @@ from .config import AppConfig, normalize_nfkc
 
 
 class TextProcessor:
+    """YouTube のチャット・コメントを音声読み上げ用に整形するクラス。"""
+
     def __init__(self, config: AppConfig):
+        """TextProcessor を初期化します。
+
+        Args:
+            config: 設定ファイルを管理する AppConfig インスタンス。
+        """
         self.config = config
         self.author_suffix = os.getenv("VOICEVOX_AUTHOR_SUFFIX", "さん")
 
@@ -32,20 +46,24 @@ class TextProcessor:
         self._replacements_ref = None
 
     def normalize_text(self, text: str) -> str:
-        """NFKC 正規化を行う
+        """Unicode NFKC 正規化を行います。
 
-        （互換性のために公開メソッドとして維持）。
+        互換性のためにパブリックメソッドとして維持されています。
+
+        Args:
+            text: 正規化対象の文字列。
+
+        Returns:
+            NFKC 正規化後の文字列。
         """
         return normalize_nfkc(text)
 
     def _ensure_compiled(self):
-        """正規表現パターンの再コンパイル
+        """読み上げ置換用の正規表現パターンを必要に応じて再コンパイルします。
 
-        config.replacements が更新されていた場合、
-        正規表現パターンを再コンパイルする。
-
-        config.reload_if_changed() が新しい dict オブジェクトを
-        代入するため、オブジェクト同一性 (is) で変更を検知できる。
+        config.replacements が更新されていた場合に再コンパイルを実行します。
+        config.reload_if_changed() が新しい辞書オブジェクトを代入するため、
+        オブジェクトの同一性 (is) で変更を検知します。
         """
         if self.config.replacements is not self._replacements_ref:
             self._replacements_ref = self.config.replacements
@@ -55,7 +73,14 @@ class TextProcessor:
             ]
 
     def replace_words(self, message: str) -> str:
-        """読み上げ辞書に従ってメッセージ内の単語を置換する。"""
+        """読み上げ辞書に従ってメッセージ内の単語を置換します。
+
+        Args:
+            message: 置換対象のメッセージ。
+
+        Returns:
+            単語置換後のメッセージ。
+        """
         self._ensure_compiled()
         normalized = normalize_nfkc(message)
         for pattern, dst in self._compiled_replacements:
@@ -63,7 +88,14 @@ class TextProcessor:
         return normalized
 
     def contains_ng_word(self, message: str) -> bool:
-        """メッセージに NG ワードが含まれているかどうかを判定する。"""
+        """メッセージに NG ワードが含まれているかどうかを判定します。
+
+        Args:
+            message: 判定対象のメッセージ。
+
+        Returns:
+            NG ワードが含まれている場合は True、含まれていない場合は False。
+        """
         normalized = normalize_nfkc(message).lower()
         for word in self.config.ng_words:
             if word in normalized:
@@ -71,7 +103,17 @@ class TextProcessor:
         return False
 
     def normalize_author(self, author: str) -> str:
-        """著者名を正規化する（NFKC、@ 除去、suffix 付与）。"""
+        """投稿者名を読み上げ用に正規化します。
+
+        NFKC 正規化、先頭の @ 記号の除去、および設定された敬称
+        （suffix）の付与を行います。
+
+        Args:
+            author: 正規化対象の投稿者名。
+
+        Returns:
+            正規化後の投稿者名。
+        """
         author = normalize_nfkc(author).strip().lstrip("@").strip()
         if not author:
             return author
@@ -82,15 +124,17 @@ class TextProcessor:
         return f"{author}{self.author_suffix}"
 
     def normalize_message(self, message: str) -> str:
-        """メッセージを読み上げ用に正規化する。
+        """メッセージを音声読み上げ用に正規化します。
 
-        各置換処理が互いに干渉するのを防ぐため、以下の順序で処理する。
-        （例: 先に読み上げ辞書を適用すると、辞書内の変換ルールが
-        URL除去や草の変換に影響を及ぼす可能性があるため）
+        各置換処理が互いに干渉するのを防ぐため、以下の順序で処理します：
+        URL 除去 → スタンプ除去 → 顔文字除去 → 草圧縮 →
+        記号圧縮 → 絵文字除去 → 読み上げ辞書適用
 
-        URL除去 → スタンプ除去 → 顔文字除去 →
-        草圧縮 → 記号圧縮 → 絵文字除去 →
-        読み上げ辞書適用 の順に処理する。
+        Args:
+            message: 正規化対象のメッセージ。
+
+        Returns:
+            正規化後のメッセージ。
         """
         message = normalize_nfkc(message)
         # URL 除去
@@ -161,5 +205,13 @@ class TextProcessor:
         return message.strip()
 
     def normalize_comment(self, author: str, message: str) -> tuple[str, str]:
-        """著者名とメッセージをまとめて正規化して返す。"""
+        """投稿者名とメッセージをまとめて正規化します。
+
+        Args:
+            author: 投稿者名。
+            message: メッセージ。
+
+        Returns:
+            正規化された投稿者名とメッセージのタプル。
+        """
         return self.normalize_author(author), self.normalize_message(message)

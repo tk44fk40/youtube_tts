@@ -60,6 +60,12 @@ def test_normalize_comment(mock_config):
     expected = "こんにちは!    わら  youtubeでグーグルを見よう"
     assert processor.normalize_message(msg) == expected
 
+    # 一括正規化メソッドの検証
+    assert processor.normalize_comment("Taro", "hello") == (
+        "Taroさん",
+        "hello",
+    )
+
 
 def test_normalize_comment_invalid_input(mock_config):
     processor = TextProcessor(mock_config)
