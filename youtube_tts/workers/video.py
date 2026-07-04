@@ -14,15 +14,20 @@
 #
 """YouTube 動画コメント監視ワーカーを定義するモジュールです。"""
 
+from __future__ import annotations
+
 import time
-from typing import Any
+from typing import TYPE_CHECKING
 
 from ..models import CommentItem
 from ..video import YouTubeVideoClient
 
+if TYPE_CHECKING:
+    from youtube_tts.app import YouTubeTtsApp
+
 
 def video_worker(
-    app: Any,
+    app: YouTubeTtsApp,
     video_client: YouTubeVideoClient,
     video_id: str,
     chat_interval: float = 20.0,
@@ -32,12 +37,13 @@ def video_worker(
     """YouTube 動画コメントの定期取得を行い、キューへ送るワーカーです。
 
     Args:
-        app: YouTubeTtsApp インスタンス。
-        video_client: YouTubeVideoClient インスタンス。
-        video_id: 動画のID。
-        chat_interval: コメント取得インターバル（秒）。
-        verbose: 詳細ログを出力するかどうか。
-        backlog_counts: 読み込む初期バックログの件数。
+        app (YouTubeTtsApp): YouTubeTtsApp インスタンスです。
+        video_client (YouTubeVideoClient): YouTubeVideoClient
+            インスタンスです。
+        video_id (str): 動画のIDです。
+        chat_interval (float): コメント取得インターバル（秒）です。
+        verbose (bool): 詳細ログを出力するかどうかです。
+        backlog_counts (int): 読み込む初期バックログの件数です。
     """
     app.logger.info(
         f"Loading initial comments backlog (limit: {backlog_counts})..."
