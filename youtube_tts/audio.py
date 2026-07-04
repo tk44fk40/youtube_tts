@@ -63,7 +63,8 @@ class AudioPlayer:
                                 break
             except Exception as e:  # noqa: BLE001
                 logger.debug(
-                    f"pactl によるデフォルトサンプリングレート取得に失敗しました: {e}"
+                    "pactl によるデフォルトサンプリングレート"
+                    f"取得に失敗しました: {e}"
                 )
 
     def query_devices(self, device=None, kind=None):
@@ -125,7 +126,8 @@ class AudioPlayer:
         Args:
             wav_content (bytes): WAVファイルのバイナリデータ。
             device (int or str, optional): 再生に使用するデバイス。
-            target_sample_rate (int, optional): 再生サンプリングレート（未使用）。
+            target_sample_rate (int, optional):
+                再生サンプリングレート（未使用）。
 
         Raises:
             RuntimeError: 利用可能な再生コマンドが見つからない場合。
@@ -175,7 +177,10 @@ class AudioPlayer:
                     self.process.kill()
                     self.process.wait()
                 except Exception as e:  # noqa: BLE001
-                    logger.debug(f"古いプロセスの強制終了中にエラーが発生しました: {e}")
+                    logger.debug(
+                        "古いプロセスの強制終了中に"
+                        f"エラーが発生しました: {e}"
+                    )
             if use_stdin:
                 self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
             else:
@@ -198,7 +203,8 @@ class AudioPlayer:
                     os.unlink(temp_file_path)
                 except Exception as e:  # noqa: BLE001
                     logger.debug(
-                        f"一時ファイルの削除に失敗しました: {temp_file_path}, {e}"
+                        "一時ファイルの削除に失敗しました: "
+                        f"{temp_file_path}, {e}"
                     )
 
     def stop(self):

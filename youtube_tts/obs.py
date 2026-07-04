@@ -68,7 +68,10 @@ class ObsClient:
             return False
 
         if not self.password:
-            logger.info("[OBS] OBS_WEBSOCKET_PASSWORD is not set; skipping OBS update")
+            logger.info(
+                "[OBS] OBS_WEBSOCKET_PASSWORD is not set; "
+                "skipping OBS update"
+            )
             return False
 
         if not self._available:

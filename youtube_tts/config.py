@@ -130,11 +130,13 @@ class AppConfig:
                     if 0.0 <= val <= 2.0:
                         self.volume_scale = val
                         logger.info(
-                            f"[CONFIG] volume scale updated: {self.volume_scale}"
+                            "[CONFIG] volume scale updated: "
+                            f"{self.volume_scale}"
                         )
                     else:
                         logger.info(
-                            f"[CONFIG] volume scale out of range (0.0 - 2.0): {val}"
+                            "[CONFIG] volume scale out of range "
+                            f"(0.0 - 2.0): {val}"
                         )
                 except OSError as e:
                     logger.warning(f"Failed to read volume.txt: {e}")
