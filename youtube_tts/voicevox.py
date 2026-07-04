@@ -19,13 +19,19 @@
 返す機能を提供します。
 """
 
+from __future__ import annotations
+
 import requests
 
 
 class VoicevoxClient:
     """VOICEVOX エンジンの REST API クライアントクラス。"""
 
-    def __init__(self, base_url="http://127.0.0.1:50021", speaker_id=3):
+    def __init__(
+        self,
+        base_url: str = "http://127.0.0.1:50021",
+        speaker_id: int = 3,
+    ):
         """VoicevoxClient クラスを初期化します。
 
         Args:
@@ -54,7 +60,11 @@ class VoicevoxClient:
             ) from e
 
     def synthesize(
-        self, text, volume_scale=1.0, speed_scale=1.0, target_sample_rate=None
+        self,
+        text: str,
+        volume_scale: float = 1.0,
+        speed_scale: float = 1.0,
+        target_sample_rate: int | None = None,
     ) -> bytes:
         """VOICEVOX エンジンでテキストを音声合成します。
 
