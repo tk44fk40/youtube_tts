@@ -19,3 +19,23 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
 ]
+
+[tool.ruff]
+line-length = 80
+exclude = [
+    ".agents",
+    ".git",
+    ".github",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".vscode",
+    ".venv",
+    "__pycache__",
+    "build"
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+# E (pycodestyle - Errors) : Pythonの標準スタイルガイド（PEP 8）に基づくエラーをチェックします。
+# F (Pyflakes) : コードのスタイルではなく、論理的なバグやエラーをチェックします。
+# I (isort) : インポート文（import ...）の並び順やグループ分けをチェック・整理します。
