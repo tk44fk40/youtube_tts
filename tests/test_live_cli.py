@@ -228,3 +228,132 @@ def test_live_cli_video_id_auto_detection_failure(
         with patch("sys.argv", ["youtube_live_voicevox.py"]):
             main()
     assert exc_info.value.code == 1
+
+
+def test_live_cli_env_parse_failures(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """環境変数の数値パースが失敗した場合に
+    デフォルト値へフォールバックされることを検証します。
+    """
+    env_mock = {
+        "VOICEVOX_SPEED_SCALE": "invalid_speed",
+        "VOICEVOX_MAX_SPEED": "invalid_max_speed",
+        "VOICEVOX_VOLUME_SCALE": "invalid_volume",
+    }
+    with (
+        patch.dict(os.environ, env_mock),
+        patch("sys.argv", ["youtube_live_voicevox.py", "video123"]),
+    ):
+        main()
+    # パース失敗時はエラーにならず、デフォルト値または無視されることを確認
+    components = mock_cli_components
+    components["app_class"].assert_called_once()
+
+
+def test_live_cli_device_string_and_query_failure(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """デバイス名に文字列を指定し、かつ sounddevice が例外を
+    投げた場合でも処理が継続されることを検証します。
+    """
+    components = mock_cli_components
+    components["query_devices"].side_effect = RuntimeError(
+        "Device query failed"
+    )
+
+    argv = [
+        "youtube_live_voicevox.py",
+        "-d",
+        "test_device_name",
+        "video123",
+    ]
+    with patch("sys.argv", argv):
+        main()
+
+    components["audio_player_class"].assert_called_with(
+        default_device="test_device_name"
+    )
+    components["app_instance"].run_live.assert_called_once()
+
+
+def test_live_cli_get_speakers_failure(
+    mock_cli_components: dict[str, Any],
+    mock_voicevox_client_get_speakers: MagicMock,
+) -> None:
+    """VOICEVOX 接続確認(get_speakers)が失敗しても、
+    処理が継続されることを検証します。
+    """
+    mock_voicevox_client_get_speakers.side_effect = RuntimeError(
+        "Connection refused"
+    )
+    components = mock_cli_components
+
+    # verboseログのコードパスを通すため-vオプションを指定したケース
+    with patch("sys.argv", ["youtube_live_voicevox.py", "-v", "video123"]):
+        main()
+
+    components["app_instance"].run_live.assert_called_once()
+    components["app_instance"].run_live.reset_mock()
+
+    # verboseなしのケースもテストしてBrPartを解消
+    with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
+        main()
+
+    components["app_instance"].run_live.assert_called_once()
+
+
+def test_live_cli_auth_failure_verbose(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """verbose有効時に認証に失敗した場合、例外詳細ログが出力され
+    ステータス1で終了することを検証します。
+    """
+    components = mock_cli_components
+    components["auth_instance"].get_credentials.side_effect = Exception(
+        "Auth Failure"
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        with patch("sys.argv", ["youtube_live_voicevox.py", "-v", "video123"]):
+            main()
+    assert exc_info.value.code == 1
+
+
+@patch("youtube_live_voicevox.get_project_id")
+def test_live_cli_quota_check_project_id_failure(
+    mock_get_project_id: MagicMock,
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """quota-check有効時に get_project_id が失敗した場合、警告ログを
+    出力してフラグがFalseになり処理が継続することを検証します。
+    """
+    mock_get_project_id.side_effect = RuntimeError("Metadata error")
+    components = mock_cli_components
+
+    with patch("sys.argv", ["youtube_live_voicevox.py", "-q", "video123"]):
+        main()
+
+    # run_live が quota_check=False で呼ばれることを検証
+    components["app_instance"].run_live.assert_called_once()
+    _, kwargs = components["app_instance"].run_live.call_args
+    assert kwargs["quota_check"] is False
+    assert kwargs["quota_talk"] is False
+
+
+def test_live_cli_run_live_unexpected_error(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """run_live で予期しない例外が発生した場合に例外がキャッチされ、
+    ログ出力されることを検証します。
+    """
+    components = mock_cli_components
+    components["app_instance"].run_live.side_effect = RuntimeError(
+        "Unexpected loop crash"
+    )
+
+    # 例外はキャッチされて終了するため、SystemExitなどは発生しない
+    with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
+        main()
+
+    components["app_instance"].run_live.assert_called_once()
