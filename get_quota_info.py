@@ -14,15 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# YouTube Data API クォータ使用量・使用率確認スクリプト
-
+"""YouTube Data API のクォータ使用状況を確認するスクリプトです。"""
 
 from youtube_tts import (
     QUOTA_SCOPES,
     YouTubeAuthenticator,
+    get_logger,
     get_project_id,
     get_quota_info,
-    get_logger,
 )
 
 SCOPES = QUOTA_SCOPES
@@ -32,6 +31,7 @@ CLIENT_SECRET_FILE = "client_secret.json"
 
 
 def main():
+    """GCPプロジェクトのクォータ情報を取得してコンソールに出力します。"""
     logger = get_logger()
     try:
         project_id = get_project_id()
@@ -57,7 +57,7 @@ def main():
         print(f"  使用率 (Usage)   : {usage_percent:.2f}%")
         print("==========================================================")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"クォータ情報の取得に失敗しました: {e}")
         if "billing to be enabled" in str(e):
             print("\n【原因と対策】")

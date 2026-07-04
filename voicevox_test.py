@@ -13,7 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+"""VOICEVOX で音声合成と再生のテストを行うスクリプトです。"""
+
 import argparse
 import os
 import sys
@@ -30,6 +31,7 @@ DEFAULT_VOLUME = 1.0
 
 
 def list_speakers(client: VoicevoxClient):
+    """利用可能な話者とスタイルの一覧を表示します。"""
     try:
         speakers = client.get_speakers()
     except Exception as e:  # noqa: BLE001
@@ -47,6 +49,7 @@ def list_speakers(client: VoicevoxClient):
 
 
 def main():
+    """コマンドライン引数を解析し、音声合成と再生を実行します。"""
     env_speed = 1.0
     if "VOICEVOX_SPEED_SCALE" in os.environ:
         try:
