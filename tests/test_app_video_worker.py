@@ -11,14 +11,17 @@ from youtube_tts import YouTubeVideoClient
 
 def test_video_worker_success(app: Any) -> None:
     """正常に動画コメントを取得し、コメントキューが更新されるかを検証します。"""
+    # YouTubeVideoClient のモックを作成します。
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
 
     call_count = 0
 
+    # API呼び出しのモック動作を定義します。
     def fetch_side_effect(video_id, page_token=None, max_results=100):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
+            # 1回目は初期バックログ用コメントを返します。
             return (
                 [
                     {
@@ -37,13 +40,16 @@ def test_video_worker_success(app: Any) -> None:
                 3000,
             )
         elif call_count == 2:
+            # 2回目はバックログ取得のループ終了条件を満たすために空を返します。
             return [], None, 3000
         else:
+            # 3回目はメインループ内での動作として、
+            # 重複と新規コメントを返します。
             app.stop_event.set()
             return (
                 [
                     {
-                        "id": "c1",  # バックログとの重複のためスキップ
+                        "id": "c1",  # バックログとの重複のためスキップされます
                         "authorDetails": {
                             "displayName": "User1",
                             "channelId": "ch1",
@@ -54,7 +60,7 @@ def test_video_worker_success(app: Any) -> None:
                         },
                     },
                     {
-                        "id": "c2",  # 新規コメント
+                        "id": "c2",  # 新規コメントとしてキューに格納されます
                         "authorDetails": {
                             "displayName": "User2",
                             "channelId": "ch2",
@@ -71,6 +77,7 @@ def test_video_worker_success(app: Any) -> None:
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
+    # 対象のワーカー関数を実行します。
     app.video_worker(
         video_client=mock_video_client,
         video_id="video_123",
@@ -79,6 +86,7 @@ def test_video_worker_success(app: Any) -> None:
         backlog_counts=10,
     )
 
+    # 取得したコメント数および文字数が想定通りか検証します。
     assert app.comment_queue.qsize() == 2
     assert app.queued_char_count == 32
 
@@ -153,7 +161,7 @@ def test_video_worker_backlog_error(app: Any) -> None:
 
 
 def test_video_worker_backlog_ng_word(app: Any) -> None:
-    """初期バックログコメントの中にNGワードがある場合スキップされるかを検証します。"""
+    """初期バックログ内のNGワードスキップ処理を検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     mock_video_client.fetch_comment_threads.return_value = (
         [
@@ -217,7 +225,7 @@ def test_video_worker_backlog_queue_full(app: Any) -> None:
 
 
 def test_video_worker_polling_error(app: Any) -> None:
-    """メインポーリング中にエラーが発生した場合に正しくループを終了するかを検証します。"""
+    """メインポーリング中エラー発生時のループ終了を検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
 
     call_count = 0
@@ -244,7 +252,7 @@ def test_video_worker_polling_error(app: Any) -> None:
 
 
 def test_video_worker_polling_ng_word(app: Any) -> None:
-    """メインポーリング時にNGワードを含むコメントがスキップされるかを検証します。"""
+    """メインポーリング時のNGワードスキップ処理を検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     app.config.ng_words = ["badword"]
 
@@ -289,7 +297,7 @@ def test_video_worker_polling_ng_word(app: Any) -> None:
 
 
 def test_video_worker_polling_queue_full(app: Any) -> None:
-    """メインポーリング時にキューがいっぱいの場合にコメントがスキップされるかを検証します。"""
+    """メインポーリング時のキュー満杯によるスキップを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
 
     call_count = 0
@@ -336,7 +344,7 @@ def test_video_worker_polling_queue_full(app: Any) -> None:
 
 
 def test_video_worker_ng_word_verbose(app: Any) -> None:
-    """初期バックログでNGワードがあり、かつverboseがTrueの場合の分岐をを検証します。"""
+    """初期バックログのNGワードかつ詳細出力ありの場合を検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     mock_video_client.fetch_comment_threads.return_value = (
         [
@@ -365,7 +373,7 @@ def test_video_worker_ng_word_verbose(app: Any) -> None:
 
 
 def test_video_worker_polling_ng_word_verbose(app: Any) -> None:
-    """リアルタイム監視時にNGワードがあり、かつverboseがTrueの場合の分岐をを検証します。"""
+    """リアルタイム監視時のNGワードかつ詳細出力ありを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     app.config.ng_words = ["badword"]
 
@@ -422,7 +430,7 @@ def test_video_worker_backlog_remaining_exhausted(app: Any) -> None:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            # ページトークンを持たせて L72 での break を防ぐ
+            # ページトークンを持たせてループ途中での break を防ぎます。
             return (
                 [
                     {
@@ -613,9 +621,9 @@ def test_video_worker_backlog_queue_full_actual(
     mock_sleep: Any,
     app: Any,
 ) -> None:
-    """バックログ取得時にキューが満杯の場合に L92-93 をカバーする。
+    """バックログ取得時にキューが満杯の場合の処理を検証します。
 
-    stop_event を事前設定せず実際にキューフル分岐を通過させるを検証します。
+    stop_event を事前設定せず実際にキューが満杯の分岐を通過させて検証します。
     """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     call_count = 0
