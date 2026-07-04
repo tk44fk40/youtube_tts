@@ -14,15 +14,21 @@
 #
 """音声再生ワーカーを定義するモジュールです。"""
 
+from __future__ import annotations
+
 import queue
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from youtube_tts.app import YouTubeTtsApp  # pragma: no cover
 
 
-def playback_worker(app: Any) -> None:
-    """コメント再生キューを監視し、順次再生するスレッドワーカー。
+def playback_worker(app: YouTubeTtsApp) -> None:
+    """コメント再生キューを監視し、順次再生するスレッドワーカーです。
 
     Args:
         app: YouTubeTtsApp インスタンス。
+
     """
     while not app.stop_event.is_set():
         try:
