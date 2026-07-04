@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""OBS Studio との連携を行うモジュール。
+"""OBS Studio との連携を行うモジュールです。
 
 このモジュールは、obs-websocket-py ライブラリを介して OBS Studio の
-ウェブソケットサーバーに接続し、各種操作を行う ObsClient クラスを
+WebSocket サーバーに接続し、各種操作を行う ObsClient クラスを
 提供します。
 """
+
+from __future__ import annotations
 
 from .logger import get_logger
 
@@ -25,9 +27,14 @@ logger = get_logger()
 
 
 class ObsClient:
-    """OBS Studio の WebSocket 接続を管理するクラス。"""
+    """OBS Studio の WebSocket 接続を管理するクラスです。"""
 
-    def __init__(self, host="localhost", port=4455, password=None):
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 4455,
+        password: str | None = None,
+    ) -> None:
         """ObsClient クラスを初期化します。
 
         Args:
@@ -40,7 +47,7 @@ class ObsClient:
         self.port = port
         self.password = password
 
-        # obs-websocket-py のインポートを一度だけ試みてキャッシュする
+        # obs-websocket-py のインポートを一度だけ試みてキャッシュします。
         try:
             from obswebsocket import obsws
             from obswebsocket import requests as obs_requests
@@ -54,7 +61,7 @@ class ObsClient:
             self._available = False
 
     def update_chat_url(self, source_name: str, url: str) -> bool:
-        """OBS Studio の指定ソースの URL を更新します。
+        """OBS Studio の指定したソースの URL を更新します。
 
         Args:
             source_name: URL を更新する OBS のブラウザソース名。
@@ -62,7 +69,8 @@ class ObsClient:
             url: 設定するチャット表示用 URL。
 
         Returns:
-            設定に成功した場合は True、スキップまたは失敗の場合は False。
+            設定に成功した場合は True、スキップまたは失敗した場合は False を
+            返します。
         """
         if not source_name:
             return False
