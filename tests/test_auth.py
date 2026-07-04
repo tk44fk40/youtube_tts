@@ -1,6 +1,9 @@
-"""YouTube 認証ハンドラーの単体テストを行うモジュール。"""
+"""YouTube 認証ハンドラーの単体テストを行うモジュールです。"""
+
+from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,8 +12,10 @@ from youtube_tts import YouTubeAuthenticator
 
 
 @patch("youtube_tts.auth.Credentials")
-def test_auth_valid_cache(mock_creds_class, tmp_path):
-    """有効なキャッシュトークンが存在する場合の認証情報取得テスト。"""
+def test_auth_valid_cache(
+    mock_creds_class: MagicMock, tmp_path: Path
+) -> None:
+    """有効なキャッシュトークンが存在する場合の認証情報取得を検証します。"""
     token_file = tmp_path / "token.json"
     token_file.write_text('{"token": "valid_token"}', encoding="utf-8")
 
@@ -33,9 +38,11 @@ def test_auth_valid_cache(mock_creds_class, tmp_path):
 @patch("youtube_tts.auth.Request")
 @patch("youtube_tts.auth.Credentials")
 def test_auth_expired_refresh_success(
-    mock_creds_class, mock_request_class, tmp_path
-):
-    """期限切れトークンのリフレッシュ処理が成功するかのテスト。"""
+    mock_creds_class: MagicMock,
+    mock_request_class: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """期限切れトークンのリフレッシュ処理が成功することを検証します。"""
     token_file = tmp_path / "token.json"
     token_file.write_text('{"token": "expired_token"}', encoding="utf-8")
 
@@ -60,8 +67,10 @@ def test_auth_expired_refresh_success(
 
 
 @patch("youtube_tts.auth.InstalledAppFlow")
-def test_auth_no_cache_oauth_success(mock_flow_class, tmp_path):
-    """キャッシュがない場合に新規OAuthフローが走るかのテスト。"""
+def test_auth_no_cache_oauth_success(
+    mock_flow_class: MagicMock, tmp_path: Path
+) -> None:
+    """キャッシュ欠落時の OAuth フロー実行を検証します。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"
@@ -90,8 +99,12 @@ def test_auth_no_cache_oauth_success(mock_flow_class, tmp_path):
 
 @patch("youtube_tts.auth.InstalledAppFlow")
 @patch("youtube_tts.auth.Credentials")
-def test_auth_corrupted_json(mock_creds_class, mock_flow_class, tmp_path):
-    """キャッシュファイルが破損している場合のフォールバックテスト。"""
+def test_auth_corrupted_json(
+    mock_creds_class: MagicMock,
+    mock_flow_class: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """キャッシュファイルが破損している場合のフォールバック処理を検証します。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"
@@ -118,8 +131,8 @@ def test_auth_corrupted_json(mock_creds_class, mock_flow_class, tmp_path):
     assert saved_data["token"] == "new_oauth_token"
 
 
-def test_auth_missing_client_secret(tmp_path):
-    """クライアントシークレットファイルが無い場合に例外が出るかのテスト。"""
+def test_auth_missing_client_secret(tmp_path: Path) -> None:
+    """シークレットファイル欠落時の例外発生を検証します。"""
     authenticator = YouTubeAuthenticator(
         client_secret_path=tmp_path / "non_existent_client_secret.json",
         token_path=tmp_path / "token.json",
@@ -133,9 +146,12 @@ def test_auth_missing_client_secret(tmp_path):
 @patch("youtube_tts.auth.Credentials")
 @patch("youtube_tts.auth.Path.unlink")
 def test_auth_corrupted_json_unlink_oserror(
-    mock_unlink, mock_creds_class, mock_flow_class, tmp_path
-):
-    """破損キャッシュの削除でOSエラーが出ても処理が継続するかのテスト。"""
+    mock_unlink: MagicMock,
+    mock_creds_class: MagicMock,
+    mock_flow_class: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """キャッシュ削除時の OS エラー回避を検証します。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"
@@ -164,9 +180,12 @@ def test_auth_corrupted_json_unlink_oserror(
 @patch("youtube_tts.auth.Credentials")
 @patch("youtube_tts.auth.Request")
 def test_auth_refresh_exception(
-    mock_request_class, mock_creds_class, mock_flow_class, tmp_path
-):
-    """トークンリフレッシュで例外時にOAuthへ遷移するかのテスト。"""
+    mock_request_class: MagicMock,
+    mock_creds_class: MagicMock,
+    mock_flow_class: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """トークン更新例外時の OAuth 移行を検証します。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"
