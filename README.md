@@ -337,24 +337,61 @@ Automatically generated after initial authentication. Automatically refreshed us
 
 Modules and classes inside `youtube_tts` package:
 
-### Directory Structure
+### Module Structure
 ```text
 youtube_tts/
 ├── __init__.py           # Package entry point
-├── auth.py               # Google API OAuth management (YouTubeAuthenticator)
-├── youtube.py            # YouTube chat fetcher & stream monitoring (YouTubeChatClient)
-├── voicevox.py           # VOICEVOX API integration (VoicevoxClient)
-├── audio.py              # WAV decode, playback, resampling (AudioPlayer)
-├── config.py             # Config files dynamic watcher (AppConfig)
-├── dictionary.py         # Chat text normalization and filtering (TextProcessor)
-└── obs.py                # OBS WebSocket integration (ObsClient)
+├── app.py                # Application execution control
+├── audio.py              # Audio data decoding, resampling, and playback
+├── auth.py               # Google API authentication management
+├── client.py             # Common base client for YouTube API
+├── config.py             # Dynamic configuration loading and watching
+├── dictionary.py         # Comment normalization, translation, and NG word filtering
+├── live.py               # YouTube Live chat acquisition
+├── logger.py             # Package-wide logger configuration
+├── models.py             # Data model definitions
+├── obs.py                # OBS WebSocket integration
+├── quota.py              # YouTube API quota information retrieval
+├── utils.py              # Common utility functions
+├── video.py              # YouTube video comment acquisition
+├── voicevox.py           # VOICEVOX API integration
+└── workers/              # Background processing threads
+    ├── live.py           # Live chat monitoring worker
+    ├── playback.py       # Audio playback processing worker
+    └── video.py          # Video comment monitoring worker
 ```
+
+### Key Classes and Functions
+- **`YouTubeTtsApp`** (Module: `youtube_tts/app.py`):
+  Manages the comment receive/playback queue, and the overall program lifecycle and execution state.
+- **`AudioPlayer`** (Module: `youtube_tts/audio.py`):
+  Decodes synthesized WAV data, manages audio devices, performs resampling for different sample rates, and controls audio playback.
+- **`YouTubeAuthenticator`** (Module: `youtube_tts/auth.py`):
+  Manages Google API credential lifecycle including loading `token.json`, refreshing expired tokens, and executing new OAuth flow.
+- **`BaseYouTubeClient`** (Module: `youtube_tts/client.py`):
+  Base class that provides common communication and error handling processes with YouTube API.
+- **`AppConfig`** (Module: `youtube_tts/config.py`):
+  Monitors settings files (`volume.txt`, `dictionary.txt`, `ng_words.txt`) and automatically reloads them upon detecting timestamp changes.
+- **`TextProcessor`** (Module: `youtube_tts/dictionary.py`):
+  Normalizes and filters comments by adding honorific suffixes to author names, removing URLs and emojis, replacing text, and checking NG words.
+- **`YouTubeLiveChatClient`** (Module: `youtube_tts/live.py`):
+  Detects YouTube Live streams, retrieves chat comments, and monitors stream active status.
+- **`CommentItem`** (Module: `youtube_tts/models.py`):
+  A data model class that holds YouTube comments and metadata.
+- **`ObsClient`** (Module: `youtube_tts/obs.py`):
+  Communicates with OBS via OBS WebSocket (port 4455) to automatically update browser source URLs.
+- **`YouTubeVideoClient`** (Module: `youtube_tts/video.py`):
+  Retrieves comment threads for past stream archives and regular video uploads.
+- **`VoicevoxClient`** (Module: `youtube_tts/voicevox.py`):
+  Calls VOICEVOX API (`/audio_query`, `/synthesis`) to synthesize audio for a specified speaker style.
+- **`live_worker` / `video_worker` / `playback_worker`** (Module: `youtube_tts/workers/` subpackage):
+  Background workers for processing stream monitoring, video comment monitoring, and audio playback asynchronously in separate threads.
 
 ---
 
 ## 3. Testing
 
-The repository contains mock-based unit and integration tests.
+The repository contains mock-based unit tests for each module and simplified integration tests verifying the data pipeline in the `tests/` directory.
 
 ### Running Tests
 Execute unit tests and measure coverage:

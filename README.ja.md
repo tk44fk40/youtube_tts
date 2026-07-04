@@ -350,52 +350,61 @@ uv run python3 youtube_voicevox.py -d 6
 
 ツールを構成する処理は、役割ごとに `youtube_tts` パッケージ配下のモジュール及びクラスとして実装されています。
 
-### ディレクトリ構成
+### モジュール構成
 ```text
 youtube_tts/
 ├── __init__.py           # パッケージのエントリポイント
-├── auth.py               # Google API 認証管理 (YouTubeAuthenticator)
-├── youtube.py            # YouTubeチャット取得・配信監視 (YouTubeChatClient)
-├── voicevox.py           # VOICEVOX連携 (VoicevoxClient)
-├── audio.py              # 音声デコード・再生・リサンプリング (AudioPlayer)
-├── config.py             # 設定ファイル動的読み込み (AppConfig)
-├── dictionary.py         # コメントの正規化・置換・NGワード適用 (TextProcessor)
-└── obs.py                # OBS WebSocket連携 (ObsClient)
+├── app.py                # アプリケーション全体の実行制御
+├── audio.py              # 音声データのデコード・リサンプリング・再生
+├── auth.py               # Google API 認証管理
+├── client.py             # YouTube API クライアント共通基盤
+├── config.py             # 設定ファイルの動的読み込み・自動監視
+├── dictionary.py         # コメントの正規化・置換・NGワード適用
+├── live.py               # YouTube ライブ配信チャット取得
+├── logger.py             # パッケージ共通ロガー設定
+├── models.py             # データモデルの定義
+├── obs.py                # OBS WebSocket連携
+├── quota.py              # YouTube API クォータ情報取得
+├── utils.py              # 共通ユーティリティ関数
+├── video.py              # YouTube 動画コメント取得
+├── voicevox.py           # VOICEVOX API連携
+└── workers/              # バックグラウンド処理スレッド群
+    ├── live.py           # ライブチャット監視ワーカー
+    ├── playback.py       # 音声再生処理ワーカー
+    └── video.py          # 動画コメント監視ワーカー
 ```
 
-### 各クラスの説明
-- **`AppConfig`** (モジュール: `youtube_tts/config.py`):
-  `volume.txt`、`dictionary.txt`、`ng_words.txt` などの設定ファイルを監視し、ファイルのタイムスタンプに変更があった際に自動で再ロードします。
-- **`TextProcessor`** (モジュール: `youtube_tts/dictionary.py`):
-  チャットの送信者名への「さん」付け、URLの除去、顔文字などの絵文字除去、「草」表現（wwww）の圧縮、および登録された辞書やNGワードの適用によるテキストの正規化とフィルタリングを担います。
-- **`YouTubeAuthenticator`** (モジュール: `youtube_tts/auth.py`):
-  `token.json` のロード、期限切れ時のリフレッシュ、新規OAuth認証（InstalledAppFlow）など、Google API のトークンライフサイクル管理を行います。
-- **`YouTubeChatClient`** (モジュール: `youtube_tts/youtube.py`):
-  配信IDの抽出、YouTube Data APIを使用したアクティブチャットIDの取得、定期的なチャットメッセージの取得、配信ステータスの継続チェックを管理します。
-- **`VoicevoxClient`** (モジュール: `youtube_tts/voicevox.py`):
-  VOICEVOX API（`/audio_query`、`/synthesis`）と接続し、指定話者による音声の合成を制御します。
+### 主要なクラス・関数の説明
+- **`YouTubeTtsApp`** (モジュール: `youtube_tts/app.py`):
+  コメントの受信・再生キュー、およびプログラム全体のライフサイクルと実行状態を管理します。
 - **`AudioPlayer`** (モジュール: `youtube_tts/audio.py`):
-  合成されたWAVのデコード、オーディオデバイスの管理、サンプリングレートが異なる場合のリサンプリング処理、`sounddevice` による再生・停止制御を担当します。
+  合成されたWAVのデコード、オーディオデバイスの管理、サンプリングレートが異なる場合のリサンプリング処理、および音声の再生を制御します。
+- **`YouTubeAuthenticator`** (モジュール: `youtube_tts/auth.py`):
+  `token.json` のロード、期限切れ時のリフレッシュ、新規OAuth認証など、Google API の認証ライフサイクルを管理します。
+- **`BaseYouTubeClient`** (モジュール: `youtube_tts/client.py`):
+  YouTube API との通信およびエラーハンドリングの共通処理を提供する基底クラスです。
+- **`AppConfig`** (モジュール: `youtube_tts/config.py`):
+  `volume.txt`、`dictionary.txt`、`ng_words.txt` などの設定ファイルを監視し、タイムスタンプの変更を検知して自動で再ロードします。
+- **`TextProcessor`** (モジュール: `youtube_tts/dictionary.py`):
+  チャット送信者名への敬称付与、URLや絵文字の除去、辞書置換、およびNGワード判定によるコメントの正規化とフィルタリングを行います。
+- **`YouTubeLiveChatClient`** (モジュール: `youtube_tts/live.py`):
+  YouTube Live配信の検出やチャットコメントの取得、配信ステータスの監視を行います。
+- **`CommentItem`** (モジュール: `youtube_tts/models.py`):
+  YouTubeのコメントやメタデータを保持するデータモデルクラスです。
 - **`ObsClient`** (モジュール: `youtube_tts/obs.py`):
-  OBS WebSocket（4455ポート）経由でOBSと通信し、配信チャットが埋め込まれたブラウザソースのURLを自動で同期更新します。
+  OBS WebSocket（ポート4455）経由でOBSと通信し、チャット表示用のブラウザソースのURLを自動で同期更新します。
+- **`YouTubeVideoClient`** (モジュール: `youtube_tts/video.py`):
+  過去の配信アーカイブや投稿動画のコメントスレッドを取得します。
+- **`VoicevoxClient`** (モジュール: `youtube_tts/voicevox.py`):
+  VOICEVOX API（`/audio_query`、`/synthesis`）を呼び出し、指定された話者スタイルによる音声合成を行います。
+- **`live_worker` / `video_worker` / `playback_worker`** (モジュール: `youtube_tts/workers/` 配下):
+  ライブ配信監視、動画コメント監視、および音声再生をそれぞれ別スレッドで非同期に処理するためのバックグラウンドワーカーです。
 
 ---
 
 ## 3. テストに関する記述
 
-本ツールには、外部APIやハードウェアに依存しないモックベースのテスト環境が同梱されています。
-
-### テスト環境の構成
-`tests/` ディレクトリに各クラスの単体テスト、および一連のパイプライン処理を確認する簡易統合テストを配置しています。
-
-- **`test_config.py`**: ファイル変更時の再読み込み、破損ファイルや範囲外の値（音量）が書き込まれた際のフォールバック挙動の検証。
-- **`test_dictionary.py`**: Unicode正規化、辞書置換、NGワード検知、不正または極端な入力時の安定した文字列生成の検証。
-- **`test_auth.py`**: 有効なキャッシュのロード、リフレッシュ失敗時のOAuthフォールバック、ファイル破損時の自動削除等の検証。
-- **`test_youtube.py`**: URL解析、API制限（403 Quota Exceeded）や未検出時のエラー制御、配信監視メソッドの動作検証。
-- **`test_voicevox.py`**: VOICEVOXサーバー未起動等の通信例外やHTTPエラーのハンドリングの検証。
-- **`test_audio.py`**: 音声の再生・リサンプリング、ステレオ音声の変換、物理出力デバイスがない環境（CI環境等）でのサンプリングレートの自動フォールバックの検証。
-- **`test_obs.py`**: OBS websocketの認証、タイムアウト、およびソース名未指定時の早期リターンの検証。
-- **`test_integration.py`**: 複数モジュールを組み合わせ、コメント受信から読み上げ再生までのデータパイプラインが正しく機能するかを検証する統合テスト。
+本ツールには、外部APIやハードウェアに依存しないモックベースのテスト環境が同梱されています。`tests/` ディレクトリに各モジュールの単体テスト、および一連のデータパイプライン処理を確認する簡易統合テストが配置されています。
 
 ### テストの実行方法
 `pytest` およびカバレッジ測定用の `pytest-cov` を使用してテストを実行できます。
@@ -404,6 +413,7 @@ youtube_tts/
 # テストの実行とカバレッジ（コード網羅率）の測定
 uv run pytest --cov=youtube_tts --cov=youtube_live_voicevox --cov-report=term-missing
 ```
+
 
 ---
 
