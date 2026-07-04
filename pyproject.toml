@@ -37,8 +37,17 @@ exclude = [
     "build"
 ]
 
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 80
+
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "W"]
+extend-select = ["W505"]
 # E (pycodestyle - Errors) : Pythonの標準スタイルガイド（PEP 8）に基づくエラーをチェックします。
 # F (Pyflakes) : コードのスタイルではなく、論理的なバグやエラーをチェックします。
 # I (isort) : インポート文（import ...）の並び順やグループ分けをチェック・整理します。
+# W (pycodestyle - Warnings) : コメントやDocstringを含むPEP 8準拠の警告項目をチェックします。
+# W505 : Docstring / コメント行の長さ（デフォルトでは無効なので明示）
+# 補足: W505 を指定しても日本語は Unicode ポイントでカウントされるので、
+# 全角2桁換算で80桁を超えていても警告は出ない。
+# → 途中に空白を挟むと検出される

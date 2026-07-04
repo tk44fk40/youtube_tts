@@ -56,7 +56,7 @@ def test_get_my_channel_id_failure(
     mock_client: tuple[YouTubeLiveChatClient, MagicMock],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """APIエラー発生時に警告ログが出力され None が返ることを検証します。"""
+    """APIエラー発生時に警告ログを出力し、Noneを返すか検証します。"""
     client, mock_service = mock_client
     # API エラー発生時の挙動をモックするために例外を設定します。
     mock_list = mock_service.channels().list
@@ -97,7 +97,7 @@ def test_get_live_chat_id_success(
 def test_get_live_chat_id_not_found(
     mock_client: tuple[YouTubeLiveChatClient, MagicMock],
 ) -> None:
-    """動画自体が存在しない場合に RuntimeError が発生することを検証します。"""
+    """動画が存在しない場合に RuntimeError が発生するか検証します。"""
     client, mock_service = mock_client
     # 動画自体が見つからない空のレスポンスを設定します。
     mock_service.videos().list().execute.return_value = {"items": []}
@@ -110,7 +110,7 @@ def test_get_live_chat_id_not_found(
 def test_get_live_chat_id_missing_active_chat(
     mock_client: tuple[YouTubeLiveChatClient, MagicMock],
 ) -> None:
-    """activeLiveChatId が無い場合にRuntimeError が発生することを検証します。"""
+    """チャットIDが無い場合に RuntimeError が発生するか検証します。"""
     client, mock_service = mock_client
     # activeLiveChatId のキーが無いレスポンスをモックします。
     mock_service.videos().list().execute.return_value = {"items": [{}]}
@@ -153,7 +153,7 @@ def test_get_current_live_video_id_success(
 def test_get_current_live_video_id_no_broadcast(
     mock_client: tuple[YouTubeLiveChatClient, MagicMock],
 ) -> None:
-    """アクティブな配信がない場合に RuntimeError が発生することを検証します。"""
+    """配信がない場合に RuntimeError が発生するか検証します。"""
     client, mock_service = mock_client
     # ブロードキャストが見つからない空のレスポンスをモックします。
     mock_service.liveBroadcasts().list().execute.return_value = {"items": []}
