@@ -1,13 +1,16 @@
-"""YouTubeTtsApp.video_worker のテストモジュール。"""
+"""YouTubeTtsApp.video_worker の動作を検証するテストモジュールです。"""
+
+from __future__ import annotations
 
 import queue
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from youtube_tts import YouTubeVideoClient
 
 
-def test_video_worker_success(app):
-    """正常に動画コメントを取得し、コメントキューが更新されるか検証。"""
+def test_video_worker_success(app: Any) -> None:
+    """正常に動画コメントを取得し、コメントキューが更新されるかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
 
     call_count = 0
@@ -80,8 +83,8 @@ def test_video_worker_success(app):
     assert app.queued_char_count == 32
 
 
-def test_video_worker_backlog_counts_zero(app):
-    """backlog_countsが0の場合に初期コメントロードがスキップされるか検証。"""
+def test_video_worker_backlog_counts_zero(app: Any) -> None:
+    """backlog_countsが0の場合に初期コメントロードがスキップされるかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     app.stop_event.set()
 
@@ -96,8 +99,8 @@ def test_video_worker_backlog_counts_zero(app):
     assert app.comment_queue.qsize() == 0
 
 
-def test_video_worker_backlog_counts_negative(app):
-    """backlog_countsが負数の場合に制限なしでロードできるか検証。"""
+def test_video_worker_backlog_counts_negative(app: Any) -> None:
+    """backlog_countsが負数の場合に制限なしでロードできるかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     mock_video_client.fetch_comment_threads.return_value = ([], None, 3000)
     app.stop_event.set()
@@ -113,8 +116,8 @@ def test_video_worker_backlog_counts_negative(app):
     assert app.comment_queue.qsize() == 0
 
 
-def test_video_worker_backlog_empty(app):
-    """初期バックログが空の場合に正しく動作するか検証。"""
+def test_video_worker_backlog_empty(app: Any) -> None:
+    """初期バックログが空の場合に正しく動作するかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     mock_video_client.fetch_comment_threads.return_value = ([], None, 3000)
 
@@ -131,8 +134,8 @@ def test_video_worker_backlog_empty(app):
     assert app.comment_queue.qsize() == 0
 
 
-def test_video_worker_backlog_error(app):
-    """初期バックログ取得中にエラーが発生しても処理が継続するか検証。"""
+def test_video_worker_backlog_error(app: Any) -> None:
+    """初期バックログ取得中にエラーが発生しても処理が継続するかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     mock_video_client.fetch_comment_threads.side_effect = Exception("API error")
 
@@ -149,8 +152,8 @@ def test_video_worker_backlog_error(app):
     assert app.comment_queue.qsize() == 0
 
 
-def test_video_worker_backlog_ng_word(app):
-    """初期バックログコメントの中にNGワードがある場合スキップされるか検証。"""
+def test_video_worker_backlog_ng_word(app: Any) -> None:
+    """初期バックログコメントの中にNGワードがある場合スキップされるかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     mock_video_client.fetch_comment_threads.return_value = (
         [
@@ -180,8 +183,8 @@ def test_video_worker_backlog_ng_word(app):
     assert app.comment_queue.qsize() == 0
 
 
-def test_video_worker_backlog_queue_full(app):
-    """初期バックログ取得時にキューがいっぱいの場合スキップされるか検証。"""
+def test_video_worker_backlog_queue_full(app: Any) -> None:
+    """初期バックログ取得時にキューがいっぱいの場合スキップされるかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     mock_video_client.fetch_comment_threads.return_value = (
         [
@@ -213,8 +216,8 @@ def test_video_worker_backlog_queue_full(app):
     assert app.comment_queue.qsize() == 1
 
 
-def test_video_worker_polling_error(app):
-    """メインポーリング中にエラーが発生した場合に正しくループを終了するか検証。"""
+def test_video_worker_polling_error(app: Any) -> None:
+    """メインポーリング中にエラーが発生した場合に正しくループを終了するかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
 
     call_count = 0
@@ -240,8 +243,8 @@ def test_video_worker_polling_error(app):
     assert app.stop_event.is_set() is True
 
 
-def test_video_worker_polling_ng_word(app):
-    """メインポーリング時にNGワードを含むコメントがスキップされるか検証。"""
+def test_video_worker_polling_ng_word(app: Any) -> None:
+    """メインポーリング時にNGワードを含むコメントがスキップされるかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     app.config.ng_words = ["badword"]
 
@@ -285,8 +288,8 @@ def test_video_worker_polling_ng_word(app):
     assert app.comment_queue.qsize() == 0
 
 
-def test_video_worker_polling_queue_full(app):
-    """メインポーリング時にキューがいっぱいの場合にコメントがスキップされるか検証。"""
+def test_video_worker_polling_queue_full(app: Any) -> None:
+    """メインポーリング時にキューがいっぱいの場合にコメントがスキップされるかを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
 
     call_count = 0
@@ -332,8 +335,8 @@ def test_video_worker_polling_queue_full(app):
     assert app.comment_queue.qsize() == 1
 
 
-def test_video_worker_ng_word_verbose(app):
-    """初期バックログでNGワードがあり、かつverboseがTrueの場合の分岐を検証。"""
+def test_video_worker_ng_word_verbose(app: Any) -> None:
+    """初期バックログでNGワードがあり、かつverboseがTrueの場合の分岐をを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     mock_video_client.fetch_comment_threads.return_value = (
         [
@@ -361,8 +364,8 @@ def test_video_worker_ng_word_verbose(app):
     )
 
 
-def test_video_worker_polling_ng_word_verbose(app):
-    """リアルタイム監視時にNGワードがあり、かつverboseがTrueの場合の分岐を検証。"""
+def test_video_worker_polling_ng_word_verbose(app: Any) -> None:
+    """リアルタイム監視時にNGワードがあり、かつverboseがTrueの場合の分岐をを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     app.config.ng_words = ["badword"]
 
@@ -404,11 +407,12 @@ def test_video_worker_polling_ng_word_verbose(app):
     )
 
 
-def test_video_worker_backlog_remaining_exhausted(app):
+def test_video_worker_backlog_remaining_exhausted(app: Any) -> None:
     """バックログ取得の remaining_to_fetch が 0 になって break するか検証。
 
-    backlog_counts=1 のとき 1件取得後に remaining_to_fetch が 0 に
-    なり、次ループ先頭の L49 の break が実行されることを確認する。
+    backlog_counts=1 のとき、1 件取得後に
+    remaining_to_fetch が 0 になり、
+    次のループ先頭で break が実行されることを検証します。
     """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     call_count = 0
@@ -447,8 +451,13 @@ def test_video_worker_backlog_remaining_exhausted(app):
 
 
 @patch("time.sleep")
-def test_video_worker_backlog_error_verbose_true(mock_sleep, app):
-    """バックログ取得エラー時に verbose=True でデバッグログが出るか検証。"""
+def test_video_worker_backlog_error_verbose_true(
+    mock_sleep: Any,
+    app: Any,
+) -> None:
+    """バックログ取得エラー時に
+    verbose=True でデバッグログが出るかを検証します。
+    """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     call_count = 0
 
@@ -476,8 +485,13 @@ def test_video_worker_backlog_error_verbose_true(mock_sleep, app):
 
 
 @patch("time.sleep")
-def test_video_worker_backlog_error_verbose_false(mock_sleep, app):
-    """バックログ取得エラー時に verbose=False の分岐を検証する。"""
+def test_video_worker_backlog_error_verbose_false(
+    mock_sleep: Any,
+    app: Any,
+) -> None:
+    """バックログ取得エラー時に
+    verbose=False の分岐を検証します。
+    """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     call_count = 0
 
@@ -505,9 +519,12 @@ def test_video_worker_backlog_error_verbose_false(mock_sleep, app):
 
 
 @patch("time.sleep")
-def test_video_worker_backlog_unlimited_remaining(mock_sleep, app):
-    """backlog_counts=-1 のとき
-    remaining_to_fetch が None になることを検証する。
+def test_video_worker_backlog_unlimited_remaining(
+    mock_sleep: Any,
+    app: Any,
+) -> None:
+    """backlog_counts=-1 のとき、
+    remaining_to_fetch が None になることを検証します。
     """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     call_count = 0
@@ -546,10 +563,13 @@ def test_video_worker_backlog_unlimited_remaining(mock_sleep, app):
 
 
 @patch("time.sleep")
-def test_video_worker_backlog_ng_word_verbose_actual(mock_sleep, app):
+def test_video_worker_backlog_ng_word_verbose_actual(
+    mock_sleep: Any,
+    app: Any,
+) -> None:
     """バックログ取得時に NG ワード + verbose=True の場合を検証。
 
-    stop_event を事前設定せず実際に NG ワード分岐を通過させる。
+    stop_event を事前設定せず実際に NG ワード分岐を通過させるを検証します。
     """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     app.config.ng_words = ["badword"]
@@ -589,10 +609,13 @@ def test_video_worker_backlog_ng_word_verbose_actual(mock_sleep, app):
 
 
 @patch("time.sleep")
-def test_video_worker_backlog_queue_full_actual(mock_sleep, app):
+def test_video_worker_backlog_queue_full_actual(
+    mock_sleep: Any,
+    app: Any,
+) -> None:
     """バックログ取得時にキューが満杯の場合に L92-93 をカバーする。
 
-    stop_event を事前設定せず実際にキューフル分岐を通過させる。
+    stop_event を事前設定せず実際にキューフル分岐を通過させるを検証します。
     """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     call_count = 0
@@ -633,8 +656,13 @@ def test_video_worker_backlog_queue_full_actual(mock_sleep, app):
 
 
 @patch("time.sleep")
-def test_video_worker_polling_verbose_false(mock_sleep, app):
-    """ポーリングループで verbose=False のときの分岐をカバーする。"""
+def test_video_worker_polling_verbose_false(
+    mock_sleep: Any,
+    app: Any,
+) -> None:
+    """ポーリングループで、
+    verbose=False のときの分岐を検証します。
+    """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     call_count = 0
 
@@ -671,8 +699,8 @@ def test_video_worker_polling_verbose_false(mock_sleep, app):
     assert app.comment_queue.qsize() == 1
 
 
-def test_video_worker_polling_error_verbose_false(app):
-    """ポーリングエラー時に verbose=False の分岐を検証する。"""
+def test_video_worker_polling_error_verbose_false(app: Any) -> None:
+    """ポーリングエラー時に verbose=False の分岐をを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     call_count = 0
 
@@ -699,8 +727,13 @@ def test_video_worker_polling_error_verbose_false(app):
 
 
 @patch("time.sleep")
-def test_video_worker_polling_ng_word_verbose_false(mock_sleep, app):
-    """ポーリング時に NG ワード + verbose=False の分岐を検証する。"""
+def test_video_worker_polling_ng_word_verbose_false(
+    mock_sleep: Any,
+    app: Any,
+) -> None:
+    """ポーリング時に NG ワードかつ
+    verbose=False の分岐を検証します。
+    """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     app.config.ng_words = ["badword"]
     call_count = 0
@@ -739,8 +772,13 @@ def test_video_worker_polling_ng_word_verbose_false(mock_sleep, app):
 
 
 @patch("time.sleep")
-def test_video_worker_backlog_ng_word_verbose_false(mock_sleep, app):
-    """バックログ取得時に NG ワード + verbose=False の分岐を検証する。"""
+def test_video_worker_backlog_ng_word_verbose_false(
+    mock_sleep: Any,
+    app: Any,
+) -> None:
+    """バックログ取得時に NG ワードかつ
+    verbose=False の分岐を検証します。
+    """
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
     app.config.ng_words = ["badword"]
     call_count = 0

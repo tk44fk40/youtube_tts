@@ -1,12 +1,15 @@
-"""音声合成および再生ワーカー（playback_worker）のテストモジュール。"""
+"""音声合成および再生制御の動作を検証します。"""
 
+from __future__ import annotations
+
+from typing import Any
 from unittest.mock import patch
 
 from youtube_tts import CommentItem
 
 
-def test_speak_success(app):
-    """音声合成が正常に成功し、再生まで連動するか検証。"""
+def test_speak_success(app: Any) -> None:
+    """指定パラメータによる音声合成と再生の正常系連動を検証します。"""
     app.voicevox_client.synthesize.return_value = b"mock_wav"
     app.speak("テストテキスト")
 
@@ -18,7 +21,7 @@ def test_speak_success(app):
     )
     app.audio_player.play_wav.assert_called_with(b"mock_wav")
 
-    # 明示的な speed_scale を指定した発話
+    # 速度を指定した場合の音声合成と再生の連動を検証します。
     app.speak("テストテキスト2", speed_scale=1.5)
     app.voicevox_client.synthesize.assert_called_with(
         text="テストテキスト2",
@@ -28,12 +31,8 @@ def test_speak_success(app):
     )
 
 
-def test_speak_failure(app):
-    """音声合成失敗時の例外テスト
-
-    音声合成失敗時に例外をキャッチし、
-    エラーログを出力してクラッシュしないか検証（verbose=False）。
-    """
+def test_speak_failure(app: Any) -> None:
+    """音声合成の例外発生時にクラッシュしないかを検証します。"""
     app.voicevox_client.synthesize.side_effect = Exception("VOICEVOX Error")
     app.verbose = False
 
@@ -51,11 +50,8 @@ def test_speak_failure(app):
         mock_debug.assert_not_called()
 
 
-def test_speak_failure_verbose(app):
-    """音声合成失敗時のデバッグログテスト
-
-    音声合成失敗時に詳細なデバッグログが出力されるか検証（verbose=True）。
-    """
+def test_speak_failure_verbose(app: Any) -> None:
+    """音声合成の失敗時に詳細ログが出力されるかを検証します。"""
     app.voicevox_client.synthesize.side_effect = Exception("VOICEVOX Error")
     app.verbose = True
 
@@ -70,16 +66,13 @@ def test_speak_failure_verbose(app):
         mock_debug.assert_called_once_with("  (エラー詳細: VOICEVOX Error)")
 
 
-def test_playback_worker(app):
-    """再生用文字列の整形テスト
-
-    キューからコメントを取得し、正しく再生用文字列に整形されるか検証。
-    """
+def test_playback_worker(app: Any) -> None:
+    """再生用のコメントが正しく整形されて音声再生されるかを検証します。"""
     app.comment_queue.put(("User1", "こんにちは"))
 
     with patch.object(app, "speak") as mock_speak:
 
-        def side_effect(text, *args, **kwargs):
+        def side_effect(text: str, *args: Any, **kwargs: Any) -> None:
             app.stop_event.set()
 
         mock_speak.side_effect = side_effect
@@ -88,11 +81,8 @@ def test_playback_worker(app):
         mock_speak.assert_called_once_with("User1 こんにちは", speed_scale=1.0)
 
 
-def test_playback_worker_dynamic_speed_boost(app):
-    """再生速度が自動ブーストのテスト
-
-    キュー内の滞留文字数に応じて再生速度が自動ブーストされるか検証。
-    """
+def test_playback_worker_dynamic_speed_boost(app: Any) -> None:
+    """滞留文字数に応じて再生速度が自動でブーストされるかを検証します。"""
     app.config.auto_speed_boost = True
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.2
@@ -103,7 +93,7 @@ def test_playback_worker_dynamic_speed_boost(app):
 
     with patch.object(app, "speak") as mock_speak:
 
-        def side_effect(text, speed_scale=None):
+        def side_effect(text: str, speed_scale: float | None = None) -> None:
             app.stop_event.set()
 
         mock_speak.side_effect = side_effect
@@ -113,17 +103,14 @@ def test_playback_worker_dynamic_speed_boost(app):
         mock_speak.assert_called_once_with("User1 Hello", speed_scale=1.8)
 
 
-def test_playback_worker_backward_compatibility(app):
-    """キューの互換性テスト
-
-    旧仕様の2要素タプルがキューに混在しても互換性を維持して処理できるか検証。
-    """
+def test_playback_worker_backward_compatibility(app: Any) -> None:
+    """再生キューにおける旧仕様（タプル形式）データとの互換性を検証します。"""
     app.comment_queue.put(("UserOld", "HelloOld"))
     app.queued_char_count = 15
 
     with patch.object(app, "speak") as mock_speak:
 
-        def side_effect(text, speed_scale=None):
+        def side_effect(text: str, speed_scale: float | None = None) -> None:
             app.stop_event.set()
 
         mock_speak.side_effect = side_effect
@@ -133,11 +120,8 @@ def test_playback_worker_backward_compatibility(app):
         mock_speak.assert_called_once_with("UserOld HelloOld", speed_scale=1.0)
 
 
-def test_playback_worker_speed_boost_lower_limit(app):
-    """自動ブースト時の通常速度が維持維持テスト
-
-    自動ブースト発生の閾値未満では通常速度が維持されるか検証。
-    """
+def test_playback_worker_speed_boost_lower_limit(app: Any) -> None:
+    """自動ブーストの閾値未満において通常速度が維持されるかを検証します。"""
     app.config.auto_speed_boost = True
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.2
@@ -148,7 +132,7 @@ def test_playback_worker_speed_boost_lower_limit(app):
 
     with patch.object(app, "speak") as mock_speak:
 
-        def side_effect(text, speed_scale=None):
+        def side_effect(text: str, speed_scale: float | None = None) -> None:
             app.stop_event.set()
 
         mock_speak.side_effect = side_effect
@@ -156,11 +140,8 @@ def test_playback_worker_speed_boost_lower_limit(app):
         mock_speak.assert_called_once_with("User Hello", speed_scale=1.0)
 
 
-def test_playback_worker_speed_boost_upper_limit(app):
-    """自動ブースト時の最大速度維持テスト
-
-    大量の文字数が滞留しても設定された最大速度を超えないか検証。
-    """
+def test_playback_worker_speed_boost_upper_limit(app: Any) -> None:
+    """自動ブースト時に最大速度を超えないかを検証します。"""
     app.config.auto_speed_boost = True
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.0
@@ -171,7 +152,7 @@ def test_playback_worker_speed_boost_upper_limit(app):
 
     with patch.object(app, "speak") as mock_speak:
 
-        def side_effect(text, speed_scale=None):
+        def side_effect(text: str, speed_scale: float | None = None) -> None:
             app.stop_event.set()
 
         mock_speak.side_effect = side_effect

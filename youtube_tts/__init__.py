@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""YouTube TTS パッケージの初期化モジュール。
+"""YouTube TTS パッケージの初期化モジュールです。
 
-主要なクラス、関数、定数をパッケージレベルでインポートできるようにします。
+主要なクラス、関数、および定数をパッケージレベルでインポートできるようにします。
 """
-
 from .app import YouTubeTtsApp
 from .audio import AudioPlayer
 from .auth import YOUTUBE_SCOPE, YouTubeAuthenticator
