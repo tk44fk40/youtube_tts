@@ -112,8 +112,8 @@ def live_worker(
         video_details = live_client.get_video_details(video_id)
     except Exception as e:  # noqa: BLE001
         app.logger.error("[ERROR] 動画情報の取得に失敗しました。")
-        if verbose:  # pragma: no cover
-            app.logger.debug(f"  (エラー詳細: {e})")  # pragma: no cover
+        if verbose:
+            app.logger.debug(f"  (エラー詳細: {e})")
         app.stop_event.set()
         return
 
@@ -130,8 +130,8 @@ def live_worker(
         app.logger.info(f"liveChatId: {live_chat_id}")
     except Exception as e:  # noqa: BLE001
         app.logger.error("[ERROR] liveChatId の取得に失敗しました。")
-        if verbose:  # pragma: no cover
-            app.logger.debug(f"  (エラー詳細: {e})")  # pragma: no cover
+        if verbose:
+            app.logger.debug(f"  (エラー詳細: {e})")
         app.stop_event.set()
         return
 
@@ -147,7 +147,7 @@ def live_worker(
     while not app.stop_event.is_set():
         app.config.reload_if_changed()
 
-        if verbose:  # pragma: no cover
+        if verbose:
             app.logger.debug(f"Fetching chat messages (pageToken: {next_page_token})")
 
         try:
@@ -211,12 +211,12 @@ def live_worker(
                         time.sleep(0.1)
 
             app.logger.error("[ERROR] チャットの取得に失敗しました。")
-            if verbose:  # pragma: no cover
-                app.logger.debug(f"  (エラー詳細: {e})")  # pragma: no cover
+            if verbose:
+                app.logger.debug(f"  (エラー詳細: {e})")
             app.stop_event.set()
             return
 
-        if verbose:  # pragma: no cover
+        if verbose:
             app.logger.debug(
                 f"Fetched {len(items)} items. "
                 f"next_page_token: {next_page_token}, "
@@ -243,7 +243,7 @@ def live_worker(
                                 f"(published at {published_at_str})"
                             )
                             continue
-                    except ValueError as ex:  # pragma: no cover
+                    except ValueError as ex:
                         app.logger.warning(
                             f"Failed to parse publishedAt: "
                             f"{published_at_str}, error: {ex}"
@@ -273,12 +273,12 @@ def live_worker(
 
         # Stream active check
         if now - last_stream_check_time >= stream_check_interval:
-            if verbose:  # pragma: no cover
+            if verbose:
                 app.logger.debug("Checking stream active status...")
             is_active = live_client.check_stream_active(video_id)
-            if verbose:  # pragma: no cover
+            if verbose:
                 app.logger.debug(f"Stream active status: {is_active}")
-            if not is_active:  # pragma: no cover
+            if not is_active:
                 app.stop_event.set()
                 return
             last_stream_check_time = now
@@ -289,8 +289,8 @@ def live_worker(
             and creds
             and project_id
             and (now - last_quota_check_time >= quota_interval)
-        ):  # pragma: no cover
-            if verbose:  # pragma: no cover
+        ):
+            if verbose:
                 app.logger.debug("Fetching quota info...")
             try:
                 used, limit = get_quota_info(creds, project_id)
@@ -316,8 +316,8 @@ def live_worker(
                     app.last_spoken_used = used
             except Exception as e:  # noqa: BLE001
                 app.logger.warning("[WARNING] クォータ情報の取得に失敗しました。")
-                if verbose:  # pragma: no cover
-                    app.logger.debug(f"  (エラー詳細: {e})")  # pragma: no cover
+                if verbose:
+                    app.logger.debug(f"  (エラー詳細: {e})")
             last_quota_check_time = now
 
         time.sleep(max(polling_interval / 1000, chat_interval))

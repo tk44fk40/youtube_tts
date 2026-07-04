@@ -18,10 +18,10 @@ YouTubeTtsApp.video_worker のテストモジュール。
 """
 
 import queue
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from youtube_tts import YouTubeVideoClient
 import youtube_tts.workers.video  # noqa: F401
+from youtube_tts import YouTubeVideoClient
 
 
 def test_video_worker_success(app):
@@ -397,7 +397,10 @@ def test_video_worker_polling_ng_word_verbose(app):
                 [
                     {
                         "id": "c1",
-                        "authorDetails": {"displayName": "User1", "channelId": "ch1"},
+                        "authorDetails": {
+                            "displayName": "User1",
+                            "channelId": "ch1",
+                        },
                         "snippet": {
                             "displayMessage": "badword message",
                             "publishedAt": "2026-07-03T10:05:00Z",
@@ -417,3 +420,377 @@ def test_video_worker_polling_ng_word_verbose(app):
         verbose=True,
         backlog_counts=10,
     )
+
+
+def test_video_worker_backlog_remaining_exhausted(app):
+    """バックログ取得の remaining_to_fetch が 0 になって break するか検証。
+
+    backlog_counts=1 のとき 1件取得後に remaining_to_fetch が 0 に
+    なり、次ループ先頭の L49 の break が実行されることを確認する。
+    """
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # ページトークンを持たせて L72 での break を防ぐ
+            return (
+                [
+                    {
+                        "id": "c1",
+                        "authorDetails": {"displayName": "U1"},
+                        "snippet": {"displayMessage": "Hello"},
+                    }
+                ],
+                "next_token",
+                3000,
+            )
+        else:
+            app.stop_event.set()
+            return [], None, 3000
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        backlog_counts=1,
+    )
+
+    assert app.comment_queue.qsize() == 1
+
+
+@patch("time.sleep")
+def test_video_worker_backlog_error_verbose_true(mock_sleep, app):
+    """バックログ取得エラー時に verbose=True でデバッグログが出るか検証。"""
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("バックログ取得エラー")
+        else:
+            app.stop_event.set()
+            return [], None, 3000
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=True,
+        backlog_counts=10,
+    )
+
+    assert app.comment_queue.qsize() == 0
+
+
+@patch("time.sleep")
+def test_video_worker_backlog_error_verbose_false(mock_sleep, app):
+    """バックログ取得エラー時に verbose=False の分岐を検証する。"""
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("バックログ取得エラー")
+        else:
+            app.stop_event.set()
+            return [], None, 3000
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=False,
+        backlog_counts=10,
+    )
+
+    assert app.comment_queue.qsize() == 0
+
+
+@patch("time.sleep")
+def test_video_worker_backlog_unlimited_remaining(mock_sleep, app):
+    """backlog_counts=-1 のとき
+    remaining_to_fetch が None になることを検証する。
+    """
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # ページトークンなし → break
+            return (
+                [
+                    {
+                        "id": "c1",
+                        "authorDetails": {"displayName": "U1"},
+                        "snippet": {"displayMessage": "Hello"},
+                    }
+                ],
+                None,
+                3000,
+            )
+        else:
+            app.stop_event.set()
+            return [], None, 3000
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        backlog_counts=-1,
+    )
+
+    assert app.comment_queue.qsize() == 1
+
+
+@patch("time.sleep")
+def test_video_worker_backlog_ng_word_verbose_actual(mock_sleep, app):
+    """バックログ取得時に NG ワード + verbose=True の場合を検証。
+
+    stop_event を事前設定せず実際に NG ワード分岐を通過させる。
+    """
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    app.config.ng_words = ["badword"]
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return (
+                [
+                    {
+                        "id": "c1",
+                        "authorDetails": {"displayName": "User1"},
+                        "snippet": {"displayMessage": "badword message"},
+                    }
+                ],
+                None,
+                3000,
+            )
+        else:
+            app.stop_event.set()
+            return [], None, 3000
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=True,
+        backlog_counts=10,
+    )
+
+    assert app.comment_queue.qsize() == 0
+
+
+@patch("time.sleep")
+def test_video_worker_backlog_queue_full_actual(mock_sleep, app):
+    """バックログ取得時にキューが満杯の場合に L92-93 をカバーする。
+
+    stop_event を事前設定せず実際にキューフル分岐を通過させる。
+    """
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return (
+                [
+                    {
+                        "id": "c1",
+                        "authorDetails": {"displayName": "User1"},
+                        "snippet": {"displayMessage": "Hello"},
+                    }
+                ],
+                None,
+                3000,
+            )
+        else:
+            app.stop_event.set()
+            return [], None, 3000
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.comment_queue = queue.Queue(maxsize=1)
+    app.comment_queue.put(("Existing", "Comment"))
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        backlog_counts=10,
+    )
+
+    assert app.comment_queue.qsize() == 1
+
+
+@patch("time.sleep")
+def test_video_worker_polling_verbose_false(mock_sleep, app):
+    """ポーリングループで verbose=False のときの分岐をカバーする。"""
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return [], None, 3000
+        else:
+            app.stop_event.set()
+            return (
+                [
+                    {
+                        "id": "c1",
+                        "authorDetails": {"displayName": "User1"},
+                        "snippet": {"displayMessage": "Hello"},
+                    }
+                ],
+                None,
+                3000,
+            )
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=False,
+        backlog_counts=10,
+    )
+
+    assert app.comment_queue.qsize() == 1
+
+
+def test_video_worker_polling_error_verbose_false(app):
+    """ポーリングエラー時に verbose=False の分岐を検証する。"""
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return [], None, 3000
+        else:
+            raise Exception("polling error")
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=False,
+        backlog_counts=10,
+    )
+
+    assert app.stop_event.is_set() is True
+
+
+@patch("time.sleep")
+def test_video_worker_polling_ng_word_verbose_false(mock_sleep, app):
+    """ポーリング時に NG ワード + verbose=False の分岐を検証する。"""
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    app.config.ng_words = ["badword"]
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return [], None, 3000
+        else:
+            app.stop_event.set()
+            return (
+                [
+                    {
+                        "id": "c1",
+                        "authorDetails": {"displayName": "User1"},
+                        "snippet": {"displayMessage": "badword message"},
+                    }
+                ],
+                None,
+                3000,
+            )
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=False,
+        backlog_counts=10,
+    )
+
+    assert app.comment_queue.qsize() == 0
+
+
+@patch("time.sleep")
+def test_video_worker_backlog_ng_word_verbose_false(mock_sleep, app):
+    """バックログ取得時に NG ワード + verbose=False の分岐を検証する。"""
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    app.config.ng_words = ["badword"]
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        """フェッチのサイドエフェクト。"""
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return (
+                [
+                    {
+                        "id": "c1",
+                        "authorDetails": {"displayName": "User1"},
+                        "snippet": {"displayMessage": "badword message"},
+                    }
+                ],
+                None,
+                3000,
+            )
+        else:
+            app.stop_event.set()
+            return [], None, 3000
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=False,
+        backlog_counts=10,
+    )
+
+    assert app.comment_queue.qsize() == 0

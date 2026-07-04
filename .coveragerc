@@ -14,7 +14,3 @@ exclude_lines =
     raise AssertionError
     raise NotImplementedError
     if __name__ == .__main__.:
-    except\s
-    self\.logger\.
-    logger\.
-    if verbose:

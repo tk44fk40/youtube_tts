@@ -57,8 +57,8 @@ def video_worker(
             )
         except Exception as e:  # noqa: BLE001
             app.logger.error("[ERROR] 初期コメントスレッドの取得に失敗しました。")
-            if verbose:  # pragma: no cover
-                app.logger.debug(f"  (エラー詳細: {e})")  # pragma: no cover
+            if verbose:
+                app.logger.debug(f"  (エラー詳細: {e})")
             break
 
         if not items:
@@ -81,7 +81,7 @@ def video_worker(
         message = item["snippet"]["displayMessage"]
 
         if app.text_processor.contains_ng_word(message):
-            if verbose:  # pragma: no cover
+            if verbose:
                 app.logger.info(f"[SKIP(NG)] {author}: {message}")
             continue
 
@@ -100,7 +100,7 @@ def video_worker(
     while not app.stop_event.is_set():
         app.config.reload_if_changed()
 
-        if verbose:  # pragma: no cover
+        if verbose:
             app.logger.debug("Fetching latest video comments...")
 
         try:
@@ -110,12 +110,12 @@ def video_worker(
             items, _, polling_interval = res
         except Exception as e:  # noqa: BLE001
             app.logger.error("[ERROR] コメントスレッドの取得に失敗しました。")
-            if verbose:  # pragma: no cover
-                app.logger.debug(f"  (エラー詳細: {e})")  # pragma: no cover
+            if verbose:
+                app.logger.debug(f"  (エラー詳細: {e})")
             app.stop_event.set()
             return
 
-        if verbose:  # pragma: no cover
+        if verbose:
             app.logger.debug(
                 f"Fetched {len(items)} items. polling_interval: {polling_interval}ms"
             )
@@ -133,7 +133,7 @@ def video_worker(
             message = item["snippet"]["displayMessage"]
 
             if app.text_processor.contains_ng_word(message):
-                if verbose:  # pragma: no cover
+                if verbose:
                     app.logger.info(f"[SKIP(NG)] {author}: {message}")
                 continue
 

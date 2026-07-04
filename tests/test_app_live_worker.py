@@ -20,8 +20,8 @@ YouTubeTtsApp.live_worker のテストモジュール。
 import queue
 from unittest.mock import MagicMock, patch
 
-from youtube_tts import YouTubeLiveChatClient
 import youtube_tts.workers.live  # noqa: F401
+from youtube_tts import YouTubeLiveChatClient
 
 
 def test_live_worker_success(app):
@@ -536,3 +536,548 @@ def test_format_reset_time_for_speech_direct(app):
     reset_other = (now_local + timedelta(days=3)).replace(hour=12, minute=0)
     res = app._format_reset_time_for_speech(reset_other)
     assert f"{reset_other.month}月{reset_other.day}日" in res
+
+
+@patch("zoneinfo.ZoneInfo", side_effect=Exception("zoneinfo not available"))
+def test_get_next_quota_reset_time_zoneinfo_failure(mock_zi):
+    """zoneinfo が利用不可の場合のフォールバック処理を検証する。
+
+    固定 UTC オフセット UTC-7/-8 の
+    フォールバックタイムゾーン）が実行されることを確認する。
+    """
+    from youtube_tts.workers.live import get_next_quota_reset_time
+
+    result = get_next_quota_reset_time()
+    assert result is not None
+
+
+def test_live_worker_get_video_details_failure_verbose_false(app):
+    """動画情報取得失敗時に verbose=False でも早期リターンするか検証。"""
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_video_details.side_effect = Exception("error")
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        verbose=False,
+    )
+
+    assert app.stop_event.is_set() is True
+
+
+def test_live_worker_get_live_chat_id_failure_verbose_false(app):
+    """liveChatId 取得失敗時に verbose=False でも早期リターンするか検証。"""
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+    }
+    mock_live_client.get_live_chat_id.side_effect = Exception("error")
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        verbose=False,
+    )
+
+    assert app.stop_event.is_set() is True
+
+
+def test_live_worker_fetch_error_no_content(app):
+    """HttpError 発生時に content が None の場合のクォータ判定を検証。"""
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "ch"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "ch"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_id"
+
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    ex = HttpError(resp, b"")
+    ex.content = None  # content なし
+    mock_live_client.fetch_chat_messages.side_effect = ex
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+    )
+
+    assert app.stop_event.is_set() is True
+
+
+def test_live_worker_fetch_error_decode_error(app):
+    """HttpError の content デコードが失敗した場合の処理を検証する。"""
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "ch"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "ch"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_id"
+
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    ex = HttpError(resp, b"not_quota")
+    mock_content = MagicMock()
+    mock_content.decode.side_effect = UnicodeDecodeError(
+        "utf-8", b"", 0, 1, "reason"
+    )
+    ex.content = mock_content
+    mock_live_client.fetch_chat_messages.side_effect = ex
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+    )
+
+    assert app.stop_event.is_set() is True
+
+
+def test_live_worker_fetch_error_quota_check_exception(app):
+    """クォータ判定中に予期しない例外が発生した場合の処理を検証する。
+
+    HttpError の resp を空スペック MagicMock に差し替えることで、
+    `e.resp.status` アクセス時に AttributeError を発生させる。
+    """
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "ch"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "ch"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_id"
+
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    ex = HttpError(resp, b"")
+    # spec=[] → 属性アクセス時に AttributeError を発生させる
+    ex.resp = MagicMock(spec=[])
+    mock_live_client.fetch_chat_messages.side_effect = ex
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+    )
+
+    assert app.stop_event.is_set() is True
+
+
+def test_live_worker_quota_exceeded_no_quota_talk(app):
+    """クォータ超過でも quota_talk=False の場合に即終了するか検証。"""
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "ch"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "ch"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_id"
+
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
+    ex = HttpError(resp, content)
+    mock_live_client.fetch_chat_messages.side_effect = ex
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        quota_talk=False,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+    )
+
+    assert app.stop_event.is_set() is True
+    assert app.comment_queue.qsize() == 0
+
+
+def test_live_worker_quota_exceeded_drain_empty(app):
+    """キュードレイン中に queue.Empty が発生した場合の処理を検証する。"""
+    import queue as queue_module
+
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "ch"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "ch"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_id"
+
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
+    ex = HttpError(resp, content)
+    mock_live_client.fetch_chat_messages.side_effect = ex
+
+    # empty() が最初 False を返してループに入り、get_nowait が
+    # queue.Empty を発生させることで except 節を通過させる
+    empty_call_count = 0
+
+    def mock_empty():
+        """empty() のモック。"""
+        nonlocal empty_call_count
+        empty_call_count += 1
+        return empty_call_count != 1
+
+    with (
+        patch.object(app.comment_queue, "empty", side_effect=mock_empty),
+        patch.object(
+            app.comment_queue,
+            "get_nowait",
+            side_effect=queue_module.Empty,
+        ),
+    ):
+        app.live_worker(
+            live_client=mock_live_client,
+            video_id="video_123",
+            quota_talk=True,
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+        )
+
+    assert app.stop_event.is_set() is True
+
+
+@patch(
+    "youtube_tts.workers.live.get_next_quota_reset_time",
+    side_effect=Exception("tz error"),
+)
+def test_live_worker_quota_exceeded_reset_time_failure(mock_reset_time, app):
+    """リセット時刻取得に失敗した場合のフォールバックメッセージを検証。"""
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "ch"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "ch"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_id"
+
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
+    ex = HttpError(resp, content)
+    mock_live_client.fetch_chat_messages.side_effect = ex
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        quota_talk=True,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+    )
+
+    assert app.comment_queue.qsize() == 1
+    assert app.stop_event.is_set() is True
+
+
+def test_live_worker_fetch_error_verbose(app):
+    """チャット取得失敗時に verbose=True でデバッグログが出るか検証。"""
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "ch"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "ch"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_id"
+    mock_live_client.fetch_chat_messages.side_effect = Exception("error")
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        verbose=True,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+    )
+
+    assert app.stop_event.is_set() is True
+
+
+def test_live_worker_threshold_time_none(app):
+    """backlog_seconds=-1（threshold_time=None）の場合に全コメントを
+    処理するか検証する"""
+    from datetime import datetime, timezone
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_live_123"
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    def fetch_side_effect(*args, **kwargs):
+        """フェッチのサイドエフェクト。"""
+        app.stop_event.set()
+        return (
+            [
+                {
+                    "id": "msg1",
+                    "authorDetails": {"displayName": "User1"},
+                    "snippet": {
+                        "displayMessage": "Hello",
+                        "publishedAt": now_iso,
+                    },
+                }
+            ],
+            None,
+            1000,
+        )
+
+    mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        backlog_seconds=-1,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+    )
+
+    assert app.comment_queue.qsize() == 1
+
+
+@patch("time.sleep")
+def test_live_worker_stream_active_then_stop(mock_sleep, app):
+    """ストリームがアクティブな場合に last_stream_check_time が
+    更新されるか検証。
+    """
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_live_123"
+    mock_live_client.check_stream_active.return_value = True
+
+    fetch_call_count = 0
+
+    def fetch_side_effect(*args, **kwargs):
+        """フェッチのサイドエフェクト。"""
+        nonlocal fetch_call_count
+        fetch_call_count += 1
+        if fetch_call_count >= 2:
+            app.stop_event.set()
+        return [], "token", 100
+
+    mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        verbose=True,
+        chat_interval=0.0,
+        stream_check_interval=0.0,
+        quota_interval=100.0,
+    )
+
+    assert mock_live_client.check_stream_active.called
+
+
+@patch("youtube_tts.workers.live.get_quota_info")
+@patch("time.sleep")
+def test_live_worker_quota_check_verbose_false(
+    mock_sleep, mock_quota_info, app
+):
+    """クォータチェック時に verbose=False の分岐を検証する。"""
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_live_123"
+    mock_live_client.fetch_chat_messages.return_value = ([], "token", 1000)
+    mock_quota_info.return_value = (1000, 10000)
+
+    sleep_call_count = 0
+
+    def sleep_side_effect(*args):
+        """sleep のサイドエフェクト。"""
+        nonlocal sleep_call_count
+        sleep_call_count += 1
+        if sleep_call_count >= 2:
+            app.stop_event.set()
+
+    mock_sleep.side_effect = sleep_side_effect
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        creds=MagicMock(),
+        quota_check=True,
+        quota_talk=True,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=0.01,
+        project_id="proj123",
+        verbose=False,
+    )
+
+    assert mock_quota_info.call_count >= 1
+
+
+@patch("youtube_tts.workers.live.get_quota_info")
+@patch("time.sleep")
+def test_live_worker_quota_talk_same_used(mock_sleep, mock_quota_info, app):
+    """前回と使用量が同じ場合に読み上げがスキップされるか検証する。"""
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_live_123"
+    mock_live_client.fetch_chat_messages.return_value = ([], "token", 1000)
+    mock_quota_info.return_value = (1000, 10000)
+    # 前回の使用量を同じ値にして is_diff=False にする
+    app.last_spoken_used = 1000
+
+    sleep_call_count = 0
+
+    def sleep_side_effect(*args):
+        """sleep のサイドエフェクト。"""
+        nonlocal sleep_call_count
+        sleep_call_count += 1
+        if sleep_call_count >= 2:
+            app.stop_event.set()
+
+    mock_sleep.side_effect = sleep_side_effect
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        creds=MagicMock(),
+        quota_check=True,
+        quota_talk=True,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=0.01,
+        project_id="proj123",
+    )
+
+    assert app.comment_queue.qsize() == 0
+
+
+@patch("youtube_tts.workers.live.get_quota_info")
+@patch("time.sleep")
+def test_live_worker_quota_error_verbose_false(
+    mock_sleep, mock_quota_info, app
+):
+    """クォータ情報取得失敗時に verbose=False の分岐を検証する。"""
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_live_123"
+    mock_live_client.fetch_chat_messages.return_value = ([], "token", 1000)
+    mock_quota_info.side_effect = Exception("quota error")
+
+    sleep_call_count = 0
+
+    def sleep_side_effect(*args):
+        """sleep のサイドエフェクト。"""
+        nonlocal sleep_call_count
+        sleep_call_count += 1
+        if sleep_call_count >= 2:
+            app.stop_event.set()
+
+    mock_sleep.side_effect = sleep_side_effect
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        creds=MagicMock(),
+        quota_check=True,
+        quota_talk=True,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=0.01,
+        project_id="proj123",
+        verbose=False,
+    )
+
+    assert app.comment_queue.qsize() == 0
+
+
+@patch("youtube_tts.workers.live.datetime")
+def test_get_next_quota_reset_time_pst_winter(mock_datetime):
+    """zoneinfo 失敗時に冬時間（PST, UTC-8）フォールバックを検証する。
+
+    テスト実行月に依存しないよう datetime.now を 12 月にモックする。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from youtube_tts.workers.live import get_next_quota_reset_time
+
+    # 12月（PST）に見せかける
+    fake_now = datetime(2024, 12, 15, 10, 0, 0, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = fake_now
+
+    with patch(
+        "zoneinfo.ZoneInfo", side_effect=Exception("zoneinfo not available")
+    ):
+        result = get_next_quota_reset_time()
+
+    assert result is not None
+    # UTC-8 オフセットで次の日午前0時に設定されること
+    expected_tz = timezone(timedelta(hours=-8))
+    now_pst = fake_now.astimezone(expected_tz)
+    expected = (now_pst + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    assert result.utcoffset() == expected.utcoffset()
+
+
+def test_live_worker_quota_exceeded_drain_actual(app):
+    """キュードレイン時に get_nowait が成功して task_done が呼ばれるか検証。
+
+    キューに実際のアイテムを積んで正常な drain パスを通過させる。
+    """
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "ch"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "ch"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_id"
+
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    content = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
+    ex = HttpError(resp, content)
+    mock_live_client.fetch_chat_messages.side_effect = ex
+
+    # キューに実際のアイテムを積んで drain ループを通過させる
+    app.comment_queue.put(("Author", "Message"))
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        quota_talk=True,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=100.0,
+    )
+
+    assert app.stop_event.is_set() is True
