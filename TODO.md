@@ -39,6 +39,11 @@
 - 単純に `[DEBUG]` レベルのログが出るだけでいい
 - `--verbose` だけ動く機能は別オプションを新設すべき
 
+```python
+        if args.verbose:
+            logger.debug(f"  (エラー詳細: {e})")
+```
+
 
 ## READMEの改善
 
