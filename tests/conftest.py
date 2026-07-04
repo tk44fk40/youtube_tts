@@ -3,8 +3,11 @@
 重複するモックのセットアップをここに集約します。
 """
 
+from __future__ import annotations
+
 import io
 import wave
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,11 +20,16 @@ from youtube_tts import (
     setup_logger,
 )
 
+if TYPE_CHECKING:
+    import logging
+
 
 @pytest.fixture
-def dummy_wav_bytes():
-    """0.1秒の無音WAVデータ（24000Hz, モノラル, 16bit）を
-    生成するフィクスチャ。
+def dummy_wav_bytes() -> bytes:
+    """0.1秒の無音WAVデータ（24000Hz, モノラル, 16bit）を生成します。
+
+    Returns:
+        WAVフォーマットのバイト列。
     """
     wav_io = io.BytesIO()
     with wave.open(wav_io, "wb") as wav_file:
@@ -33,9 +41,11 @@ def dummy_wav_bytes():
 
 
 @pytest.fixture
-def dummy_stereo_wav_bytes():
-    """0.1秒の無音WAVデータ（24000Hz, ステレオ, 16bit）を
-    生成するフィクスチャ。
+def dummy_stereo_wav_bytes() -> bytes:
+    """0.1秒の無音WAVデータ（24000Hz, ステレオ, 16bit）を生成します。
+
+    Returns:
+        WAVフォーマットのバイト列。
     """
     wav_io = io.BytesIO()
     with wave.open(wav_io, "wb") as wav_file:
@@ -47,8 +57,14 @@ def dummy_stereo_wav_bytes():
 
 
 @pytest.fixture
-def mock_app_dependencies():
-    """アプリケーションが依存するコンポーネントのモックを生成します。"""
+def mock_app_dependencies() -> tuple[
+    AppConfig, MagicMock, MagicMock, logging.Logger
+]:
+    """アプリケーションが依存するコンポーネントのモックを生成します。
+
+    Returns:
+        config, voicevox_client, audio_player, logger のタプル。
+    """
     config = AppConfig(
         dictionary_path="dictionary.txt",
         ng_words_path="ng_words.txt",
@@ -66,8 +82,19 @@ def mock_app_dependencies():
 
 
 @pytest.fixture
-def app(mock_app_dependencies):
-    """テスト対象となる YouTubeTtsApp インスタンスを生成します。"""
+def app(
+    mock_app_dependencies: tuple[
+        AppConfig, MagicMock, MagicMock, logging.Logger
+    ],
+) -> YouTubeTtsApp:
+    """テスト対象となる YouTubeTtsApp インスタンスを生成します。
+
+    Args:
+        mock_app_dependencies: 依存コンポーネントのモックタプル。
+
+    Returns:
+        YouTubeTtsApp インスタンス。
+    """
     config, voicevox_client, audio_player, logger = mock_app_dependencies
     return YouTubeTtsApp(
         config=config,
