@@ -12,16 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""YouTube Data API のクォータ使用状況を取得するモジュール。
+"""YouTube Data API のクォータ使用状況を取得するモジュールです。
 
 このモジュールは、Google Cloud Monitoring API を利用して、
 YouTube Data API の本日分のクォータ消費量および上限値を取得する
 機能を提供します。
 """
 
+from __future__ import annotations
+
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from google.cloud import monitoring_v3
@@ -39,15 +42,17 @@ QUOTA_SCOPES = [
 ]
 
 
-def get_project_id(client_secret_path=CLIENT_SECRET_FILE):
+def get_project_id(
+    client_secret_path: str | Path = CLIENT_SECRET_FILE,
+) -> str:
     """client_secret.json からプロジェクトIDを自動取得します。
 
     Args:
         client_secret_path: Google Cloud Console から取得した
-            OAuth 2.0 クライアントシークレットファイルのパス。
+            OAuth 2.0 クライアントシークレットファイルのパスです。
 
     Returns:
-        取得されたプロジェクトID。
+        取得されたプロジェクトIDです。
 
     Raises:
         RuntimeError: クライアントシークレットファイルが見つからない、
@@ -67,7 +72,7 @@ def get_project_id(client_secret_path=CLIENT_SECRET_FILE):
     raise RuntimeError(f"{path.name} から project_id を取得できませんでした。")
 
 
-def get_quota_info(creds, project_id):
+def get_quota_info(creds: Any, project_id: str) -> tuple[int, int]:
     """YouTube API のクォータ消費量と上限値を取得します。
 
     Cloud Monitoring API を使用して、太平洋時間（PT）の本日午前0時から
@@ -75,11 +80,11 @@ def get_quota_info(creds, project_id):
     クォータ制限の上限値を取得します。
 
     Args:
-        creds: Google API クライアントライブラリの認証情報オブジェクト。
-        project_id: クォータ情報を取得する Google Cloud プロジェクトのID。
+        creds: Google API クライアントライブラリの認証情報オブジェクトです。
+        project_id: クォータ情報を取得する Google Cloud プロジェクトのIDです。
 
     Returns:
-        消費されたクォータ（int）と、クォータの上限値（int）のタプル。
+        消費されたクォータと、クォータの上限値のタプルです。
     """
     client = monitoring_v3.MetricServiceClient(credentials=creds)
     project_name = f"projects/{project_id}"
@@ -87,9 +92,9 @@ def get_quota_info(creds, project_id):
     # YouTube Data APIのクォータ制限（Queries per day）は
     # 太平洋時間の午前0時にリセットされるため、
     # 太平洋時間（America/Los_Angeles）基準で
-    # 本日の午前0時からのデータを集計する。
+    # 本日の午前0時からのデータを集計します。
     # タイムゾーンの取得に失敗した場合は、
-    # 過去24時間（UTC）での集計にフォールバックする。
+    # 過去24時間（UTC）での集計にフォールバックします。
     try:
         tz_la = ZoneInfo("America/Los_Angeles")
         now_la = datetime.now(tz_la)
@@ -105,20 +110,18 @@ def get_quota_info(creds, project_id):
         start_sec = int((now - timedelta(days=1)).timestamp())
         end_sec = int(now.timestamp())
 
-    interval = monitoring_v3.TimeInterval(
-        {
-            "end_time": {"seconds": end_sec},
-            "start_time": {"seconds": start_sec},
-        }
-    )
+    interval = monitoring_v3.TimeInterval({
+        "end_time": {"seconds": end_sec},
+        "start_time": {"seconds": start_sec},
+    })
 
-    # クォータ消費量 (net_usage) フィルター
+    # クォータ消費量 (net_usage) のフィルターを定義します。
     usage_filter = (
         'metric.type="serviceruntime.googleapis.com/quota/rate/net_usage" '
         'AND resource.labels.service="youtube.googleapis.com"'
     )
 
-    # 使用量の取得
+    # 使用量を取得します。
     usage_results = client.list_time_series(
         request={
             "name": project_name,
@@ -132,18 +135,14 @@ def get_quota_info(creds, project_id):
         for point in result.points:
             total_used += point.value.int64_value
 
-    # 上限値 (Limit) の取得。
-    # 失敗した場合はデフォルト値 10000 とする
+    # 上限値 (Limit) を取得します。
+    # 失敗した場合はデフォルト値 10000 とします。
     quota_limit = 10000
     try:
-        limit_interval = monitoring_v3.TimeInterval(
-            {
-                "end_time": {"seconds": end_sec},
-                "start_time": {
-                    "seconds": max(start_sec - 3600, end_sec - 3600)
-                },
-            }
-        )
+        limit_interval = monitoring_v3.TimeInterval({
+            "end_time": {"seconds": end_sec},
+            "start_time": {"seconds": max(start_sec - 3600, end_sec - 3600)},
+        })
         limit_filter = (
             'metric.type="serviceruntime.googleapis.com/quota/limit" '
             'AND resource.labels.service="youtube.googleapis.com" '
@@ -164,7 +163,7 @@ def get_quota_info(creds, project_id):
     except Exception as e:  # noqa: BLE001
         logger.debug(
             "クォータ上限値の取得に失敗しました"
-            f"（デフォルト値を使用）: {e}"
+            f"（デフォルト値を使用します）: {e}"
         )
 
     return total_used, quota_limit
