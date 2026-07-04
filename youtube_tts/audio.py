@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""音声の再生およびオーディオデバイスの制御を行うモジュール。"""
+"""音声の再生およびオーディオデバイスの制御を行うモジュールです。"""
+
+from __future__ import annotations
 
 import os
 import shutil
@@ -26,25 +28,28 @@ logger = get_logger()
 
 
 class AudioPlayer:
-    """音声の再生およびオーディオデバイスの制御を行うクラス。
+    """音声の再生およびオーディオデバイスの制御を行うクラスです。
 
-    システムにインストールされている外部再生コマンド (pacat や aplay 等)
-    を利用して、WAV 音声データの再生とデバイスの問い合わせを行います。
+    システムにインストールされている外部再生コマンド
+    (pacat や aplay 等) を利用して、WAV 音声データの再生と
+    デバイスの問い合わせを行います。
     """
 
-    def __init__(self, default_device=None):
-        """オーディオプレイヤーを初期化する。
+    def __init__(self, default_device: int | str | None = None) -> None:
+        """オーディオプレイヤーを初期化します。
 
         Args:
             default_device (int or str, optional):
-                デフォルトで使用する出力オーディオデバイスの名前またはID。
+                デフォルトで使用する出力オーディオデバイスの
+                名前またはIDを指定します。
+
         """
         self.default_device = default_device
         self.target_sample_rate = 24000
         self.process = None
         self._lock = threading.Lock()
 
-        # デスクトップのデフォルトサンプリングレートの取得を試みる
+        # デスクトップのデフォルトサンプリングレートの取得を試みます。
         if shutil.which("pactl"):
             try:
                 res = subprocess.run(
@@ -63,18 +68,24 @@ class AudioPlayer:
                                 break
             except Exception as e:  # noqa: BLE001
                 logger.debug(
-                    f"pactl によるデフォルトサンプリングレート取得に失敗しました: {e}"
+                    "pactl によるデフォルトサンプリングレート"
+                    f"取得に失敗しました: {e}"
                 )
 
-    def query_devices(self, device=None, kind=None):
-        """利用可能なオーディオデバイスの情報を取得する。
+    def query_devices(
+        self,
+        device: int | str | None = None,
+        kind: str | None = None,
+    ) -> str:
+        """利用可能なオーディオデバイスの情報を取得します。
 
         Args:
-            device (int or str, optional): デバイス名またはID（未使用）。
-            kind (str, optional): デバイスの種類（未使用）。
+            device (int or str, optional): デバイス名またはIDを指定します。
+            kind (str, optional): デバイスの種類を指定します。
 
         Returns:
-            str: 整形されたデバイス情報の一覧文字列。
+            str: 整形されたデバイス情報の一覧文字列を返します。
+
         """
         if shutil.which("pactl"):
             try:
@@ -119,21 +130,29 @@ class AudioPlayer:
             "(pactl, aplay) が見つかりませんでした。"
         )
 
-    def play_wav(self, wav_content, device=None, target_sample_rate=None):
-        """WAV音声データを再生する。
+    def play_wav(
+        self,
+        wav_content: bytes,
+        device: int | str | None = None,
+        target_sample_rate: int | None = None,
+    ) -> None:
+        """WAV音声データを再生します。
 
         Args:
-            wav_content (bytes): WAVファイルのバイナリデータ。
-            device (int or str, optional): 再生に使用するデバイス。
-            target_sample_rate (int, optional): 再生サンプリングレート（未使用）。
+            wav_content (bytes): WAVファイルのバイナリデータを指定します。
+            device (int or str, optional): 再生に使用するデバイスを指定します。
+            target_sample_rate (int, optional):
+                再生サンプリングレートを指定します。
 
         Raises:
-            RuntimeError: 利用可能な再生コマンドが見つからない場合。
+            RuntimeError: 利用可能な再生コマンドが
+                見つからない場合に発生します。
+
         """
         play_device = device if device is not None else self.default_device
         temp_file_path = None
 
-        # コマンドの特定と引数の組み立て
+        # コマンドの特定と引数の組み立てを行います。
         if shutil.which("pacat"):
             cmd = ["pacat", "--playback", "--file-format=wav"]
             if play_device is not None:
@@ -145,7 +164,7 @@ class AudioPlayer:
                 cmd += ["-D", str(play_device)]
             use_stdin = True
         elif shutil.which("pw-play"):
-            # pw-play は標準入力を受け付けないため、一時ファイルを作成する
+            # pw-play は標準入力を受け付けないため、一時ファイルを作成します。
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
                 f.write(wav_content)
                 temp_file_path = f.name
@@ -154,7 +173,7 @@ class AudioPlayer:
                 cmd += ["--target", str(play_device)]
             use_stdin = False
         elif shutil.which("paplay"):
-            # paplay は標準入力を受け付けないため、一時ファイルを作成する
+            # paplay は標準入力を受け付けないため、一時ファイルを作成します。
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
                 f.write(wav_content)
                 temp_file_path = f.name
@@ -169,13 +188,16 @@ class AudioPlayer:
             )
 
         with self._lock:
-            # 既に動いているプロセスがあれば念のため停止する
+            # 既に動いているプロセスがあれば念のため停止します。
             if self.process and self.process.poll() is None:
                 try:
                     self.process.kill()
                     self.process.wait()
                 except Exception as e:  # noqa: BLE001
-                    logger.debug(f"古いプロセスの強制終了中にエラーが発生しました: {e}")
+                    logger.debug(
+                        "古いプロセスの強制終了中に"
+                        f"エラーが発生しました: {e}"
+                    )
             if use_stdin:
                 self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
             else:
@@ -183,10 +205,10 @@ class AudioPlayer:
 
         try:
             if use_stdin:
-                # 標準入力に WAV を流し込み、終了を待機する
+                # 標準入力に WAV を流し込み、終了を待機します。
                 self.process.communicate(input=wav_content)
             else:
-                # プロセスの終了を直接待機する
+                # プロセスの終了を直接待機します。
                 self.process.wait()
         except KeyboardInterrupt:
             logger.info("再生がユーザーによって中断されました。")
@@ -198,16 +220,17 @@ class AudioPlayer:
                     os.unlink(temp_file_path)
                 except Exception as e:  # noqa: BLE001
                     logger.debug(
-                        f"一時ファイルの削除に失敗しました: {temp_file_path}, {e}"
+                        "一時ファイルの削除に失敗しました: "
+                        f"{temp_file_path}, {e}"
                     )
 
-    def stop(self):
-        """再生中の音声を停止する。"""
+    def stop(self) -> None:
+        """再生中の音声を停止します。"""
         with self._lock:
             if self.process and self.process.poll() is None:
                 try:
                     self.process.terminate()
-                    # 猶予を与えて終了を待つ
+                    # 猶予を与えて終了を待ちます。
                     try:
                         self.process.wait(timeout=1.0)
                     except subprocess.TimeoutExpired:
@@ -218,4 +241,5 @@ class AudioPlayer:
                         f"外部再生プロセスの停止中にエラーが発生しました: {e}"
                     )
                 finally:
+                    # 再生プロセスをクリアします。
                     self.process = None

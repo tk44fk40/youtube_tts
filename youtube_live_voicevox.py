@@ -14,10 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Read YouTube Live chat comments using VOICEVOX.
-
-YouTube Live のチャットコメントを VOICEVOX で読み上げる。
+"""VOICEVOX を使用して YouTube Live チャットコメントを
+読み上げるスクリプトです。
 """
+
+from __future__ import annotations
 
 import argparse
 import os
@@ -37,7 +38,6 @@ from youtube_tts import (
     setup_logger,
 )
 
-# Constant definitions
 # 定数定義
 TOKEN_FILE = "token.json"
 CLIENT_SECRET_FILE = "client_secret.json"
@@ -45,7 +45,10 @@ VOICEVOX_URL = os.getenv("VOICEVOX_URL", "http://127.0.0.1:50021")
 SPEAKER_ID = int(os.getenv("VOICEVOX_SPEAKER_ID", "3"))
 
 
-def main():
+def main() -> None:
+    """VOICEVOX を使用した YouTube Live チャット読み上げの
+    メイン処理を実行します。
+    """
     env_speed = 1.0
     if "VOICEVOX_SPEED_SCALE" in os.environ:
         try:
@@ -97,13 +100,13 @@ def main():
         "video_url_or_id",
         nargs="?",
         default=None,
-        help="YouTube Live配信のURLまたは動画ID",
+        help="YouTube Live配信のURLまたは動画IDを指定します。",
     )
     parser.add_argument(
         "-d",
         "--device",
         default=os.getenv("VOICEVOX_DEVICE"),
-        help="出力オーディオデバイス名またはID",
+        help="出力オーディオデバイス名またはIDを指定します。",
     )
     parser.add_argument(
         "-q",
@@ -125,51 +128,59 @@ def main():
         metavar="TEXT",
         help=(
             "起動時に自分のライブ配信であれば"
-            "指定したテキストを読み上げる。"
-            f"テキストを省略した場合は「{_TTS_TEST_DEFAULT}」を使用。"
-            "環境変数 VOICEVOX_TTS_TEST でも指定可能。"
+            "指定したテキストを読み上げます。"
+            f"テキストを省略した場合は「{_TTS_TEST_DEFAULT}」を使用します。"
+            "環境変数 VOICEVOX_TTS_TEST でも指定可能です。"
         ),
     )
     parser.add_argument(
         "--chat-interval",
         type=float,
         default=20.0,
-        help=("コメント取得の最短時間（秒）。デフォルトは20秒。"),
+        help=(
+            "コメント取得の最短時間（秒）を指定します。デフォルトは20秒です。"
+        ),
     )
     parser.add_argument(
         "--chat-log",
         default="chat_log.jsonl",
-        help=("チャットログの保存先パス（デフォルト: chat_log.jsonl）。"),
+        help=(
+            "チャットログの保存先パスを指定します"
+            "（デフォルト: chat_log.jsonl）。"
+        ),
     )
     parser.add_argument(
         "--backlog-seconds",
         type=int,
         default=10,
         help=(
-            "起動時に読み上げる過去コメントの遡り時間（秒）。"
+            "起動時に読み上げる過去コメントの遡り時間（秒）を指定します。"
             "-1を指定した場合は過去コメントをすべて読み上げます。"
-            "デフォルトは10秒。"
+            "デフォルトは10秒です。"
         ),
     )
     parser.add_argument(
         "--quota-interval",
         type=float,
         default=180.0,
-        help=("使用量の取得の最短時間（秒）。デフォルトは180秒。"),
+        help=(
+            "使用量の取得の最短時間（秒）を指定します。デフォルトは180秒です。"
+        ),
     )
     parser.add_argument(
         "--stream-check-interval",
         type=float,
         default=180.0,
         help=(
-            "配信アクティブ状態チェックの最短時間（秒）。デフォルトは180秒。"
+            "配信アクティブ状態チェックの最短時間(秒) を指定します。"
+            "デフォルトは180秒です。"
         ),
     )
     parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="詳細ログ（DEBUGタグ）を出力する",
+        help="詳細ログ（DEBUGタグ）を出力します。",
     )
     args = parser.parse_args()
 
@@ -257,8 +268,10 @@ def main():
             logger.error(f"[ERROR] ライブ動画IDの自動検出に失敗しました: {e}")
             sys.exit(1)
 
-        logger.info(f"auto-detected current live video_id: {video_id}")
-        logger.info(f"chat URL: {chat_url}")
+        logger.info(
+            f"現在のライブ配信動画IDを自動検出しました: {video_id}"
+        )
+        logger.info(f"チャットURL: {chat_url}")
 
     logger.info(f"video_id: {video_id}")
 
@@ -306,7 +319,7 @@ def main():
             backlog_seconds=args.backlog_seconds,
         )
     except Exception:
-        logger.exception("Unexpected error")
+        logger.exception("予期しないエラーが発生しました。")
 
 
 if __name__ == "__main__":

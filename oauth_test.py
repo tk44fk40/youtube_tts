@@ -14,26 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# OAuth 初回認証(トークンJSON保存)スクリプト
+"""OAuth 認証を行い、トークンを保存するスクリプトです。"""
+
+from __future__ import annotations
 
 import sys
+
 from youtube_tts import YouTubeAuthenticator, get_logger
 
 TOKEN_FILE = "token.json"
 CLIENT_SECRET_FILE = "client_secret.json"
 
 
-def main():
+def main() -> None:
+    """OAuth 認証を実行し、アクセストークンを取得および保存します。"""
     logger = get_logger()
     try:
         authenticator = YouTubeAuthenticator(
-            client_secret_path=CLIENT_SECRET_FILE,
-            token_path=TOKEN_FILE
+            client_secret_path=CLIENT_SECRET_FILE, token_path=TOKEN_FILE
         )
         creds = authenticator.get_credentials()
         logger.info("認証成功: %s...", creds.token[:32])
-    except Exception as e:
-        logger.error(f"認証に失敗しました: {e}")
+    except Exception as e:  # noqa: BLE001
+        logger.error("認証に失敗しました: %s", e)
         sys.exit(1)
 
 

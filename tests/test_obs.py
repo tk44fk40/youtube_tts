@@ -1,31 +1,37 @@
+"""ObsClient のテストモジュールです。"""
+
+from __future__ import annotations
+
+from typing import Any
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from youtube_tts import ObsClient
 
 
-def test_obs_update_missing_password():
+def test_obs_update_missing_password() -> None:
+    """OBS の接続パスワードが設定されていない場合に
+
+    False を返すことを検証します。
+    """
     client = ObsClient(password=None)
     assert client.update_chat_url("source", "http://chat_url") is False
 
 
-def test_obs_update_success():
-    """Verifies that it returns True on successful connection
-    and connect / disconnect are called.
+def test_obs_update_success() -> None:
+    """接続成功時に True を返し、connect/disconnect
 
-    接続成功時に True を返し、
-    connect / disconnect が呼ばれることを確認。
+    が呼ばれることを検証します。
     """
-    client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
+    client = ObsClient(
+        host="127.0.0.1", port=4455, password="secret_password"
+    )
 
-    # Simulate the presence of the obswebsocket library and inject
-    # a mock directly.
-    # Replace _obsws or _obs_requests cached in ObsClient.__init__
-    # at the instance level.
-    #
     # obswebsocket ライブラリが存在することをシミュレートし、
-    # モックを直接注入する。
+    # モックを直接注入します。
     # ObsClient の __init__ でキャッシュした _obsws や _obs_requests を
-    # インスタンスレベルで差し替える。
+    # インスタンスレベルで差し替えます。
     mock_ws = MagicMock()
     client._available = True
     client._obsws = MagicMock(return_value=mock_ws)
@@ -38,15 +44,15 @@ def test_obs_update_success():
     mock_ws.disconnect.assert_called_once()
 
 
-def test_obs_update_not_available(caplog):
-    """Returns False if obs-websocket-py is not installed.
+def test_obs_update_not_available(caplog: pytest.LogCaptureFixture) -> None:
+    """obs-websocket-py が未インストールの場合に
 
-    obs-websocket-py が未インストールの場合に False を返す。
+    False を返すことを検証します。
     """
-    client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
-    # Simulate not-installed state
-    #
-    # インストールされていない状態をシミュレート
+    client = ObsClient(
+        host="127.0.0.1", port=4455, password="secret_password"
+    )
+    # インストールされていない状態をシミュレートします。
     client._available = False
 
     with caplog.at_level("WARNING"):
@@ -54,13 +60,16 @@ def test_obs_update_not_available(caplog):
 
     assert result is False
     assert any(
-        "obs-websocket library is not installed" in record.message
+        "obs-websocket ライブラリがインストールされていません" in record.message
         for record in caplog.records
     )
 
 
-def test_obs_update_connection_failure():
-    client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
+def test_obs_update_connection_failure() -> None:
+    """接続時に例外が発生した場合に False を返すことを検証します。"""
+    client = ObsClient(
+        host="127.0.0.1", port=4455, password="secret_password"
+    )
     client._available = True
     mock_ws = MagicMock()
     mock_ws.connect.side_effect = Exception("Connection timed out")
@@ -71,20 +80,31 @@ def test_obs_update_connection_failure():
     assert result is False
 
 
-def test_obs_update_missing_source_name():
+def test_obs_update_missing_source_name() -> None:
+    """OBS のソース名が空の場合に False を返すことを検証します。"""
     client = ObsClient(password="secret_password")
     assert client.update_chat_url("", "http://chat_url") is False
 
 
-def test_obs_client_import_error():
+def test_obs_client_import_error() -> None:
+    """obswebsocket のインポートでエラーが発生した場合に、初期化処理が
+
+    正常にフォールバックされることを検証します。
+    """
     import builtins
 
     original_import = builtins.__import__
 
-    def mock_import(name, *args, **kwargs):
+    def mock_import(
+        name: str,
+        globals: dict[str, Any] | None = None,
+        locals: dict[str, Any] | None = None,
+        fromlist: tuple[str, ...] | None = None,
+        level: int = 0,
+    ) -> Any:
         if name == "obswebsocket":
             raise ImportError("Mocked import error")
-        return original_import(name, *args, **kwargs)
+        return original_import(name, globals, locals, fromlist, level)
 
     with patch("builtins.__import__", side_effect=mock_import):
         client = ObsClient(password="secret_password")

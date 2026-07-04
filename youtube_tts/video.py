@@ -12,13 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""YouTube 動画のコメントスレッド取得機能を提供するモジュールです。
+
+このモジュールは、YouTube Data API を介して指定動画のコメントスレッドを
+取得し、ライブチャット形式に整形する機能を提供します。
+"""
+
+from __future__ import annotations
+
 from googleapiclient.errors import HttpError
 
 from .client import BaseYouTubeClient, logger
 
 
 class YouTubeVideoClient(BaseYouTubeClient):
-    """YouTubeの動画詳細およびコメントスレッドに特化したクライアントクラス"""
+    """YouTube 動画の詳細とコメントを取得するクライアントクラスです。"""
 
     def fetch_comment_threads(
         self,
@@ -26,25 +34,23 @@ class YouTubeVideoClient(BaseYouTubeClient):
         page_token: str | None = None,
         max_results: int = 100,
     ) -> tuple[list[dict], str | None, int]:
-        """コメントスレッドの取得
+        """YouTube動画のコメントスレッドを取得します。
 
-        指定された動画IDからコメントスレッドを取得し、
-            チャット形式に整形して返す。
+        指定された動画コメントスレッドを取得し、ライブチャット形式に
+        整形して返します。
 
         Args:
-            video_id (str): 対象の動画ID。
-            page_token (str | None, optional): 次のページからデータを
-                取得するためのトークン。デフォルトは None。
-            max_results (int, optional): 1回の要求で取得する最大件数。
+            video_id: 対象の動画 ID。
+            page_token: 次のページからデータを取得するためのトークン。
+                デフォルトは None。
+            max_results: 1回の要求で取得する最大件数。
                 デフォルトは 100。
 
         Returns:
-            tuple[list[dict], str | None, int]: 以下の3つの要素を含むタプル。
-                - list[dict]: ライブチャットに構造を合わせた、
-                    整形済みのコメントオブジェクトのリスト。
-                - str | None: 次のページを取得するためのトークン。
-                    存在しない場合は None。
-                - int: 次回呼び出しまでの固定ポーリング間隔（3000ミリ秒）。
+            以下の3つの要素を含むタプル。
+            - ライブチャット形式に整形されたコメントオブジェクトのリスト。
+            - 次のページを取得するためのトークン。存在しない場合は None。
+            - 次回呼び出しまでの固定ポーリング間隔（3000ミリ秒）。
 
         Raises:
             HttpError: YouTube APIの呼び出しに失敗した場合。
@@ -75,8 +81,9 @@ class YouTubeVideoClient(BaseYouTubeClient):
                 author = comment_snippet.get("authorDisplayName", "")
                 message = comment_snippet.get("textOriginal", "")
                 published_at = comment_snippet.get("publishedAt", "")
-                author_channel_id = comment_snippet.get("authorChannelId", {}).get(
-                    "value", ""
+                author_channel_id = (
+                    comment_snippet.get("authorChannelId", {})
+                    .get("value", "")
                 )
 
                 if comment_id:
@@ -94,8 +101,8 @@ class YouTubeVideoClient(BaseYouTubeClient):
                             },
                         }
                     )
-            except Exception as ex:
-                logger.warning(f"Failed to parse comment: {ex}")
+            except Exception as ex:  # noqa: BLE001
+                logger.warning(f"コメントのパースに失敗しました: {ex}")
                 continue
 
         next_page_token = response.get("nextPageToken")

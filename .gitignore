@@ -11,6 +11,9 @@ venv/
 ENV/
 env/
 
+TASKLIST.md
+CHECKLIST.md
+
 # Testing / Coverage
 .pytest_cache/
 .coverage
@@ -30,3 +33,6 @@ Untitled.vvproj
 
 # Chat logs
 *.jsonl
+
+# Agents config and plans
+.agents/

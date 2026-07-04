@@ -1,5 +1,8 @@
-"""youtube_video_voicevox.py のCLIオプションと例外ハンドリングのテスト。"""
+"""youtube_video_voicevox.py のCLIオプションと例外ハンドリングのテストです。"""
 
+from __future__ import annotations
+
+from typing import Any, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,8 +11,12 @@ from youtube_video_voicevox import main
 
 
 @pytest.fixture(autouse=True)
-def mock_voicevox_client_get_speakers():
-    """VOICEVOXスピーカー取得をモック化するフィクスチャ。"""
+def mock_voicevox_client_get_speakers() -> Generator[MagicMock, None, None]:
+    """VOICEVOXスピーカー取得をモック化するフィクスチャです。
+
+    Yields:
+        MagicMock: モック化された get_speakers メソッド。
+    """
     with patch(
         "youtube_video_voicevox.VoicevoxClient.get_speakers"
     ) as mock_get_speakers:
@@ -17,8 +24,12 @@ def mock_voicevox_client_get_speakers():
 
 
 @pytest.fixture
-def mock_cli_components():
-    """主要コンポーネントを一括でモック化し、標準的な初期値を設定。"""
+def mock_cli_components() -> Generator[dict[str, Any], None, None]:
+    """主要コンポーネントを一括でモック化し、標準的な初期値を設定するフィクスチャです。
+
+    Yields:
+        dict[str, Any]: 各コンポーネントのモックオブジェクト。
+    """
     with (
         patch("youtube_video_voicevox.YouTubeAuthenticator") as mock_auth,
         patch("youtube_video_voicevox.YouTubeVideoClient") as mock_video_client,
@@ -54,8 +65,12 @@ def mock_cli_components():
         }
 
 
-def test_video_cli_device_option(mock_cli_components):
-    """-d オプションで指定したデバイスIDが使用されることを検証。"""
+def test_video_cli_device_option(mock_cli_components: dict[str, Any]) -> None:
+    """-d オプションで指定したデバイスIDが使用されることを検証します。
+
+    Args:
+        mock_cli_components: モック化されたコンポーネント。
+    """
     components = mock_cli_components
 
     argv = ["youtube_video_voicevox.py", "-d", "6", "video123"]
@@ -68,8 +83,12 @@ def test_video_cli_device_option(mock_cli_components):
     components["app_instance"].run_video.assert_called_once()
 
 
-def test_video_cli_speed_option(mock_cli_components):
-    """--speed オプションが config.speed_scale に反映されることを検証。"""
+def test_video_cli_speed_option(mock_cli_components: dict[str, Any]) -> None:
+    """--speed オプションが config.speed_scale に反映されることを検証します。
+
+    Args:
+        mock_cli_components: モック化されたコンポーネント。
+    """
     components = mock_cli_components
 
     argv = ["youtube_video_voicevox.py", "--speed", "1.5", "video123"]
@@ -80,8 +99,14 @@ def test_video_cli_speed_option(mock_cli_components):
     assert kwargs["config"].speed_scale == 1.5
 
 
-def test_video_cli_speed_boost_options(mock_cli_components):
-    """スピードブーストオプションが正しく構成に反映されることを検証。"""
+def test_video_cli_speed_boost_options(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """スピードブーストオプションが構成に反映されることを検証します。
+
+    Args:
+        mock_cli_components: モック化されたコンポーネント。
+    """
     components = mock_cli_components
 
     argv = [
@@ -99,8 +124,12 @@ def test_video_cli_speed_boost_options(mock_cli_components):
     assert kwargs["config"].max_speed == 1.8
 
 
-def test_video_cli_chat_log_option(mock_cli_components):
-    """--chat-log で指定したパスが構成に保存されることを検証。"""
+def test_video_cli_chat_log_option(mock_cli_components: dict[str, Any]) -> None:
+    """--chat-log で指定したパスが構成に保存されることを検証します。
+
+    Args:
+        mock_cli_components: モック化されたコンポーネント。
+    """
     components = mock_cli_components
 
     argv = [
@@ -116,22 +145,80 @@ def test_video_cli_chat_log_option(mock_cli_components):
     assert kwargs["config"].chat_log_path == "custom_path.jsonl"
 
 
-def test_video_cli_auth_failure(mock_cli_components):
-    """認証に失敗した場合、ステータスコード1でシステム終了することを検証。"""
+def test_video_cli_auth_failure(mock_cli_components: dict[str, Any]) -> None:
+    """認証に失敗した場合にステータスコード1でシステム終了することを検証します。
+
+    Args:
+        mock_cli_components: モック化されたコンポーネント。
+    """
     components = mock_cli_components
     components["auth_instance"].get_credentials.side_effect = Exception(
         "Auth Failure"
     )
 
-    with pytest.raises(SystemExit) as exc_info:
-        with patch("sys.argv", ["youtube_video_voicevox.py", "video123"]):
-            main()
-    assert exc_info.value.code == 1
-
-
-def test_video_cli_missing_video_id_error(mock_cli_components):
-    """動画IDが指定されない場合、エラーメッセージを出して終了することを検証。"""
-    with patch("sys.argv", ["youtube_video_voicevox.py"]):
+    with patch("sys.exit", side_effect=SystemExit(1)) as mock_exit:
         with pytest.raises(SystemExit) as exc_info:
-            main()
+            with patch(
+                "sys.argv",
+                ["youtube_video_voicevox.py", "--verbose", "video123"],
+            ):
+                main()
     assert exc_info.value.code == 1
+    mock_exit.assert_called_once_with(1)
+
+
+def test_video_cli_missing_video_id_error(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """動画IDが指定されない場合、エラー終了することを検証します。
+
+    Args:
+        mock_cli_components: モック化されたコンポーネント。
+    """
+    with patch("sys.exit", side_effect=SystemExit(1)) as mock_exit:
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["youtube_video_voicevox.py"]):
+                main()
+    assert exc_info.value.code == 1
+    mock_exit.assert_called_once_with(1)
+
+
+def test_video_cli_env_variables_and_failures(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """環境変数や各エラーハンドリングのフローを検証します。
+
+    Args:
+        mock_cli_components: モック化されたコンポーネント。
+    """
+    components = mock_cli_components
+    # デバイス情報取得エラーをシミュレート
+    components["query_devices"].side_effect = Exception("Device query error")
+
+    # VOICEVOX サーバー接続エラーをシミュレート
+    with patch(
+        "youtube_video_voicevox.VoicevoxClient.get_speakers",
+        side_effect=Exception("VOICEVOX connection error"),
+    ):
+        # アプリ起動時の例外をシミュレート
+        components["app_instance"].run_video.side_effect = Exception(
+            "App run error"
+        )
+
+        argv = ["youtube_video_voicevox.py", "-d", "device_str", "video123"]
+        env = {
+            "VOICEVOX_SPEED_SCALE": "invalid_speed",
+            "VOICEVOX_MAX_SPEED": "invalid_max_speed",
+            "VOICEVOX_VOLUME_SCALE": "invalid_vol",
+            "VOICEVOX_AUTO_SPEED_BOOST": "true",
+            "OBS_WEBSOCKET_PORT": "4455",
+        }
+        with patch("sys.argv", argv), patch.dict("os.environ", env):
+            main()
+
+    # 文字列のデバイスIDがそのまま渡されることを検証
+    components["audio_player_class"].assert_called_with(
+        default_device="device_str"
+    )
+    # 例外時にもプロセスが正常終了（キャッチログ出力）していることを検証
+    components["app_instance"].run_video.assert_called_once()

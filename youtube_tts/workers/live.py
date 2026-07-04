@@ -14,10 +14,12 @@
 #
 """YouTube Live コメント監視ワーカーを定義するモジュールです。"""
 
+from __future__ import annotations
+
 import queue
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
@@ -25,12 +27,15 @@ from ..live import YouTubeLiveChatClient
 from ..models import CommentItem
 from ..quota import get_quota_info
 
+if TYPE_CHECKING:
+    from youtube_tts.app import YouTubeTtsApp
 
-def get_next_quota_reset_time() -> Any:
-    """太平洋時間における次のクォータリセット時刻を算出する。
+
+def get_next_quota_reset_time() -> datetime:
+    """太平洋時間における次のクォータリセット時刻を算出します。
 
     Returns:
-        datetime: 次のリセット予定時刻。
+        datetime: 次のリセット予定時刻です。
     """
     try:
         from zoneinfo import ZoneInfo
@@ -50,14 +55,14 @@ def get_next_quota_reset_time() -> Any:
     return next_reset_la.astimezone()
 
 
-def format_reset_time_for_speech(reset_time: Any) -> str:
-    """リセット時刻を音声読み上げ用の文字列にフォーマットする。
+def format_reset_time_for_speech(reset_time: datetime) -> str:
+    """リセット時刻を音声読み上げ用の文字列にフォーマットします。
 
     Args:
-        reset_time: クォータリセット予定時刻。
+        reset_time (datetime): クォータリセット予定時刻です。
 
     Returns:
-        str: 読み上げ用テキスト。
+        str: 読み上げ用テキストです。
     """
     now_local = datetime.now().astimezone()
     delta_days = (reset_time.date() - now_local.date()).days
@@ -77,10 +82,10 @@ def format_reset_time_for_speech(reset_time: Any) -> str:
 
 
 def live_worker(
-    app: Any,
+    app: YouTubeTtsApp,
     live_client: YouTubeLiveChatClient,
     video_id: str,
-    creds: Any = None,
+    creds: Any | None = None,
     quota_check: bool = False,
     quota_talk: bool = False,
     tts_test: str | None = None,
@@ -91,22 +96,32 @@ def live_worker(
     verbose: bool = False,
     backlog_seconds: int = 10,
 ) -> None:
-    """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカー。
+    """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカーです。
 
     Args:
-        app: YouTubeTtsApp インスタンス。
-        live_client: YouTubeLiveChatClient インスタンス.
-        video_id: 動画のID。
-        creds: 認証資格。
-        quota_check: クォータを監視するかどうか。
-        quota_talk: クォータ超過時に読み上げるかどうか。
-        tts_test: テスト用のTTSテキスト。
-        chat_interval: コメント取得インターバル（秒）。
-        quota_interval: クォータ監視インターバル（秒）。
-        stream_check_interval: 配信状態チェックインターバル（秒）。
-        project_id: GCPのプロジェクトID。
-        verbose: 詳細ログを出力するかどうか。
-        backlog_seconds: 遡って取得する秒数。
+        app (YouTubeTtsApp): YouTubeTtsApp インスタンスです。
+        live_client (YouTubeLiveChatClient):
+            YouTubeLiveChatClient インスタンスです。
+        video_id (str): 動画のIDです。
+        creds (Any | None): 認証資格です。デフォルトは None です。
+        quota_check (bool): クォータを監視するかどうかを表す真偽値です。
+            デフォルトは False です。
+        quota_talk (bool): クォータ超過時に読み上げるかどうかを表す真偽値です。
+            デフォルトは False です。
+        tts_test (str | None): テスト用のTTSテキストです。
+            デフォルトは None です。
+        chat_interval (float): コメント取得インターバル（秒）です。
+            デフォルトは 20.0 です。
+        quota_interval (float): クォータ監視インターバル（秒）です。
+            デフォルトは 180.0 です。
+        stream_check_interval (float): 配信状態チェックインターバル（秒）です。
+            デフォルトは 180.0 です。
+        project_id (str | None): GCPのプロジェクトIDです。
+            デフォルトは None です。
+        verbose (bool): 詳細ログを出力するかどうかを表す真偽値です。
+            デフォルトは False です。
+        backlog_seconds (int): 遡って取得する秒数です。
+            デフォルトは 10 です。
     """
     try:
         video_details = live_client.get_video_details(video_id)
@@ -136,7 +151,9 @@ def live_worker(
         return
 
     if backlog_seconds >= 0:
-        threshold_time = datetime.now(timezone.utc) - timedelta(seconds=backlog_seconds)
+        threshold_time = datetime.now(timezone.utc) - timedelta(
+            seconds=backlog_seconds
+        )
     else:
         threshold_time = None
 
@@ -148,12 +165,16 @@ def live_worker(
         app.config.reload_if_changed()
 
         if verbose:
-            app.logger.debug(f"Fetching chat messages (pageToken: {next_page_token})")
+            app.logger.debug(
+                "チャットメッセージを取得しています "
+                f"(pageToken: {next_page_token})"
+            )
 
         try:
-            items, next_page_token, polling_interval = live_client.fetch_chat_messages(
+            res = live_client.fetch_chat_messages(
                 live_chat_id, page_token=next_page_token
             )
+            items, next_page_token, polling_interval = res
         except Exception as e:  # noqa: BLE001
             is_quota_exceeded = False
             try:
@@ -167,7 +188,10 @@ def live_worker(
                                 "コンテンツのデコードに失敗しました: %s",
                                 ex,
                             )
-                    if "quotaExceeded" in str(e) or "quotaExceeded" in content_str:
+                    if (
+                        "quotaExceeded" in str(e)
+                        or "quotaExceeded" in content_str
+                    ):
                         is_quota_exceeded = True
             except Exception as ex:  # noqa: BLE001
                 app.logger.debug("クォータチェックエラー: %s", ex)
@@ -193,7 +217,9 @@ def live_worker(
                         app.logger.warning(
                             f"リセット予定時刻の取得に失敗しました: {ex}"
                         )
-                        quota_message = "ぴんぽーん！残念！クォータを超過しました。"
+                        quota_message = (
+                            "ぴんぽーん！残念！クォータを超過しました。"
+                        )
 
                     app.logger.info(f"[QUOTA] {quota_message}")
                     quota_author = ""
@@ -207,7 +233,7 @@ def live_worker(
                     timeout = time.time() + 5.0
                     while (
                         not app.comment_queue.empty() and time.time() < timeout
-                    ):  # fmt: skip
+                    ):
                         time.sleep(0.1)
 
             app.logger.error("[ERROR] チャットの取得に失敗しました。")
@@ -218,9 +244,9 @@ def live_worker(
 
         if verbose:
             app.logger.debug(
-                f"Fetched {len(items)} items. "
-                f"next_page_token: {next_page_token}, "
-                f"polling_interval: {polling_interval}ms"
+                f"{len(items)} 件のアイテムを取得しました。 "
+                f"(next_page_token: {next_page_token}, "
+                f"polling_interval: {polling_interval}ms)"
             )
 
         for item in items:
@@ -238,15 +264,15 @@ def live_worker(
                         if published_at < threshold_time:
                             author_name = item["authorDetails"]["displayName"]
                             app.logger.debug(
-                                f"[SKIP(PAST)] {author_name}: "
+                                f"[SKIP(過去コメント)] {author_name}: "
                                 f"{item['snippet']['displayMessage']} "
-                                f"(published at {published_at_str})"
+                                f"(投稿日時: {published_at_str})"
                             )
                             continue
                     except ValueError as ex:
                         app.logger.warning(
-                            f"Failed to parse publishedAt: "
-                            f"{published_at_str}, error: {ex}"
+                            f"publishedAt のパースに失敗しました: "
+                            f"{published_at_str}, エラー: {ex}"
                         )
 
             author = item["authorDetails"]["displayName"]
@@ -271,19 +297,19 @@ def live_worker(
 
         now = time.time()
 
-        # Stream active check
+        # 配信がアクティブであるか確認します。
         if now - last_stream_check_time >= stream_check_interval:
             if verbose:
-                app.logger.debug("Checking stream active status...")
+                app.logger.debug("配信のアクティブ状態を確認しています...")
             is_active = live_client.check_stream_active(video_id)
             if verbose:
-                app.logger.debug(f"Stream active status: {is_active}")
+                app.logger.debug(f"配信アクティブ状態: {is_active}")
             if not is_active:
                 app.stop_event.set()
                 return
             last_stream_check_time = now
 
-        # Quota usage check
+        # クォータの使用量を確認します。
         if (
             quota_check
             and creds
@@ -291,14 +317,14 @@ def live_worker(
             and (now - last_quota_check_time >= quota_interval)
         ):
             if verbose:
-                app.logger.debug("Fetching quota info...")
+                app.logger.debug("クォータ情報を取得しています...")
             try:
                 used, limit = get_quota_info(creds, project_id)
                 remaining = max(0, limit - used)
                 usage_percent = (used / limit) * 100 if limit > 0 else 0
                 app.logger.info(
-                    f"[QUOTA] Used: {used:,} / {limit:,} "
-                    f"({usage_percent:.2f}%), Remaining: {remaining:,}"
+                    f"[QUOTA] 使用量: {used:,} / {limit:,} "
+                    f"({usage_percent:.2f}%), 残量: {remaining:,}"
                 )
 
                 is_diff = used != app.last_spoken_used
@@ -315,7 +341,9 @@ def live_worker(
                     )
                     app.last_spoken_used = used
             except Exception as e:  # noqa: BLE001
-                app.logger.warning("[WARNING] クォータ情報の取得に失敗しました。")
+                app.logger.warning(
+                    "[WARNING] クォータ情報の取得に失敗しました。"
+                )
                 if verbose:
                     app.logger.debug(f"  (エラー詳細: {e})")
             last_quota_check_time = now
