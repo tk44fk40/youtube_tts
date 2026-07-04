@@ -14,10 +14,12 @@
 #
 """YouTube Live コメント監視ワーカーを定義するモジュールです。"""
 
+from __future__ import annotations
+
 import queue
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
@@ -25,12 +27,15 @@ from ..live import YouTubeLiveChatClient
 from ..models import CommentItem
 from ..quota import get_quota_info
 
+if TYPE_CHECKING:
+    from youtube_tts.app import YouTubeTtsApp
 
-def get_next_quota_reset_time() -> Any:
-    """太平洋時間における次のクォータリセット時刻を算出する。
+
+def get_next_quota_reset_time() -> datetime:
+    """太平洋時間における次のクォータリセット時刻を算出します。
 
     Returns:
-        datetime: 次のリセット予定時刻。
+        datetime: 次のリセット予定時刻です。
     """
     try:
         from zoneinfo import ZoneInfo
@@ -50,14 +55,14 @@ def get_next_quota_reset_time() -> Any:
     return next_reset_la.astimezone()
 
 
-def format_reset_time_for_speech(reset_time: Any) -> str:
-    """リセット時刻を音声読み上げ用の文字列にフォーマットする。
+def format_reset_time_for_speech(reset_time: datetime) -> str:
+    """リセット時刻を音声読み上げ用の文字列にフォーマットします。
 
     Args:
-        reset_time: クォータリセット予定時刻。
+        reset_time (datetime): クォータリセット予定時刻です。
 
     Returns:
-        str: 読み上げ用テキスト。
+        str: 読み上げ用テキストです。
     """
     now_local = datetime.now().astimezone()
     delta_days = (reset_time.date() - now_local.date()).days
@@ -77,10 +82,10 @@ def format_reset_time_for_speech(reset_time: Any) -> str:
 
 
 def live_worker(
-    app: Any,
+    app: YouTubeTtsApp,
     live_client: YouTubeLiveChatClient,
     video_id: str,
-    creds: Any = None,
+    creds: Any | None = None,
     quota_check: bool = False,
     quota_talk: bool = False,
     tts_test: str | None = None,
@@ -91,22 +96,32 @@ def live_worker(
     verbose: bool = False,
     backlog_seconds: int = 10,
 ) -> None:
-    """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカー。
+    """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカーです。
 
     Args:
-        app: YouTubeTtsApp インスタンス。
-        live_client: YouTubeLiveChatClient インスタンス.
-        video_id: 動画のID。
-        creds: 認証資格。
-        quota_check: クォータを監視するかどうか。
-        quota_talk: クォータ超過時に読み上げるかどうか。
-        tts_test: テスト用のTTSテキスト。
-        chat_interval: コメント取得インターバル（秒）。
-        quota_interval: クォータ監視インターバル（秒）。
-        stream_check_interval: 配信状態チェックインターバル（秒）。
-        project_id: GCPのプロジェクトID。
-        verbose: 詳細ログを出力するかどうか。
-        backlog_seconds: 遡って取得する秒数。
+        app (YouTubeTtsApp): YouTubeTtsApp インスタンスです。
+        live_client (YouTubeLiveChatClient):
+            YouTubeLiveChatClient インスタンスです。
+        video_id (str): 動画のIDです。
+        creds (Any | None): 認証資格です。デフォルトは None です。
+        quota_check (bool): クォータを監視するかどうかを表す真偽値です。
+            デフォルトは False です。
+        quota_talk (bool): クォータ超過時に読み上げるかどうかを表す真偽値です。
+            デフォルトは False です。
+        tts_test (str | None): テスト用のTTSテキストです。
+            デフォルトは None です。
+        chat_interval (float): コメント取得インターバル（秒）です。
+            デフォルトは 20.0 です。
+        quota_interval (float): クォータ監視インターバル（秒）です。
+            デフォルトは 180.0 です。
+        stream_check_interval (float): 配信状態チェックインターバル（秒）です。
+            デフォルトは 180.0 です。
+        project_id (str | None): GCPのプロジェクトIDです。
+            デフォルトは None です。
+        verbose (bool): 詳細ログを出力するかどうかを表す真偽値です。
+            デフォルトは False です。
+        backlog_seconds (int): 遡って取得する秒数です。
+            デフォルトは 10 です。
     """
     try:
         video_details = live_client.get_video_details(video_id)
@@ -281,7 +296,7 @@ def live_worker(
 
         now = time.time()
 
-        # 配信アクティブ状態の確認
+        # 配信がアクティブであるか確認します。
         if now - last_stream_check_time >= stream_check_interval:
             if verbose:
                 app.logger.debug("Checking stream active status...")
@@ -293,7 +308,7 @@ def live_worker(
                 return
             last_stream_check_time = now
 
-        # クォータ使用量の確認
+        # クォータの使用量を確認します。
         if (
             quota_check
             and creds

@@ -34,8 +34,9 @@ def test_live_worker_success(app: Any) -> None:
                         "publishedAt": now_iso,
                     },
                 },
+                # 重複したメッセージIDによるスキップを誘発します。
                 {
-                    "id": "msg1",  # Duplicate message ID to trigger skip
+                    "id": "msg1",
                     "authorDetails": {"displayName": "User1"},
                     "snippet": {
                         "displayMessage": "Hello",
@@ -51,7 +52,7 @@ def test_live_worker_success(app: Any) -> None:
                     },
                 },
                 {
-                    "id": "msg3",  # Super Chat
+                    "id": "msg3",  # スーパーチャットです。
                     "authorDetails": {"displayName": "SuperUser"},
                     "snippet": {
                         "displayMessage": "Thanks!",
@@ -81,8 +82,8 @@ def test_live_worker_success(app: Any) -> None:
             backlog_seconds=10,
         )
 
-    # User1(7) + Hello(5) + SuperUser(10) + Thanks!(7) = 29
-    # 各送信者名の末尾に「さん」を追加するため、それぞれ2文字増える
+    # User1(7) + Hello(5) + SuperUser(10) + Thanks!(7) = 29 と計算されます。
+    # 各送信者名の末尾に「さん」を追加するため、それぞれ2文字増えます。
     assert app.comment_queue.qsize() == 3
     assert app.queued_char_count == 42
     mock_speak.assert_not_called()
@@ -505,19 +506,19 @@ def test_format_reset_time_for_speech_direct(app: Any) -> None:
 
     now_local = datetime.now().astimezone()
 
-    # 今日
+    # 今日の場合のテストです。
     reset_today = now_local.replace(hour=23, minute=30)
     res = app._format_reset_time_for_speech(reset_today)
     assert "今日" in res
     assert "23時30分" in res
 
-    # 明日
+    # 明日の場合のテストです。
     reset_tomorrow = (now_local + timedelta(days=1)).replace(hour=5, minute=0)
     res = app._format_reset_time_for_speech(reset_tomorrow)
     assert "明日" in res
     assert "5時" in res
 
-    # それ以外の日
+    # それ以外の日の場合のテストです。
     reset_other = (now_local + timedelta(days=3)).replace(hour=12, minute=0)
     res = app._format_reset_time_for_speech(reset_other)
     assert f"{reset_other.month}月{reset_other.day}日" in res
@@ -525,10 +526,10 @@ def test_format_reset_time_for_speech_direct(app: Any) -> None:
 
 @patch("zoneinfo.ZoneInfo", side_effect=Exception("zoneinfo not available"))
 def test_get_next_quota_reset_time_zoneinfo_failure(mock_zi: Any) -> None:
-    """zoneinfo が利用不可の場合のフォールバック処理を検証する。
+    """zoneinfo が利用不可の場合のフォールバック処理を検証します。
 
     固定 UTC オフセット UTC-7/-8 の
-    フォールバックタイムゾーン）が実行されることを確認するを検証します。
+    フォールバックタイムゾーンが実行されることを確認します。
     """
     from youtube_tts.workers.live import get_next_quota_reset_time
 
@@ -592,7 +593,7 @@ def test_live_worker_fetch_error_no_content(app: Any) -> None:
 
     resp = Response({"status": 403, "reason": "Forbidden"})
     ex = HttpError(resp, b"")
-    ex.content = None  # content なし
+    ex.content = None  # content がない場合をシミュレートします。
     mock_live_client.fetch_chat_messages.side_effect = ex
 
     app.live_worker(
@@ -607,7 +608,7 @@ def test_live_worker_fetch_error_no_content(app: Any) -> None:
 
 
 def test_live_worker_fetch_error_decode_error(app: Any) -> None:
-    """HttpError の content デコードが失敗した場合の処理をを検証します。"""
+    """HttpError の content デコードが失敗した場合の処理を検証します。"""
     from googleapiclient.errors import HttpError
     from httplib2 import Response
 
@@ -639,10 +640,10 @@ def test_live_worker_fetch_error_decode_error(app: Any) -> None:
 
 
 def test_live_worker_fetch_error_quota_check_exception(app: Any) -> None:
-    """クォータ判定中に予期しない例外が発生した場合の処理を検証する。
+    """クォータ判定中に予期しない例外が発生した場合の処理を検証します。
 
     HttpError の resp を空スペック MagicMock に差し替えることで、
-    `e.resp.status` アクセス時に AttributeError を発生させるを検証します。
+    `e.resp.status` アクセス時に AttributeError を発生させることを検証します。
     """
     from googleapiclient.errors import HttpError
     from httplib2 import Response
@@ -656,7 +657,7 @@ def test_live_worker_fetch_error_quota_check_exception(app: Any) -> None:
 
     resp = Response({"status": 403, "reason": "Forbidden"})
     ex = HttpError(resp, b"")
-    # spec=[] → 属性アクセス時に AttributeError を発生させる
+    # spec=[] を指定し、属性アクセス時に AttributeError を発生させます。
     ex.resp = MagicMock(spec=[])
     mock_live_client.fetch_chat_messages.side_effect = ex
 
@@ -702,7 +703,7 @@ def test_live_worker_quota_exceeded_no_quota_talk(app: Any) -> None:
 
 
 def test_live_worker_quota_exceeded_drain_empty(app: Any) -> None:
-    """キュードレイン中に queue.Empty が発生した場合の処理をを検証します。"""
+    """キュードレイン中に queue.Empty が発生した場合の処理を検証します。"""
     import queue as queue_module
 
     from googleapiclient.errors import HttpError
@@ -720,12 +721,12 @@ def test_live_worker_quota_exceeded_drain_empty(app: Any) -> None:
     ex = HttpError(resp, content)
     mock_live_client.fetch_chat_messages.side_effect = ex
 
-    # empty() が最初 False を返してループに入り、get_nowait が
-    # queue.Empty を発生させることで except 節を通過させる
+    # empty() が最初に False を返してループに入り、get_nowait が
+    # queue.Empty を発生させることで except 節を通過させます。
     empty_call_count = 0
 
     def mock_empty():
-        """empty() のモック。"""
+        """empty() のモックです。"""
         nonlocal empty_call_count
         empty_call_count += 1
         return empty_call_count != 1
@@ -827,7 +828,7 @@ def test_live_worker_threshold_time_none(app: Any) -> None:
     now_iso = datetime.now(timezone.utc).isoformat()
 
     def fetch_side_effect(*args, **kwargs):
-        """フェッチのサイドエフェクト。"""
+        """フェッチのサイドエフェクトです。"""
         app.stop_event.set()
         return (
             [
@@ -874,7 +875,7 @@ def test_live_worker_stream_active_then_stop(mock_sleep: Any, app: Any) -> None:
     fetch_call_count = 0
 
     def fetch_side_effect(*args, **kwargs):
-        """フェッチのサイドエフェクト。"""
+        """フェッチのサイドエフェクトです。"""
         nonlocal fetch_call_count
         fetch_call_count += 1
         if fetch_call_count >= 2:
@@ -917,7 +918,7 @@ def test_live_worker_quota_check_verbose_false(
     sleep_call_count = 0
 
     def sleep_side_effect(*args):
-        """sleep のサイドエフェクト。"""
+        """sleep のサイドエフェクトです。"""
         nonlocal sleep_call_count
         sleep_call_count += 1
         if sleep_call_count >= 2:
@@ -959,13 +960,13 @@ def test_live_worker_quota_talk_same_used(
     mock_live_client.get_live_chat_id.return_value = "chat_live_123"
     mock_live_client.fetch_chat_messages.return_value = ([], "token", 1000)
     mock_quota_info.return_value = (1000, 10000)
-    # 前回の使用量を同じ値にして is_diff=False にする
+    # 前回の使用量を同じ値にして is_diff=False にします。
     app.last_spoken_used = 1000
 
     sleep_call_count = 0
 
     def sleep_side_effect(*args):
-        """sleep のサイドエフェクト。"""
+        """sleep のサイドエフェクトです。"""
         nonlocal sleep_call_count
         sleep_call_count += 1
         if sleep_call_count >= 2:
@@ -1010,7 +1011,7 @@ def test_live_worker_quota_error_verbose_false(
     sleep_call_count = 0
 
     def sleep_side_effect(*args):
-        """sleep のサイドエフェクト。"""
+        """sleep のサイドエフェクトです。"""
         nonlocal sleep_call_count
         sleep_call_count += 1
         if sleep_call_count >= 2:
@@ -1046,7 +1047,7 @@ def test_get_next_quota_reset_time_pst_winter(mock_datetime: Any) -> None:
 
     from youtube_tts.workers.live import get_next_quota_reset_time
 
-    # 12月（PST）に見せかける
+    # 12月（PST）として動作させます。
     fake_now = datetime(2024, 12, 15, 10, 0, 0, tzinfo=timezone.utc)
     
     def mock_now(tz=None):
@@ -1057,12 +1058,13 @@ def test_get_next_quota_reset_time_pst_winter(mock_datetime: Any) -> None:
     mock_datetime.now.side_effect = mock_now
 
     with patch(
-        "zoneinfo.ZoneInfo", side_effect=Exception("zoneinfo not available")
+        "zoneinfo.ZoneInfo", side_effect=Exception("zoneinfo が利用できません")
     ):
         result = get_next_quota_reset_time()
 
     assert result is not None
-    # UTC-8 オフセットで次の日午前0時に設定されること
+    # UTC-8 オフセットで次の日午前0時に設定されることを検証します。
+    # 2024-12-15 10:00:00 UTC は 2024-12-15 02:00:00 PST (UTC-8)
     expected_tz = timezone(timedelta(hours=-8))
     now_pst = fake_now.astimezone(expected_tz)
     expected = (now_pst + timedelta(days=1)).replace(
@@ -1072,9 +1074,11 @@ def test_get_next_quota_reset_time_pst_winter(mock_datetime: Any) -> None:
 
 
 def test_live_worker_quota_exceeded_drain_actual(app: Any) -> None:
-    """キュードレイン時に get_nowait が成功して task_done が呼ばれるか検証。
+    """キュードレイン時の正常な処理を検証します。
 
-    キューに実際のアイテムを積んで正常な drain パスを通過させるを検証します。
+    get_nowait が成功して task_done が
+    呼ばれること、またキューに実際のアイテムを積んで
+    正常なドレインパスを通過することを確認します。
     """
     from googleapiclient.errors import HttpError
     from httplib2 import Response
@@ -1091,7 +1095,7 @@ def test_live_worker_quota_exceeded_drain_actual(app: Any) -> None:
     ex = HttpError(resp, content)
     mock_live_client.fetch_chat_messages.side_effect = ex
 
-    # キューに実際のアイテムを積んで drain ループを通過させる
+    # キューに実際のアイテムを積んで drain ループを通過させます。
     app.comment_queue.put(("Author", "Message"))
 
     app.live_worker(
