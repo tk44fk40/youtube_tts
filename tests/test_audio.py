@@ -1,17 +1,3 @@
-# Copyright 2026 tk44fk40
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
 """AudioPlayer クラスの単体テストを行うモジュール。"""
 
 import os
@@ -27,7 +13,9 @@ from youtube_tts import AudioPlayer
 def test_audio_initialization_pactl_success(monkeypatch):
     """pactl が存在しデフォルトレートが正常取得できる場合の初期化テスト。"""
     monkeypatch.setattr(
-        shutil, "which", lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None
+        shutil,
+        "which",
+        lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None,
     )
 
     mock_res = MagicMock()
@@ -44,7 +32,9 @@ def test_audio_initialization_pactl_success(monkeypatch):
 def test_audio_initialization_pactl_failure_fallback(monkeypatch):
     """pactl がエラーを返した場合に既定のレートにフォールバックするテスト。"""
     monkeypatch.setattr(
-        shutil, "which", lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None
+        shutil,
+        "which",
+        lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None,
     )
 
     def mock_run(*args, **kwargs):
@@ -59,7 +49,9 @@ def test_audio_initialization_pactl_failure_fallback(monkeypatch):
 def test_query_devices_pactl_success(monkeypatch):
     """pactl が存在する場合のデバイス一覧取得テスト。"""
     monkeypatch.setattr(
-        shutil, "which", lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None
+        shutil,
+        "which",
+        lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None,
     )
 
     mock_res = MagicMock()
@@ -135,7 +127,9 @@ def test_query_devices_no_tools(monkeypatch):
 def test_play_wav_pacat(monkeypatch):
     """pacat を使用した再生処理のテスト。"""
     monkeypatch.setattr(
-        shutil, "which", lambda cmd: "/usr/bin/pacat" if cmd == "pacat" else None
+        shutil,
+        "which",
+        lambda cmd: "/usr/bin/pacat" if cmd == "pacat" else None,
     )
 
     mock_popen = MagicMock()
@@ -158,7 +152,9 @@ def test_play_wav_pacat(monkeypatch):
 def test_play_wav_pacat_no_device(monkeypatch):
     """deviceが指定されない（None）場合の pacat での再生テスト。"""
     monkeypatch.setattr(
-        shutil, "which", lambda cmd: "/usr/bin/pacat" if cmd == "pacat" else None
+        shutil,
+        "which",
+        lambda cmd: "/usr/bin/pacat" if cmd == "pacat" else None,
     )
 
     mock_popen = MagicMock()
@@ -313,7 +309,9 @@ def test_play_wav_tempfile_unlink_error(monkeypatch):
 
         # ログメッセージが含まれているか確認
         called_args = [call[0][0] for call in mock_debug.call_args_list]
-        assert any("一時ファイルの削除に失敗しました" in arg for arg in called_args)
+        assert any(
+            "一時ファイルの削除に失敗しました" in arg for arg in called_args
+        )
 
 
 def test_play_wav_no_commands_raise_error(monkeypatch):
@@ -368,7 +366,9 @@ def test_play_wav_interrupt_and_stop(monkeypatch):
     mock_process.poll.return_value = None
     mock_process.communicate.side_effect = KeyboardInterrupt()
 
-    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: mock_process)
+    monkeypatch.setattr(
+        subprocess, "Popen", lambda *args, **kwargs: mock_process
+    )
 
     player = AudioPlayer()
     with pytest.raises(KeyboardInterrupt):
@@ -395,7 +395,10 @@ def test_stop_timeout_and_kill(monkeypatch):
     player = AudioPlayer()
     mock_process = MagicMock()
     mock_process.poll.return_value = None
-    mock_process.wait.side_effect = [subprocess.TimeoutExpired(["cmd"], 1), None]
+    mock_process.wait.side_effect = [
+        subprocess.TimeoutExpired(["cmd"], 1),
+        None,
+    ]
 
     player.process = mock_process
     player.stop()
@@ -425,7 +428,9 @@ def test_stop_exception_handling(monkeypatch):
 def test_audio_initialization_pactl_no_hz(monkeypatch):
     """pactl info に Hz の表記がない場合のテスト。"""
     monkeypatch.setattr(
-        shutil, "which", lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None
+        shutil,
+        "which",
+        lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None,
     )
 
     mock_res = MagicMock()
@@ -439,7 +444,9 @@ def test_audio_initialization_pactl_no_hz(monkeypatch):
 def test_query_devices_pactl_invalid_tab(monkeypatch):
     """pactl list short sinks の出力にタブ文字がない行が含まれるテスト。"""
     monkeypatch.setattr(
-        shutil, "which", lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None
+        shutil,
+        "which",
+        lambda cmd: "/usr/bin/pactl" if cmd == "pactl" else None,
     )
 
     mock_res = MagicMock()

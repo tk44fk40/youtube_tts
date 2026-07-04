@@ -1,21 +1,4 @@
-# Copyright 2026 tk44fk40
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-"""Tests for youtube_video_voicevox.py CLI options and exceptions.
-
-youtube_video_voicevox.py のCLIオプションと例外ハンドリングのテスト。
-"""
+"""youtube_video_voicevox.py のCLIオプションと例外ハンドリングのテスト。"""
 
 from unittest.mock import MagicMock, patch
 
@@ -136,7 +119,9 @@ def test_video_cli_chat_log_option(mock_cli_components):
 def test_video_cli_auth_failure(mock_cli_components):
     """認証に失敗した場合、ステータスコード1でシステム終了することを検証。"""
     components = mock_cli_components
-    components["auth_instance"].get_credentials.side_effect = Exception("Auth Failure")
+    components["auth_instance"].get_credentials.side_effect = Exception(
+        "Auth Failure"
+    )
 
     with pytest.raises(SystemExit) as exc_info:
         with patch("sys.argv", ["youtube_video_voicevox.py", "video123"]):
