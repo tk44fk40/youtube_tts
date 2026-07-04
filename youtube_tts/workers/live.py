@@ -126,7 +126,7 @@ def live_worker(
     try:
         video_details = live_client.get_video_details(video_id)
     except Exception as e:  # noqa: BLE001
-        app.logger.error("[ERROR] 動画情報の取得に失敗しました。")
+        app.logger.error("動画情報の取得に失敗しました。")
         if verbose:
             app.logger.debug(f"  (エラー詳細: {e})")
         app.stop_event.set()
@@ -142,9 +142,9 @@ def live_worker(
 
     try:
         live_chat_id = live_client.get_live_chat_id(video_id)
-        app.logger.info(f"liveChatId: {live_chat_id}")
+        app.logger.info(f"ライブチャットID: {live_chat_id}")
     except Exception as e:  # noqa: BLE001
-        app.logger.error("[ERROR] liveChatId の取得に失敗しました。")
+        app.logger.error("ライブチャットIDの取得に失敗しました。")
         if verbose:
             app.logger.debug(f"  (エラー詳細: {e})")
         app.stop_event.set()
@@ -236,7 +236,7 @@ def live_worker(
                     ):
                         time.sleep(0.1)
 
-            app.logger.error("[ERROR] チャットの取得に失敗しました。")
+            app.logger.error("チャットの取得に失敗しました。")
             if verbose:
                 app.logger.debug(f"  (エラー詳細: {e})")
             app.stop_event.set()
@@ -342,7 +342,7 @@ def live_worker(
                     app.last_spoken_used = used
             except Exception as e:  # noqa: BLE001
                 app.logger.warning(
-                    "[WARNING] クォータ情報の取得に失敗しました。"
+                    "クォータ情報の取得に失敗しました。"
                 )
                 if verbose:
                     app.logger.debug(f"  (エラー詳細: {e})")

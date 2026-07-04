@@ -206,7 +206,7 @@ def main() -> None:
     try:
         creds = authenticator.get_credentials()
     except Exception as e:
-        logger.error("[ERROR] 認証に失敗しました。")
+        logger.error("認証に失敗しました。")
         logger.debug(f"  (エラー詳細: {e})")
         sys.exit(1)
 
@@ -219,7 +219,7 @@ def main() -> None:
             f"https://www.youtube.com/live_chat?v={video_id}&is_popout=1"
         )
     else:
-        logger.error("[ERROR] 動画URLまたはIDの指定が必要です。")
+        logger.error("動画URLまたはIDの指定が必要です。")
         sys.exit(1)
 
     logger.info(f"video_id: {video_id}")

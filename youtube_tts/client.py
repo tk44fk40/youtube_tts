@@ -120,7 +120,7 @@ class BaseYouTubeClient:
         if e.resp.status == 403:
             if "quotaExceeded" in err_msg:
                 logger.error(
-                    "[ERROR] YouTube API の本日の無料枠上限"
+                    "YouTube API の本日の無料枠上限"
                     "（クォータ）を超過しました。"
                 )
                 logger.error(
@@ -133,7 +133,7 @@ class BaseYouTubeClient:
                 )
             elif "commentsDisabled" in err_msg:
                 logger.error(
-                    "[ERROR] この動画・アーカイブはコメント機能がオフ"
+                    "この動画・アーカイブはコメント機能がオフ"
                     "（無効）に設定されています。"
                 )
                 logger.error(
@@ -142,7 +142,7 @@ class BaseYouTubeClient:
                 )
             else:
                 logger.error(
-                    "[ERROR] 指定された動画・配信へのアクセス権限がありません。"
+                    "指定された動画・配信へのアクセス権限がありません。"
                 )
                 logger.error(
                     "  - メンバー限定配信、非公開、"
@@ -153,7 +153,7 @@ class BaseYouTubeClient:
                     "再認証（token.json を削除して再実行）してください。"
                 )
         else:
-            msg = "[ERROR] YouTube API エラーが発生しました"
+            msg = "YouTube API エラーが発生しました"
             logger.error(f"{msg} (ステータスコード: {e.resp.status})")
 
         if getattr(self, "verbose", False):
