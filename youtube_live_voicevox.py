@@ -18,6 +18,8 @@
 読み上げるスクリプトです。
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 import sys
@@ -43,7 +45,7 @@ VOICEVOX_URL = os.getenv("VOICEVOX_URL", "http://127.0.0.1:50021")
 SPEAKER_ID = int(os.getenv("VOICEVOX_SPEAKER_ID", "3"))
 
 
-def main():
+def main() -> None:
     """VOICEVOX を使用した YouTube Live チャット読み上げの
     メイン処理を実行します。
     """
