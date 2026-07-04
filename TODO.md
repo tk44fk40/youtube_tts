@@ -16,6 +16,7 @@
   - test_app_video_worker.py
   - test_audio.py
 - app.py をモジュール分割したがまだ若干大きい
+- tests/test_youtube_video.py が複数のモジュールのテストを含んでる？
 
 
 ## Ruff lint の対応
