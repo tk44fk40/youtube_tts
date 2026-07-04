@@ -2,8 +2,6 @@
 branch = True
 source = youtube_tts
 omit =
-    youtube_live_voicevox.py
-    youtube_video_voicevox.py
     tests/*
 
 [report]
