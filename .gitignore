@@ -11,6 +11,9 @@ venv/
 ENV/
 env/
 
+TASKLIST.md
+CHECKLIST.md
+
 # Testing / Coverage
 .pytest_cache/
 .coverage
