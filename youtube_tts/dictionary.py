@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""コメントの読み上げ用テキスト整形および正規化を行うモジュール。
+"""コメントの読み上げ用テキスト整形および正規化を行うモジュールです。
 
-このモジュールは、YouTube チャットやコメント内の URL 除去、顔文字除去、
+このモジュールは、YouTube のチャットやコメント内の URL 除去、顔文字除去、
 草の変換、辞書による単語置換などのテキスト処理を提供する
 TextProcessor クラスを提供します。
 """
+
+from __future__ import annotations
 
 import os
 import re
@@ -26,24 +28,24 @@ from .config import AppConfig, normalize_nfkc
 
 
 class TextProcessor:
-    """YouTube のチャット・コメントを音声読み上げ用に整形するクラス。"""
+    """YouTube のチャットやコメントを音声読み上げ用に整形するクラスです。"""
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig) -> None:
         """TextProcessor を初期化します。
 
         Args:
             config: 設定ファイルを管理する AppConfig インスタンス。
         """
         self.config = config
-        self.author_suffix = os.getenv("VOICEVOX_AUTHOR_SUFFIX", "さん")
+        self.author_suffix: str = os.getenv("VOICEVOX_AUTHOR_SUFFIX", "さん")
 
-        # replace_words で使う正規表現パターンのキャッシュ。
+        # replace_words で使う正規表現パターンのキャッシュです。
         # config.replacements の同一性 (is) で変更を検知し、
-        # 辞書リロード時に自動更新する。
-        self._compiled_replacements: list[tuple[re.Pattern, str]] = []
-        # キャッシュ有効性の確認用
+        # 辞書リロード時に自動更新します。
+        self._compiled_replacements: list[tuple[re.Pattern[str], str]] = []
+        # キャッシュ有効性の確認用です。
         # (config.replacements のオブジェクト参照)
-        self._replacements_ref = None
+        self._replacements_ref: dict[str, str] | None = None
 
     def normalize_text(self, text: str) -> str:
         """Unicode NFKC 正規化を行います。
@@ -58,7 +60,7 @@ class TextProcessor:
         """
         return normalize_nfkc(text)
 
-    def _ensure_compiled(self):
+    def _ensure_compiled(self) -> None:
         """読み上げ置換用の正規表現パターンを必要に応じて再コンパイルします。
 
         config.replacements が更新されていた場合に再コンパイルを実行します。
@@ -137,14 +139,14 @@ class TextProcessor:
             正規化後のメッセージ。
         """
         message = normalize_nfkc(message)
-        # URL 除去
+        # URL を除去します。
         message = re.sub(r"https?:\S+", "", message)
 
-        # スタンプ（YouTubeカスタム絵文字
-        # コロン表記 :emoji_name:）の除去
+        # スタンプ（YouTube カスタム絵文字コロン表記 :emoji_name:）を
+        # 除去します。
         message = re.sub(r":[^:\s]+:", "", message)
 
-        # 括弧なし・特定の代表的な顔文字の除去
+        # 括弧なし・特定の代表的な顔文字を除去します。
         message = re.sub(r"m\([\s_]+\)m|m\(\._\.\)m", "", message)
         message = re.sub(
             r"(?<![a-zA-Z0-9])[tT]_[tT](?![a-zA-Z0-9])", "", message
@@ -156,12 +158,11 @@ class TextProcessor:
             flags=re.IGNORECASE,
         )
 
-        # 括弧付き顔文字の除去
+        # 括弧付き顔文字を除去します。
         # 括弧（半角・全角）で囲まれており、
-        # かつ中に日本語の通常文字
-        # （ひらがな、カタカナ、漢字）、英数字、スペース、
-        # 一般的な句読点・長音記号（ー）以外の文字（記号など）が
-        # 1文字以上含まれるものを除去
+        # かつ中に日本語の通常文字（ひらがな、カタカナ、漢字）、英数字、
+        # スペース、一般的な句読点・長音記号（ー）以外の文字（記号など）が
+        # 1文字以上含まれるものを除去します。
         message = re.sub(
             r"(\(|（)[^)\n（）]*?"
             r"[^ぁ-んァ-ヶ一-龠々a-zA-Z0-9\s!！?？、。，．・ー]"
@@ -170,16 +171,13 @@ class TextProcessor:
             message,
         )
 
-        # 1文字または2文字の w/W だけの
-        # メッセージの場合、「わら」に変換
-        # (3文字以上の w は後続の処理で
-        # 「わら」に変換される)
+        # 1文字または2文字の w/W だけのメッセージの場合、「わら」に変換します。
+        # (3文字以上の w は後続の処理で「わら」に変換されます)
         if re.match(r"^[wW]{1,2}$", message):
             message = "わら"
         else:
-            # 直前が日本語、句読点、感嘆符、
-            # または閉じ括弧類である
-            # 1〜2文字の w/W を「わら」に変換
+            # 直前が日本語、句読点、感嘆符、または閉じ括弧類である
+            # 1〜2文字の w/W を「わら」に変換します。
             # (かつ、直後に英数字が続かないこと)
             message = re.sub(
                 r"(?<=[ぁ-んァ-ヶ一-龠々!！?？、。，．・)）"
@@ -188,25 +186,26 @@ class TextProcessor:
                 message,
                 flags=re.IGNORECASE,
             )
-        # 「www」「ｗｗｗ」など
-        # 3文字以上の草を「わら」に変換
+        # 「www」「ｗｗｗ」など 3文字以上の草を「わら」に変換します。
         message = re.sub(r"[wW]{3,}", " わら ", message, flags=re.IGNORECASE)
-        # 連続する感嘆符・疑問符を1文字に圧縮
+        # 連続する感嘆符・疑問符を1文字に圧縮します。
         message = re.sub(r"[!！]{2,}", "！", message)
         message = re.sub(r"[?？]{2,}", "？", message)
-        # サロゲートペア領域（絵文字等）および
-        # BMP領域の絵文字・記号を除去
+        # サロゲートペア領域（絵文字等）および BMP領域の絵文字・記号を
+        # 除去します。
         message = re.sub(r"[\U00010000-\U0010ffff]", "", message)
         message = re.sub(
             r"[\u2600-\u27BF\u2300-\u23FF\u2B00-\u2BFF\u25A0-\u25FF]",
             "",
             message,
         )
-        # 読み上げ辞書適用
+        # 読み上げ辞書を適用します。
         message = self.replace_words(message)
         return message.strip()
 
-    def normalize_comment(self, author: str, message: str) -> tuple[str, str]:
+    def normalize_comment(
+        self, author: str, message: str
+    ) -> tuple[str, str]:
         """投稿者名とメッセージをまとめて正規化します。
 
         Args:
