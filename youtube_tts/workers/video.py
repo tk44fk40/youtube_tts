@@ -50,8 +50,10 @@ def video_worker(
     )
     backlog_items = []
     page_token = None
+    # 読み込む初期バックログの制限数（負数の場合は制限なし）を設定します。
     remaining_to_fetch = backlog_counts if backlog_counts >= 0 else None
 
+    # 初期コメントのバックログ取得ループです。
     while not app.stop_event.is_set():
         if remaining_to_fetch is not None and remaining_to_fetch <= 0:
             break
@@ -62,6 +64,7 @@ def video_worker(
         )
 
         try:
+            # YouTube API から動画のコメントスレッドを取得します。
             items, page_token, _ = video_client.fetch_comment_threads(
                 video_id, page_token=page_token, max_results=max_results
             )
@@ -83,6 +86,7 @@ def video_worker(
         if not page_token:
             break
 
+    # 取得したコメントを古い順に処理するために並べ替えます。
     backlog_items.reverse()
     for item in backlog_items:
         message_id = item["id"]
@@ -92,6 +96,7 @@ def video_worker(
         author = item["authorDetails"]["displayName"]
         message = item["snippet"]["displayMessage"]
 
+        # NGワードが含まれるコメントはスキップします。
         if app.text_processor.contains_ng_word(message):
             if verbose:
                 app.logger.info(f"[SKIP(NG)] {author}: {message}")
@@ -100,15 +105,18 @@ def video_worker(
         app.logger.info(f"[COMMENT] {author}: {message}")
         author, message = app.text_processor.normalize_comment(author, message)
 
+        # 読み上げキューが満杯の場合はスキップします。
         if app.comment_queue.full():
             app.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
             continue
 
+        # 文字数カウントを更新し、読み上げキューへ追加します。
         char_count = len(author) + len(message)
         with app.queue_lock:
             app.queued_char_count += char_count
         app.comment_queue.put(CommentItem(author, message, char_count))
 
+    # コメントのリアルタイム監視ポーリングループです。
     while not app.stop_event.is_set():
         app.config.reload_if_changed()
 
@@ -116,6 +124,7 @@ def video_worker(
             app.logger.debug("Fetching latest video comments...")
 
         try:
+            # 最新のコメントを最大100件取得します。
             res = video_client.fetch_comment_threads(
                 video_id, page_token=None, max_results=100
             )
@@ -132,10 +141,12 @@ def video_worker(
                 f"polling_interval: {polling_interval}ms"
             )
 
+        # 取得したコメントを古い順に処理します。
         items.reverse()
 
         for item in items:
             message_id = item["id"]
+            # 既に処理済みのコメントはスキップします。
             if app.is_and_mark_processed(message_id):
                 continue
 
@@ -144,6 +155,7 @@ def video_worker(
             author = item["authorDetails"]["displayName"]
             message = item["snippet"]["displayMessage"]
 
+            # NGワードが含まれるコメントはスキップします。
             if app.text_processor.contains_ng_word(message):
                 if verbose:
                     app.logger.info(f"[SKIP(NG)] {author}: {message}")
@@ -154,13 +166,18 @@ def video_worker(
                 author, message
             )
 
+            # 読み上げキューが満杯の場合はスキップします。
             if app.comment_queue.full():
                 app.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
                 continue
 
+            # 文字数カウントを更新し、読み上げキューへ追加します。
             char_count = len(author) + len(message)
             with app.queue_lock:
                 app.queued_char_count += char_count
             app.comment_queue.put(CommentItem(author, message, char_count))
 
+        # APIで指定されたポーリング間隔または設定値の
+        # いずれか大きい時間待機します。
         time.sleep(max(polling_interval / 1000, chat_interval))
+
