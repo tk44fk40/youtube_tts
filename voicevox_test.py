@@ -15,6 +15,8 @@
 # limitations under the License.
 """VOICEVOX で音声合成と再生のテストを行うスクリプトです。"""
 
+from __future__ import annotations
+
 import argparse
 import os
 import sys
@@ -30,8 +32,12 @@ DEFAULT_OUTPUT = "test.wav"
 DEFAULT_VOLUME = 1.0
 
 
-def list_speakers(client: VoicevoxClient):
-    """利用可能な話者とスタイルの一覧を表示します。"""
+def list_speakers(client: VoicevoxClient) -> None:
+    """利用可能な話者とスタイルの一覧を表示します。
+
+    Args:
+        client: VOICEVOX クライアントのインスタンスです。
+    """
     try:
         speakers = client.get_speakers()
     except Exception as e:  # noqa: BLE001
@@ -48,7 +54,7 @@ def list_speakers(client: VoicevoxClient):
             print(f"{style_id:<6} | {name:<15} | {style_name:<15}")
 
 
-def main():
+def main() -> None:
     """コマンドライン引数を解析し、音声合成と再生を実行します。"""
     env_speed = 1.0
     if "VOICEVOX_SPEED_SCALE" in os.environ:

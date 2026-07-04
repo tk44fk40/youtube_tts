@@ -11,7 +11,7 @@ from youtube_tts import VoicevoxClient
 
 
 def test_get_speakers_success():
-    """VOICEVOX スピーカー情報が正常に取得できることを検証。"""
+    """VOICEVOX スピーカー情報が正常に取得できることを確認します。"""
     # テスト用のフェイク URL で VoicevoxClient を生成します
     client = VoicevoxClient(base_url="http://fake-vox")
 
@@ -30,7 +30,7 @@ def test_get_speakers_success():
 
 
 def test_get_speakers_connection_error():
-    """接続エラー時に RuntimeError が発生することを検証。"""
+    """接続エラー時に RuntimeError が発生することを確認します。"""
     client = VoicevoxClient(base_url="http://fake-vox")
 
     with patch("requests.get") as mock_get:
@@ -47,7 +47,7 @@ def test_get_speakers_connection_error():
 
 
 def test_synthesize_success():
-    """VOICEVOX で音声合成（synthesis）が正常に動作することを検証。"""
+    """VOICEVOX で音声合成（synthesis）が正常に動作することを確認します。"""
     client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
 
     with patch("requests.post") as mock_post:
@@ -93,7 +93,7 @@ def test_synthesize_success():
 
 
 def test_synthesize_success_no_rate():
-    """サンプリングレート未指定時の音声合成を検証。"""
+    """サンプリングレート未指定時の音声合成を確認します。"""
     client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
 
     with patch("requests.post") as mock_post:
@@ -119,7 +119,7 @@ def test_synthesize_success_no_rate():
 
 
 def test_synthesize_http_error():
-    """音声合成リクエスト時に HTTPError が適切に送出されることを検証。"""
+    """音声合成リクエスト時に HTTPError が適切に送出されることを確認します。"""
     client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
 
     with patch("requests.post") as mock_post:
