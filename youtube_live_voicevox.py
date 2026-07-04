@@ -239,8 +239,7 @@ def main() -> None:
             "      ※VOICEVOXが起動しているか、"
             "ホストURLおよびポート番号が正しいか確認してください。"
         )
-        if args.verbose:
-            logger.debug(f"  (エラー詳細: {e})")
+        logger.debug(f"  (エラー詳細: {e})")
 
     scopes = QUOTA_SCOPES if args.quota_check else None
     authenticator = YouTubeAuthenticator(
@@ -252,8 +251,7 @@ def main() -> None:
         creds = authenticator.get_credentials()
     except Exception as e:
         logger.error("認証に失敗しました。")
-        if args.verbose:
-            logger.debug(f"  (エラー詳細: {e})")
+        logger.debug(f"  (エラー詳細: {e})")
         sys.exit(1)
 
     live_client = YouTubeLiveChatClient(creds, verbose=args.verbose)
@@ -268,9 +266,7 @@ def main() -> None:
             logger.error(f"ライブ動画IDの自動検出に失敗しました: {e}")
             sys.exit(1)
 
-        logger.info(
-            f"現在のライブ配信動画IDを自動検出しました: {video_id}"
-        )
+        logger.info(f"現在のライブ配信動画IDを自動検出しました: {video_id}")
         logger.info(f"チャットURL: {chat_url}")
 
     logger.info(f"video_id: {video_id}")

@@ -37,17 +37,9 @@ def get_next_quota_reset_time() -> datetime:
     Returns:
         datetime: 次のリセット予定時刻です。
     """
-    try:
-        from zoneinfo import ZoneInfo
+    from zoneinfo import ZoneInfo
 
-        tz_la = ZoneInfo("America/Los_Angeles")
-    except Exception:  # noqa: BLE001
-        now_utc = datetime.now(timezone.utc)
-        if 3 <= now_utc.month <= 11:
-            tz_la = timezone(timedelta(hours=-7))  # PDT
-        else:
-            tz_la = timezone(timedelta(hours=-8))  # PST
-
+    tz_la = ZoneInfo("America/Los_Angeles")
     now_la = datetime.now(tz_la)
     next_reset_la = (now_la + timedelta(days=1)).replace(
         hour=0, minute=0, second=0, microsecond=0
@@ -341,9 +333,7 @@ def live_worker(
                     )
                     app.last_spoken_used = used
             except Exception as e:  # noqa: BLE001
-                app.logger.warning(
-                    "クォータ情報の取得に失敗しました。"
-                )
+                app.logger.warning("クォータ情報の取得に失敗しました。")
                 if verbose:
                     app.logger.debug(f"  (エラー詳細: {e})")
             last_quota_check_time = now

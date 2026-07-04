@@ -103,8 +103,7 @@ class YouTubeTtsApp:
             self.logger.error(
                 "        - 出力オーディオデバイスの設定を確認してください。"
             )
-            if getattr(self, "verbose", False):
-                self.logger.debug(f"  (エラー詳細: {e})")
+            self.logger.debug(f"  (エラー詳細: {e})")
 
     def is_and_mark_processed(self, message_id: str) -> bool:
         """メッセージIDが処理済みかどうかを判定し、未処理なら履歴に追加します。

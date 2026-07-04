@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
+import pytest
+
 from youtube_tts import CommentItem
 
 if TYPE_CHECKING:
@@ -38,14 +40,16 @@ def test_speak_success(app: YouTubeTtsApp) -> None:
     )
 
 
-def test_speak_failure(app: YouTubeTtsApp) -> None:
+@pytest.mark.parametrize("verbose", [False, True])
+def test_speak_failure(app: YouTubeTtsApp, verbose: bool) -> None:
     """音声合成の例外発生時にクラッシュしないかを検証します。
 
     Args:
         app: YouTubeTtsApp インスタンス。
+        verbose: 詳細ログを出力するかどうかの設定値です。
     """
     app.voicevox_client.synthesize.side_effect = Exception("VOICEVOX Error")
-    app.verbose = False
+    app.verbose = verbose
 
     with (
         patch.object(app.logger, "error") as mock_error,
@@ -58,27 +62,8 @@ def test_speak_failure(app: YouTubeTtsApp) -> None:
         mock_error.assert_any_call(
             "音声の合成または再生に失敗しました。"
         )
-        mock_debug.assert_not_called()
-
-
-def test_speak_failure_verbose(app: YouTubeTtsApp) -> None:
-    """音声合成の失敗時に詳細ログが出力されるかを検証します。
-
-    Args:
-        app: YouTubeTtsApp インスタンス。
-    """
-    app.voicevox_client.synthesize.side_effect = Exception("VOICEVOX Error")
-    app.verbose = True
-
-    with (
-        patch.object(app.logger, "error") as mock_error,
-        patch.object(app.logger, "debug") as mock_debug,
-    ):
-        app.speak("エラーテスト")
-        app.audio_player.play_wav.assert_not_called()
-
-        assert mock_error.call_count == 3
         mock_debug.assert_called_once_with("  (エラー詳細: VOICEVOX Error)")
+
 
 
 def test_playback_worker(app: YouTubeTtsApp) -> None:

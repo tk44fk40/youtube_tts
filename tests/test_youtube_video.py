@@ -177,18 +177,14 @@ def test_fetch_comment_threads_parse_error(
     assert len(items) == 1
     assert items[0]["id"] == "c_ok"
     assert any(
-        "コメントのパースに失敗しました" in r.message
-        for r in caplog.records
+        "コメントのパースに失敗しました" in r.message for r in caplog.records
     )
 
 
-@pytest.mark.parametrize(
-    "verbose, expect_debug", [(False, False), (True, True)]
-)
+@pytest.mark.parametrize("verbose", [False, True])
 def test_get_video_details_comment_disabled(
     mock_client: tuple[YouTubeVideoClient, MagicMock],
     verbose: bool,
-    expect_debug: bool,
 ) -> None:
     """コメント無効動画へのアクセスログの出力を検証します。"""
     client, mock_service = mock_client
@@ -207,10 +203,7 @@ def test_get_video_details_comment_disabled(
         client.get_video_details("vid")
 
     mock_logger.error.assert_any_call(Contains("コメント機能がオフ"))
-    if expect_debug:
-        mock_logger.debug.assert_called_once_with(Contains("(エラー詳細:"))
-    else:
-        mock_logger.debug.assert_not_called()
+    mock_logger.debug.assert_called_once_with(Contains("(エラー詳細:"))
 
 
 def test_handle_api_error_decode_failure(
@@ -245,4 +238,3 @@ def test_handle_api_error_no_content(
     # content が存在しない場合でも安全に APIエラーが処理されることを確認します。
     with pytest.raises(HttpError):
         client.get_video_details("vid")
-

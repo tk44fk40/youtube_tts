@@ -359,7 +359,7 @@ The repository contains mock-based unit and integration tests.
 ### Running Tests
 Execute unit tests and measure coverage:
 ```bash
-uv run pytest --cov=youtube_tts --cov=youtube_voicevox --cov-report=term-missing
+uv run pytest --cov=youtube_tts --cov=youtube_live_voicevox --cov-report=term-missing
 ```
 
 ---

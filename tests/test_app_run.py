@@ -97,6 +97,19 @@ def test_app_cleanup(app: Any) -> None:
     mock_thread.join.assert_called_once()
 
 
+def test_app_cleanup_no_thread(app: Any) -> None:
+    """cleanup 内で playback_thread が None の場合の挙動を検証します。
+
+    Args:
+        app: YouTubeTtsApp インスタンスです。
+    """
+    app.comment_queue.put(("User", "Hello"))
+    app.cleanup(playback_thread=None, wait_seconds=0.1)
+
+    assert app.comment_queue.empty() is True
+    app.audio_player.stop.assert_called_once()
+
+
 def test_is_and_mark_processed(app: Any) -> None:
     """重複メッセージ ID の判定処理を検証します。"""
     app.max_processed_message_ids = 2

@@ -402,7 +402,7 @@ youtube_tts/
 
 ```bash
 # テストの実行とカバレッジ（コード網羅率）の測定
-uv run pytest --cov=youtube_tts --cov=youtube_voicevox --cov-report=term-missing
+uv run pytest --cov=youtube_tts --cov=youtube_live_voicevox --cov-report=term-missing
 ```
 
 ---

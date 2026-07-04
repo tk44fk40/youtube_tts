@@ -19,30 +19,9 @@
 - tests/test_youtube_video.py が複数のモジュールのテストを含んでる？
 
 
-## Ruff lint の対応
-
-- 警告箇所がかなりある
-- pyproject.toml にルール記載、vscodeでも追従するよう設定した
-- コメントで警告除外させてるとこが結構ある
-  - コメントによる警告除外箇所を洗い出して、対応すべきか判断
-- モジュールごとに、Ruff させて対処が必要
-
-
 ## models.py の存在意義
 - class CommentItem(tuple) しかない
 - ほかにもクラスにしたほうがいいもの（レスポンスとか）があるはず
-
-
-# --verbose オプション
-
-- `--verbose` のときだけ動く実装がないか
-- 単純に `[DEBUG]` レベルのログが出るだけでいい
-- `--verbose` だけ動く機能は別オプションを新設すべき
-
-```python
-        if args.verbose:
-            logger.debug(f"  (エラー詳細: {e})")
-```
 
 
 ## READMEの改善

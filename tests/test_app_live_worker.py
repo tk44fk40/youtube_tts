@@ -524,19 +524,6 @@ def test_format_reset_time_for_speech_direct(app: Any) -> None:
     assert f"{reset_other.month}月{reset_other.day}日" in res
 
 
-@patch("zoneinfo.ZoneInfo", side_effect=Exception("zoneinfo not available"))
-def test_get_next_quota_reset_time_zoneinfo_failure(mock_zi: Any) -> None:
-    """zoneinfo が利用不可の場合のフォールバック処理を検証します。
-
-    固定 UTC オフセット UTC-7/-8 の
-    フォールバックタイムゾーンが実行されることを確認します。
-    """
-    from youtube_tts.workers.live import get_next_quota_reset_time
-
-    result = get_next_quota_reset_time()
-    assert result is not None
-
-
 def test_live_worker_get_video_details_failure_verbose_false(
     app: Any,
 ) -> None:
@@ -1033,44 +1020,6 @@ def test_live_worker_quota_error_verbose_false(
     )
 
     assert app.comment_queue.qsize() == 0
-
-
-@patch("youtube_tts.workers.live.datetime")
-def test_get_next_quota_reset_time_pst_winter(mock_datetime: Any) -> None:
-    """zoneinfo 失敗時に冬時間（PST, UTC-8）へ
-    フォールバックされるかを検証します。
-
-    テスト実行月に依存しないよう
-    datetime.now を 12 月にモックします。
-    """
-    from datetime import datetime, timedelta, timezone
-
-    from youtube_tts.workers.live import get_next_quota_reset_time
-
-    # 12月（PST）として動作させます。
-    fake_now = datetime(2024, 12, 15, 10, 0, 0, tzinfo=timezone.utc)
-
-    def mock_now(tz=None):
-        if tz is not None:
-            return fake_now.astimezone(tz)
-        return fake_now
-
-    mock_datetime.now.side_effect = mock_now
-
-    with patch(
-        "zoneinfo.ZoneInfo", side_effect=Exception("zoneinfo が利用できません")
-    ):
-        result = get_next_quota_reset_time()
-
-    assert result is not None
-    # UTC-8 オフセットで次の日午前0時に設定されることを検証します。
-    # 2024-12-15 10:00:00 UTC は 2024-12-15 02:00:00 PST (UTC-8)
-    expected_tz = timezone(timedelta(hours=-8))
-    now_pst = fake_now.astimezone(expected_tz)
-    expected = (now_pst + timedelta(days=1)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    assert result.astimezone(timezone.utc) == expected.astimezone(timezone.utc)
 
 
 def test_live_worker_quota_exceeded_drain_actual(app: Any) -> None:
