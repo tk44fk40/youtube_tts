@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""YouTube 関連のユーティリティ関数を提供するモジュール。
+"""YouTube 関連のユーティリティ関数を提供するモジュールです。
 
 このモジュールは、YouTube の動画 URL や ID から動画 ID を
 抽出するユーティリティ関数を提供します。

@@ -31,7 +31,7 @@ LOGGER_NAME = "youtube_tts"
 
 
 class StripAndCleanupFilter(logging.Filter):
-    """ログメッセージの整形および重複プリフィックスの除去を行うフィルタークラスです。"""
+    """ログの整形と重複プリフィックスの除去を行うフィルタークラスです。"""
 
     def filter(self, record: logging.LogRecord) -> bool:
         """ログレコードにフィルターを適用し、メッセージを整形します。

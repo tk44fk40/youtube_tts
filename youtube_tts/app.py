@@ -290,7 +290,7 @@ class YouTubeTtsApp:
             wait_seconds: 待機秒数です。
 
         """
-        self.logger.info("Cleaning up...")
+        self.logger.info("クリーンアップを実行しています...")
         self.stop_event.set()
         self.audio_player.stop()
 
@@ -311,7 +311,7 @@ class YouTubeTtsApp:
             except Exception:
                 pass
 
-        self.logger.info("Cleanup complete")
+        self.logger.info("クリーンアップが完了しました。")
 
     def run_live(
         self,
@@ -348,7 +348,9 @@ class YouTubeTtsApp:
         self.verbose = verbose
 
         def handle_signal(signum, frame):
-            self.logger.info("Signal received, shutting down...")
+            self.logger.info(
+                "シグナルを受信しました。シャットダウンしています..."
+            )
             self.stop_event.set()
 
         try:
@@ -376,7 +378,7 @@ class YouTubeTtsApp:
                 backlog_seconds=backlog_seconds,
             )
         except Exception:
-            self.logger.exception("Unexpected error")
+            self.logger.exception("予期しないエラーが発生しました。")
         finally:
             self.cleanup(playback_thread=playback_thread, wait_seconds=5)
 
@@ -401,7 +403,9 @@ class YouTubeTtsApp:
         self.verbose = verbose
 
         def handle_signal(signum, frame):
-            self.logger.info("Signal received, shutting down...")
+            self.logger.info(
+                "シグナルを受信しました。シャットダウンしています..."
+            )
             self.stop_event.set()
 
         try:
@@ -422,6 +426,6 @@ class YouTubeTtsApp:
                 backlog_counts=backlog_counts,
             )
         except Exception:
-            self.logger.exception("Unexpected error")
+            self.logger.exception("予期しないエラーが発生しました。")
         finally:
             self.cleanup(playback_thread=playback_thread, wait_seconds=5)

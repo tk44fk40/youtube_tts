@@ -60,7 +60,7 @@ def test_obs_update_not_available(caplog: pytest.LogCaptureFixture) -> None:
 
     assert result is False
     assert any(
-        "obs-websocket library is not installed" in record.message
+        "obs-websocket ライブラリがインストールされていません" in record.message
         for record in caplog.records
     )
 

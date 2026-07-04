@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""YouTube 動画のコメントスレッド取得機能を提供するモジュール。
+"""YouTube 動画のコメントスレッド取得機能を提供するモジュールです。
 
 このモジュールは、YouTube Data API を介して指定動画のコメントスレッドを
 取得し、ライブチャット形式に整形する機能を提供します。
@@ -26,7 +26,7 @@ from .client import BaseYouTubeClient, logger
 
 
 class YouTubeVideoClient(BaseYouTubeClient):
-    """YouTubeの動画詳細およびコメントスレッドに特化したクライアントクラス。"""
+    """YouTube 動画の詳細とコメントを取得するクライアントクラスです。"""
 
     def fetch_comment_threads(
         self,

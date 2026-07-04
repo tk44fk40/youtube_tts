@@ -166,18 +166,23 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
             )
         except HttpError as e:
             self._handle_api_error(e)
-            logger.warning(f"Error checking video status: {e}")
+            logger.warning(
+                f"動画ステータスの確認中にエラーが発生しました: {e}"
+            )
             return True
 
         items = vresp.get("items", [])
         if not items:
-            logger.info("Video not found; assuming stream ended")
+            logger.info("動画が見つかりません。配信が終了したと判断します。")
             return False
 
         details = items[0].get("liveStreamingDetails", {})
         active_chat = details.get("activeLiveChatId")
         if not active_chat:
-            logger.info("activeLiveChatId missing; stream likely ended")
+            logger.info(
+                "activeLiveChatId が見つかりません。"
+                "配信が終了した可能性があります。"
+            )
             return False
 
         return True

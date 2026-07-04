@@ -237,7 +237,8 @@ def test_check_stream_active_all_cases(
     with caplog.at_level("WARNING"):
         assert client.check_stream_active("vid") is True
     assert any(
-        "Error checking video status" in r.message for r in caplog.records
+        "動画ステータスの確認中にエラーが発生しました" in r.message
+        for r in caplog.records
     )
 
 

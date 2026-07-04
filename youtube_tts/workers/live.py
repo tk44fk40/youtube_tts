@@ -166,7 +166,8 @@ def live_worker(
 
         if verbose:
             app.logger.debug(
-                f"Fetching chat messages (pageToken: {next_page_token})"
+                "チャットメッセージを取得しています "
+                f"(pageToken: {next_page_token})"
             )
 
         try:
@@ -243,9 +244,9 @@ def live_worker(
 
         if verbose:
             app.logger.debug(
-                f"Fetched {len(items)} items. "
-                f"next_page_token: {next_page_token}, "
-                f"polling_interval: {polling_interval}ms"
+                f"{len(items)} 件のアイテムを取得しました。 "
+                f"(next_page_token: {next_page_token}, "
+                f"polling_interval: {polling_interval}ms)"
             )
 
         for item in items:
@@ -263,15 +264,15 @@ def live_worker(
                         if published_at < threshold_time:
                             author_name = item["authorDetails"]["displayName"]
                             app.logger.debug(
-                                f"[SKIP(PAST)] {author_name}: "
+                                f"[SKIP(過去コメント)] {author_name}: "
                                 f"{item['snippet']['displayMessage']} "
-                                f"(published at {published_at_str})"
+                                f"(投稿日時: {published_at_str})"
                             )
                             continue
                     except ValueError as ex:
                         app.logger.warning(
-                            f"Failed to parse publishedAt: "
-                            f"{published_at_str}, error: {ex}"
+                            f"publishedAt のパースに失敗しました: "
+                            f"{published_at_str}, エラー: {ex}"
                         )
 
             author = item["authorDetails"]["displayName"]
@@ -299,10 +300,10 @@ def live_worker(
         # 配信がアクティブであるか確認します。
         if now - last_stream_check_time >= stream_check_interval:
             if verbose:
-                app.logger.debug("Checking stream active status...")
+                app.logger.debug("配信のアクティブ状態を確認しています...")
             is_active = live_client.check_stream_active(video_id)
             if verbose:
-                app.logger.debug(f"Stream active status: {is_active}")
+                app.logger.debug(f"配信アクティブ状態: {is_active}")
             if not is_active:
                 app.stop_event.set()
                 return
@@ -316,14 +317,14 @@ def live_worker(
             and (now - last_quota_check_time >= quota_interval)
         ):
             if verbose:
-                app.logger.debug("Fetching quota info...")
+                app.logger.debug("クォータ情報を取得しています...")
             try:
                 used, limit = get_quota_info(creds, project_id)
                 remaining = max(0, limit - used)
                 usage_percent = (used / limit) * 100 if limit > 0 else 0
                 app.logger.info(
-                    f"[QUOTA] Used: {used:,} / {limit:,} "
-                    f"({usage_percent:.2f}%), Remaining: {remaining:,}"
+                    f"[QUOTA] 使用量: {used:,} / {limit:,} "
+                    f"({usage_percent:.2f}%), 残量: {remaining:,}"
                 )
 
                 is_diff = used != app.last_spoken_used

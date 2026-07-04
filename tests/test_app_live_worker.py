@@ -1049,7 +1049,7 @@ def test_get_next_quota_reset_time_pst_winter(mock_datetime: Any) -> None:
 
     # 12月（PST）として動作させます。
     fake_now = datetime(2024, 12, 15, 10, 0, 0, tzinfo=timezone.utc)
-    
+
     def mock_now(tz=None):
         if tz is not None:
             return fake_now.astimezone(tz)

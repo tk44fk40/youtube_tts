@@ -100,13 +100,13 @@ def main() -> None:
         "video_url_or_id",
         nargs="?",
         default=None,
-        help="YouTube動画・アーカイブのURLまたは動画ID",
+        help="YouTube動画・アーカイブのURLまたは動画IDを指定します。",
     )
     parser.add_argument(
         "-d",
         "--device",
         default=os.getenv("VOICEVOX_DEVICE"),
-        help="出力オーディオデバイス名またはID",
+        help="出力オーディオデバイス名またはIDを指定します。",
     )
     parser.add_argument(
         "--chat-interval",
@@ -251,7 +251,7 @@ def main() -> None:
             backlog_counts=args.backlog_counts,
         )
     except Exception:
-        logger.exception("Unexpected error")
+        logger.exception("予期しないエラーが発生しました。")
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""VOICEVOX エンジンと連携して音声合成を行うモジュール。
+"""VOICEVOX エンジンと連携して音声合成を行うモジュールです。
 
 このモジュールは、VOICEVOX エンジンの REST API を呼び出して
 テキストから音声を合成し、WAV 形式のバイナリデータを
@@ -25,7 +25,7 @@ import requests
 
 
 class VoicevoxClient:
-    """VOICEVOX エンジンの REST API クライアントクラス。"""
+    """VOICEVOX エンジンの REST API クライアントクラスです。"""
 
     def __init__(
         self,
@@ -78,7 +78,7 @@ class VoicevoxClient:
         Returns:
             WAV 形式の音声データのバイト列。
         """
-        # 1. 音声クエリを作成する
+        # 1. 音声クエリを作成します。
         query_response = requests.post(
             f"{self.base_url}/audio_query",
             params={"text": text, "speaker": self.speaker_id},
@@ -86,17 +86,17 @@ class VoicevoxClient:
         query_response.raise_for_status()
         query_data = query_response.json()
 
-        # サンプリングレートが指定されている場合は設定する
+        # サンプリングレートが指定されている場合は設定します。
         if target_sample_rate:
             query_data["outputSamplingRate"] = target_sample_rate
 
-        # 音量比を設定する
+        # 音量比を設定します。
         query_data["volumeScale"] = volume_scale
 
-        # 読上げスピードを設定する
+        # 読上げスピードを設定します。
         query_data["speedScale"] = speed_scale
 
-        # 2. 音声合成を実行する
+        # 2. 音声合成を実行します。
         synthesis_response = requests.post(
             f"{self.base_url}/synthesis",
             params={"speaker": self.speaker_id},

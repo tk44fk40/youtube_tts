@@ -46,7 +46,8 @@ def video_worker(
         backlog_counts (int): 読み込む初期バックログの件数です。
     """
     app.logger.info(
-        f"Loading initial comments backlog (limit: {backlog_counts})..."
+        "初期コメントのバックログをロードしています "
+        f"(制限: {backlog_counts})..."
     )
     backlog_items = []
     page_token = None
@@ -121,7 +122,7 @@ def video_worker(
         app.config.reload_if_changed()
 
         if verbose:
-            app.logger.debug("Fetching latest video comments...")
+            app.logger.debug("最新の動画コメントを取得しています...")
 
         try:
             # 最新のコメントを最大100件取得します。
@@ -137,8 +138,8 @@ def video_worker(
             return
 
             app.logger.debug(
-                f"Fetched {len(items)} items. "
-                f"polling_interval: {polling_interval}ms"
+                f"{len(items)} 件のアイテムを取得しました。 "
+                f"(polling_interval: {polling_interval}ms)"
             )
 
         # 取得したコメントを古い順に処理します。

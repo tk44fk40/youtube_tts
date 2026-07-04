@@ -93,7 +93,7 @@ def test_config_volume_invalid(
         config.reload_if_changed()
     assert config.volume_scale == 1.0
     assert any(
-        "Invalid volume value in volume.txt" in record.message
+        "volume.txt の値が無効です" in record.message
         for record in caplog.records
     )
     caplog.clear()
@@ -105,7 +105,7 @@ def test_config_volume_invalid(
         config.reload_if_changed()
     assert config.volume_scale == 1.0
     assert any(
-        "volume scale out of range" in record.message
+        "音量スケールが範囲外" in record.message
         for record in caplog.records
     )
 
@@ -183,9 +183,18 @@ def test_config_load_os_errors(
 
     combined_output = "\n".join(record.message for record in caplog.records)
 
-    assert "Failed to load dictionary: Permission Denied" in combined_output
-    assert "Failed to load ng_words: Permission Denied" in combined_output
-    assert "Failed to read volume.txt: Permission Denied" in combined_output
+    assert (
+        "辞書のロードに失敗しました: Permission Denied"
+        in combined_output
+    )
+    assert (
+        "NGワードのロードに失敗しました: Permission Denied"
+        in combined_output
+    )
+    assert (
+        "volume.txt の読み込みに失敗しました: Permission Denied"
+        in combined_output
+    )
 
 
 def test_config_files_not_exists(tmp_path: Path) -> None:

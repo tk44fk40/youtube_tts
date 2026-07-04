@@ -77,15 +77,17 @@ class ObsClient:
 
         if not self.password:
             logger.info(
-                "[OBS] OBS_WEBSOCKET_PASSWORD is not set; "
-                "skipping OBS update"
+                "[OBS] OBS_WEBSOCKET_PASSWORD が設定されていません。"
+                "OBSの更新をスキップします。"
             )
             return False
 
         if not self._available:
             logger.warning(
-                "[OBS] obs-websocket library is not installed; "
-                "install obs-websocket-py to enable OBS integration"
+                "[OBS] obs-websocket "
+                "ライブラリがインストールされていません。"
+                "OBS連携を有効にするには obs-websocket-py を"
+                "インストールしてください。"
             )
             return False
 

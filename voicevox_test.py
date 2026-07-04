@@ -67,37 +67,52 @@ def main() -> None:
         description="VOICEVOX 発声テストスクリプト"
     )
     parser.add_argument(
-        "-t", "--text", default=DEFAULT_TEXT, help="発声させるテキスト"
+        "-t",
+        "--text",
+        default=DEFAULT_TEXT,
+        help="発声させるテキストを指定します。",
     )
     parser.add_argument(
         "-s",
         "--speaker",
         type=int,
         default=DEFAULT_SPEAKER,
-        help="話者スタイルID",
+        help="話者スタイルIDを指定します。",
     )
     parser.add_argument(
-        "-o", "--output", default=DEFAULT_OUTPUT, help="保存先WAVファイルパス"
+        "-o",
+        "--output",
+        default=DEFAULT_OUTPUT,
+        help="保存先WAVファイルのパスを指定します。",
     )
     parser.add_argument(
-        "-H", "--host", default=DEFAULT_HOST, help="VOICEVOXのURL"
+        "-H",
+        "--host",
+        default=DEFAULT_HOST,
+        help="VOICEVOXのURLを指定します。",
     )
     parser.add_argument(
-        "-d", "--device", default=None, help="出力オーディオデバイス名またはID"
+        "-d",
+        "--device",
+        default=None,
+        help="出力オーディオデバイス名またはIDを指定します。",
     )
     parser.add_argument(
         "-r",
         "--samplerate",
         type=int,
         default=None,
-        help="生成サンプリングレート（未指定時はデバイスの既定値を使用）",
+        help=(
+            "生成サンプリングレートを指定します"
+            "（未指定時はデバイスの既定値を使用します）。"
+        ),
     )
     parser.add_argument(
         "-v",
         "--volume",
         type=float,
         default=DEFAULT_VOLUME,
-        help="音量比（デフォルト: 1.0）",
+        help="音量比を指定します（デフォルト: 1.0）。",
     )
     parser.add_argument(
         "--speed",
@@ -111,17 +126,17 @@ def main() -> None:
     parser.add_argument(
         "--list-speakers",
         action="store_true",
-        help="利用可能な話者スタイル一覧を表示",
+        help="利用可能な話者スタイルの一覧を表示します。",
     )
     parser.add_argument(
         "--list-devices",
         action="store_true",
-        help="オーディオデバイス一覧を表示",
+        help="オーディオデバイスの一覧を表示します。",
     )
     parser.add_argument(
         "--no-play",
         action="store_true",
-        help="再生をスキップしてファイル保存のみ行う",
+        help="再生をスキップしてファイル保存のみを行います。",
     )
 
     args = parser.parse_args()
@@ -141,7 +156,7 @@ def main() -> None:
             print(player.query_devices())
         return
 
-    # 出力デバイスの規定サンプリングレートを調べる
+    # 出力デバイスの規定サンプリングレートを調べます。
     target_sample_rate = args.samplerate
     if target_sample_rate is None and not args.no_play and player is not None:
         target_sample_rate = player.target_sample_rate
@@ -162,7 +177,7 @@ def main() -> None:
         logger.error(f"音声合成に失敗しました: {e}")
         sys.exit(1)
 
-    # WAVファイル保存
+    # WAVファイルを保存します。
     try:
         with open(args.output, "wb") as f:
             f.write(wav_content)

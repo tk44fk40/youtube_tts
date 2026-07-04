@@ -97,7 +97,7 @@ class AppConfig:
                     normalized_src = normalize_nfkc(src.strip()).lower()
                     replacements[normalized_src] = dst.strip()
         except OSError as e:
-            logger.warning(f"Failed to load dictionary: {e}")
+            logger.warning(f"辞書のロードに失敗しました: {e}")
         return replacements
 
     def _load_ng_words(self) -> set[str]:
@@ -118,7 +118,7 @@ class AppConfig:
                     normalized_word = normalize_nfkc(word).lower()
                     ng_words.add(normalized_word)
         except OSError as e:
-            logger.warning(f"Failed to load ng_words: {e}")
+            logger.warning(f"NGワードのロードに失敗しました: {e}")
         return ng_words
 
     def reload_if_changed(self) -> None:
@@ -132,7 +132,7 @@ class AppConfig:
             if current_mtime != self._dictionary_mtime:
                 self._dictionary_mtime = current_mtime
                 self.replacements = self._load_replacements()
-                logger.info("[CONFIG] dictionary reloaded")
+                logger.info("[CONFIG] 辞書を再ロードしました。")
 
         # NGワードファイルをチェックします。
         if self.ng_word_file.exists():
@@ -140,7 +140,7 @@ class AppConfig:
             if current_mtime != self._ng_word_mtime:
                 self._ng_word_mtime = current_mtime
                 self.ng_words = self._load_ng_words()
-                logger.info("[CONFIG] ng words reloaded")
+                logger.info("[CONFIG] NGワードを再ロードしました。")
 
         # 音量設定ファイルをチェックします。
         if self.volume_file.exists():
@@ -153,15 +153,15 @@ class AppConfig:
                     if 0.0 <= val <= 2.0:
                         self.volume_scale = val
                         logger.info(
-                            "[CONFIG] volume scale updated: "
+                            f"[CONFIG] 音量スケールを更新しました: "
                             f"{self.volume_scale}"
                         )
                     else:
                         logger.info(
-                            "[CONFIG] volume scale out of range "
-                            f"(0.0 - 2.0): {val}"
+                            "[CONFIG] 音量スケールが範囲外"
+                            f"（0.0 - 2.0）です: {val}"
                         )
                 except OSError as e:
-                    logger.warning(f"Failed to read volume.txt: {e}")
+                    logger.warning(f"volume.txt の読み込みに失敗しました: {e}")
                 except ValueError as e:
-                    logger.warning(f"Invalid volume value in volume.txt: {e}")
+                    logger.warning(f"volume.txt の値が無効です: {e}")
