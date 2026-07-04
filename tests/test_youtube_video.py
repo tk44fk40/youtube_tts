@@ -97,7 +97,9 @@ def test_fetch_comment_threads_http_error(mock_client, caplog):
     client, mock_service = mock_client
     resp = Response({"status": 403, "reason": "Forbidden"})
     content = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
-    mock_service.commentThreads().list().execute.side_effect = HttpError(resp, content)
+    mock_service.commentThreads().list().execute.side_effect = HttpError(
+        resp, content
+    )
 
     with pytest.raises(HttpError), caplog.at_level("ERROR"):
         client.fetch_comment_threads("vid")
@@ -146,7 +148,9 @@ def test_fetch_comment_threads_parse_error(mock_client, caplog):
     )
 
 
-@pytest.mark.parametrize("verbose, expect_debug", [(False, False), (True, True)])
+@pytest.mark.parametrize(
+    "verbose, expect_debug", [(False, False), (True, True)]
+)
 def test_get_video_details_comment_disabled(mock_client, verbose, expect_debug):
     """コメント無効動画アクセス時、設定に応じたログが出るかを検証。"""
     client, mock_service = mock_client
@@ -170,7 +174,9 @@ def test_get_video_details_comment_disabled(mock_client, verbose, expect_debug):
 
 
 def test_handle_api_error_decode_failure(mock_client):
-    """APIエラー発生時に e.content のデコードに失敗しても安全に処理されるか。"""
+    """APIエラー発生時にレスポンスのデコードに失敗しても
+    例外が発生せずに処理されることを検証。
+    """
     client, mock_service = mock_client
     resp = Response({"status": 500, "reason": "Internal Server Error"})
     content = b"\xff\xff\xff"  # 不正なUTF-8バイト

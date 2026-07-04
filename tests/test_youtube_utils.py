@@ -17,15 +17,15 @@ def test_extract_video_id_success():
     assert extract_video_id("dQw4w9WgXcQ") == "dQw4w9WgXcQ"
 
     # 2. 通常視聴URL
-    assert (
-        extract_video_id("https://www.youtube.com/watch?v=dQw4w9WgXcQ") == "dQw4w9WgXcQ"
-    )
+    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert extract_video_id(url) == "dQw4w9WgXcQ"
 
     # 3. 短縮URL
     assert extract_video_id("https://youtu.be/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
 
     # 4. ライブ配信URL
-    assert extract_video_id("https://www.youtube.com/live/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
+    live_url = "https://www.youtube.com/live/dQw4w9WgXcQ"
+    assert extract_video_id(live_url) == "dQw4w9WgXcQ"
 
 
 def test_extract_video_id_failure():

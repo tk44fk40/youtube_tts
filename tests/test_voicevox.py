@@ -1,3 +1,5 @@
+"""VoicevoxClient のテストモジュール。"""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +9,7 @@ from youtube_tts import VoicevoxClient
 
 
 def test_get_speakers_success():
+    """VOICEVOX スピーカー情報が正常に取得できることを検証。"""
     client = VoicevoxClient(base_url="http://fake-vox")
 
     with patch("requests.get") as mock_get:
@@ -20,10 +23,13 @@ def test_get_speakers_success():
 
 
 def test_get_speakers_connection_error():
+    """接続エラー時に RuntimeError が発生することを検証。"""
     client = VoicevoxClient(base_url="http://fake-vox")
 
     with patch("requests.get") as mock_get:
-        mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
+        mock_get.side_effect = (
+            requests.exceptions.ConnectionError("Connection refused")
+        )
 
         with pytest.raises(RuntimeError) as excinfo:
             client.get_speakers()
@@ -31,11 +37,10 @@ def test_get_speakers_connection_error():
 
 
 def test_synthesize_success():
+    """VOICEVOX で音声合成（synthesis）が正常に動作することを検証。"""
     client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
 
     with patch("requests.post") as mock_post:
-        # Response to audio_query
-        #
         # audio_query に対するレスポンス
         mock_query_resp = MagicMock()
         mock_query_resp.json.return_value = {
@@ -44,8 +49,6 @@ def test_synthesize_success():
             "speedScale": 1.0,
         }
 
-        # Response to synthesis
-        #
         # synthesis に対するレスポンス
         mock_synth_resp = MagicMock()
         mock_synth_resp.content = b"fake_wav_data"
@@ -75,6 +78,7 @@ def test_synthesize_success():
 
 
 def test_synthesize_success_no_rate():
+    """サンプリングレート未指定時の音声合成を検証。"""
     client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
 
     with patch("requests.post") as mock_post:
@@ -96,6 +100,7 @@ def test_synthesize_success_no_rate():
 
 
 def test_synthesize_http_error():
+    """音声合成リクエスト時に HTTPError が適切に送出されることを検証。"""
     client = VoicevoxClient(base_url="http://fake-vox", speaker_id=3)
 
     with patch("requests.post") as mock_post:
