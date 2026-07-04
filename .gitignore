@@ -30,3 +30,6 @@ Untitled.vvproj
 
 # Chat logs
 *.jsonl
+
+# Agents config and plans
+.agents/
