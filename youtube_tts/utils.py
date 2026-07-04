@@ -14,48 +14,52 @@
 #
 """YouTube 関連のユーティリティ関数を提供するモジュール。
 
-このモジュールは、YouTube の動画URLやIDから動画IDを抽出する
-ユーティリティ関数を提供します。
+このモジュールは、YouTube の動画 URL や ID から動画 ID を
+抽出するユーティリティ関数を提供します。
 """
+
+from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
 
 
 def extract_video_id(value: str) -> str:
-    """URLまたは文字列からYouTubeの動画IDを抽出します。
+    """URL または文字列から YouTube の動画 ID を抽出します。
 
-    youtu.be/<id>、youtube.com/watch?v=<id>、youtube.com/live/<id>
-    の形式に対応しています。URL形式でない場合は入力値をそのまま返します。
+    youtu.be/<id>、youtube.com/watch?v=<id>、
+    youtube.com/live/<id> の形式に対応しています。
+    URL 形式でない場合は入力値をそのまま返します。
 
     Args:
-        value: YouTubeの動画URL（各種形式）、または動画IDの文字列。
+        value: YouTube の動画 URL（各種形式）、または動画 ID の
+            文字列。
 
     Returns:
-        抽出されたYouTubeの動画ID。
+        抽出された YouTube の動画 ID。
 
     Raises:
-        RuntimeError: 対応しているURL形式であるにもかかわらず、
-            動画IDの抽出に失敗した場合。
+        RuntimeError: 対応している URL 形式であるにもかかわらず、
+            動画 ID の抽出に失敗した場合。
     """
     if "youtube.com" not in value and "youtu.be" not in value:
         return value
 
     parsed = urlparse(value)
 
-    # youtu.be/<id> 形式のURLから動画IDを抽出する
+    # youtu.be/<id> 形式の URL から動画 ID を抽出します。
     if parsed.netloc == "youtu.be":
         return parsed.path.lstrip("/")
 
-    # youtube.com/watch?v=<id> 形式のURLから動画IDを抽出する
+    # youtube.com/watch?v=<id> 形式の URL から動画 ID を抽出します。
     if parsed.path == "/watch":
         query = parse_qs(parsed.query)
         if "v" in query:
             return query["v"][0]
 
-    # youtube.com/live/<id> 形式のURLから動画IDを抽出する
+    # youtube.com/live/<id> 形式の URL から動画 ID を抽出します。
     if parsed.path.startswith("/live/"):
         parts = parsed.path.split("/")
         if len(parts) >= 3 and parts[2]:
             return parts[2]
 
-    raise RuntimeError("failed to extract video id")
+    raise RuntimeError("動画 ID の抽出に失敗しました。")
