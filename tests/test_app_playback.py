@@ -56,7 +56,7 @@ def test_speak_failure(app: YouTubeTtsApp) -> None:
 
         assert mock_error.call_count == 3
         mock_error.assert_any_call(
-            "[ERROR] 音声の合成または再生に失敗しました。"
+            "音声の合成または再生に失敗しました。"
         )
         mock_debug.assert_not_called()
 

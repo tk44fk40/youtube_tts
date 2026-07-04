@@ -96,7 +96,7 @@ class YouTubeTtsApp:
             # 音声を再生します。
             self.audio_player.play_wav(wav_bytes)
         except Exception as e:
-            self.logger.error("[ERROR] 音声の合成または再生に失敗しました。")
+            self.logger.error("音声の合成または再生に失敗しました。")
             self.logger.error(
                 "        - VOICEVOX サーバーが起動しているか確認してください。"
             )
@@ -166,7 +166,7 @@ class YouTubeTtsApp:
             with open(self.config.chat_log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(log_data, ensure_ascii=False) + "\n")
         except Exception as e:
-            self.logger.error(f"[ERROR] チャットログの保存に失敗しました: {e}")
+            self.logger.error(f"チャットログの保存に失敗しました: {e}")
 
     def playback_worker(self) -> None:
         """コメント再生キューを監視し、順次再生するスレッドワーカーです。"""

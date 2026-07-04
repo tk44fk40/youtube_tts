@@ -251,7 +251,7 @@ def main() -> None:
     try:
         creds = authenticator.get_credentials()
     except Exception as e:
-        logger.error("[ERROR] 認証に失敗しました。")
+        logger.error("認証に失敗しました。")
         if args.verbose:
             logger.debug(f"  (エラー詳細: {e})")
         sys.exit(1)
@@ -265,7 +265,7 @@ def main() -> None:
         try:
             video_id, chat_url = live_client.get_current_live_video_id()
         except RuntimeError as e:
-            logger.error(f"[ERROR] ライブ動画IDの自動検出に失敗しました: {e}")
+            logger.error(f"ライブ動画IDの自動検出に失敗しました: {e}")
             sys.exit(1)
 
         logger.info(
