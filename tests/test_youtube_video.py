@@ -97,9 +97,7 @@ def test_fetch_comment_threads_http_error(mock_client, caplog):
     client, mock_service = mock_client
     resp = Response({"status": 403, "reason": "Forbidden"})
     content = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
-    mock_service.commentThreads().list().execute.side_effect = HttpError(
-        resp, content
-    )
+    mock_service.commentThreads().list().execute.side_effect = HttpError(resp, content)
 
     with pytest.raises(HttpError), caplog.at_level("ERROR"):
         client.fetch_comment_threads("vid")
@@ -145,9 +143,7 @@ def test_fetch_comment_threads_parse_error(mock_client, caplog):
     assert any("Failed to parse comment" in r.message for r in caplog.records)
 
 
-@pytest.mark.parametrize(
-    "verbose, expect_debug", [(False, False), (True, True)]
-)
+@pytest.mark.parametrize("verbose, expect_debug", [(False, False), (True, True)])
 def test_get_video_details_comment_disabled(mock_client, verbose, expect_debug):
     """コメント無効動画アクセス時、設定に応じたログが出るかを検証。"""
     client, mock_service = mock_client

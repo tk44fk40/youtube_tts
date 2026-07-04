@@ -88,8 +88,7 @@ def test_config_volume_invalid(tmp_path, caplog):
         config.reload_if_changed()
     assert config.volume_scale == 1.0
     assert any(
-        "volume scale out of range" in record.message
-        for record in caplog.records
+        "volume scale out of range" in record.message for record in caplog.records
     )
 
 

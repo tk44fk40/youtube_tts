@@ -5,9 +5,7 @@ from youtube_tts import AppConfig, AudioPlayer, TextProcessor, VoicevoxClient
 
 @patch("requests.post")
 @patch.object(AudioPlayer, "play_wav")
-def test_tts_pipeline_integration(
-    mock_play_wav, mock_post, tmp_path, dummy_wav_bytes
-):
+def test_tts_pipeline_integration(mock_play_wav, mock_post, tmp_path, dummy_wav_bytes):
     # 1. Set up config files in temporary directory
     #
     # 1. 一時ディレクトリに設定ファイルをセットアップする
@@ -50,9 +48,7 @@ def test_tts_pipeline_integration(
     # A. Normalization (TextProcessor)
     #
     # A. 正規化 (TextProcessor)
-    normalized_author, normalized_msg = processor.normalize_comment(
-        author, message
-    )
+    normalized_author, normalized_msg = processor.normalize_comment(author, message)
     assert normalized_author == "Taroさん"
     assert normalized_msg == "I like 林檎"
     assert processor.contains_ng_word(normalized_msg) is False

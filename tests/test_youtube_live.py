@@ -48,9 +48,7 @@ def test_get_my_channel_id_failure(mock_client, caplog):
 
     with caplog.at_level("WARNING"):
         assert client.get_my_channel_id() is None
-    assert any(
-        "Failed to get my channel ID" in r.message for r in caplog.records
-    )
+    assert any("Failed to get my channel ID" in r.message for r in caplog.records)
 
 
 def test_get_my_channel_id_empty_items(mock_client):
@@ -124,9 +122,7 @@ def test_get_current_live_video_id_http_error(mock_client):
     """配信一覧取得時の API エラー例外が再スローされることを検証。"""
     client, mock_service = mock_client
     resp = Response({"status": 403, "reason": "Forbidden"})
-    mock_service.liveBroadcasts().list().execute.side_effect = HttpError(
-        resp, b"Err"
-    )
+    mock_service.liveBroadcasts().list().execute.side_effect = HttpError(resp, b"Err")
 
     with pytest.raises(HttpError):
         client.get_current_live_video_id()
@@ -182,9 +178,7 @@ def test_check_stream_active_all_cases(mock_client, caplog):
     mock_service.videos().list().execute.side_effect = HttpError(resp, b"Err")
     with caplog.at_level("WARNING"):
         assert client.check_stream_active("vid") is True
-    assert any(
-        "Error checking video status" in r.message for r in caplog.records
-    )
+    assert any("Error checking video status" in r.message for r in caplog.records)
 
 
 def test_handle_quota_error(mock_client, caplog):

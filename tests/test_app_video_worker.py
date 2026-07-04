@@ -18,11 +18,10 @@ YouTubeTtsApp.video_worker のテストモジュール。
 """
 
 import queue
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from youtube_tts import YouTubeVideoClient
+import youtube_tts.workers.video  # noqa: F401
 
 
 def test_video_worker_success(app):
@@ -349,3 +348,72 @@ def test_video_worker_polling_queue_full(app):
     )
 
     assert app.comment_queue.qsize() == 1
+
+
+def test_video_worker_ng_word_verbose(app):
+    """初期バックログでNGワードがあり、かつverboseがTrueの場合の分岐を検証。"""
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    mock_video_client.fetch_comment_threads.return_value = (
+        [
+            {
+                "id": "c1",
+                "authorDetails": {"displayName": "User1", "channelId": "ch1"},
+                "snippet": {
+                    "displayMessage": "badword message",
+                    "publishedAt": "2026-07-03T10:00:00Z",
+                },
+            }
+        ],
+        None,
+        3000,
+    )
+    app.config.ng_words = ["badword"]
+    app.stop_event.set()
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=True,
+        backlog_counts=10,
+    )
+
+
+def test_video_worker_polling_ng_word_verbose(app):
+    """リアルタイム監視時にNGワードがあり、かつverboseがTrueの場合の分岐を検証。"""
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+    app.config.ng_words = ["badword"]
+
+    call_count = 0
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return [], None, 3000
+        else:
+            app.stop_event.set()
+            return (
+                [
+                    {
+                        "id": "c1",
+                        "authorDetails": {"displayName": "User1", "channelId": "ch1"},
+                        "snippet": {
+                            "displayMessage": "badword message",
+                            "publishedAt": "2026-07-03T10:05:00Z",
+                        },
+                    }
+                ],
+                None,
+                3000,
+            )
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=True,
+        backlog_counts=10,
+    )

@@ -19,6 +19,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"
 
+
 class YouTubeAuthenticator:
     def __init__(
         self,

@@ -63,9 +63,7 @@ def get_quota_info(creds, project_id):
     try:
         tz_la = ZoneInfo("America/Los_Angeles")
         now_la = datetime.now(tz_la)
-        today_start_la = now_la.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        today_start_la = now_la.replace(hour=0, minute=0, second=0, microsecond=0)
         start_sec = int(today_start_la.timestamp())
         end_sec = int(now_la.timestamp())
         if start_sec >= end_sec:
@@ -109,9 +107,7 @@ def get_quota_info(creds, project_id):
         limit_interval = monitoring_v3.TimeInterval(
             {
                 "end_time": {"seconds": end_sec},
-                "start_time": {
-                    "seconds": max(start_sec - 3600, end_sec - 3600)
-                },
+                "start_time": {"seconds": max(start_sec - 3600, end_sec - 3600)},
             }
         )
         limit_filter = (

@@ -8,9 +8,7 @@ from youtube_tts.quota import get_project_id, get_quota_info
 
 def test_get_project_id_missing_file(tmp_path):
     missing_file = tmp_path / "non_existent.json"
-    with pytest.raises(
-        RuntimeError, match="non_existent.json が見つかりません。"
-    ):
+    with pytest.raises(RuntimeError, match="non_existent.json が見つかりません。"):
         get_project_id(missing_file)
 
 

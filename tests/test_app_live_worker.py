@@ -20,9 +20,8 @@ YouTubeTtsApp.live_worker のテストモジュール。
 import queue
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from youtube_tts import YouTubeLiveChatClient
+import youtube_tts.workers.live  # noqa: F401
 
 
 def test_live_worker_success(app):
@@ -429,7 +428,7 @@ def test_live_worker_get_live_chat_id_failure(app):
     assert app.stop_event.is_set() is True
 
 
-@patch("youtube_tts.app.get_quota_info")
+@patch("youtube_tts.workers.live.get_quota_info")
 def test_live_worker_quota_info_check(mock_quota_info, app):
     """クォータ情報取得が実行され、通知キューが更新されるか検証。"""
     mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
@@ -472,7 +471,7 @@ def test_live_worker_quota_info_check(mock_quota_info, app):
     assert app.comment_queue.qsize() == 1
 
 
-@patch("youtube_tts.app.get_quota_info")
+@patch("youtube_tts.workers.live.get_quota_info")
 def test_live_worker_quota_info_error(mock_quota_info, app):
     """クォータ情報取得中にエラーが発生しても処理が継続するか検証。"""
     mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
@@ -513,3 +512,27 @@ def test_live_worker_quota_info_error(mock_quota_info, app):
 
     assert mock_quota_info.call_count >= 1
     assert app.comment_queue.qsize() == 0
+
+
+def test_format_reset_time_for_speech_direct(app):
+    """app._format_reset_time_for_speech の直接呼び出しテスト。"""
+    from datetime import datetime, timedelta
+
+    now_local = datetime.now().astimezone()
+
+    # 今日
+    reset_today = now_local.replace(hour=23, minute=30)
+    res = app._format_reset_time_for_speech(reset_today)
+    assert "今日" in res
+    assert "23時30分" in res
+
+    # 明日
+    reset_tomorrow = (now_local + timedelta(days=1)).replace(hour=5, minute=0)
+    res = app._format_reset_time_for_speech(reset_tomorrow)
+    assert "明日" in res
+    assert "5時" in res
+
+    # それ以外の日
+    reset_other = (now_local + timedelta(days=3)).replace(hour=12, minute=0)
+    res = app._format_reset_time_for_speech(reset_other)
+    assert f"{reset_other.month}月{reset_other.day}日" in res

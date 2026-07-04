@@ -20,8 +20,6 @@ YouTubeTtsApp のライフサイクルと実行メソッドのテスト。
 import signal
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def test_run_live(app):
     """run_live メソッドが正しく初期化とクリーンアップを行うか検証。"""
@@ -30,7 +28,7 @@ def test_run_live(app):
 
     with (
         patch("threading.Thread") as mock_thread,
-        patch.object(app, "live_worker") as mock_live_worker,
+        patch.object(app, "live_worker"),
     ):
         app.run_live(
             live_client=mock_live_client,
@@ -89,7 +87,7 @@ def test_run_video(app):
 
     with (
         patch("threading.Thread") as mock_thread,
-        patch.object(app, "video_worker") as mock_video_worker,
+        patch.object(app, "video_worker"),
     ):
         app.run_video(
             video_client=mock_video_client,
@@ -164,5 +162,3 @@ def test_app_init_default_logger():
         obs_client=MagicMock(),
     )
     assert test_app.logger is not None
-
-
