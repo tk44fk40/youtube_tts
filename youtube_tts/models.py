@@ -14,21 +14,31 @@
 #
 """データモデルを定義するモジュールです。"""
 
+from __future__ import annotations
+
 
 class CommentItem(tuple):
-    """キューに投入されるチャットやコメントのアイテムを表現するクラス。"""
+    """キューに投入されるチャットやコメントのアイテムを表現するクラスです。"""
 
-    def __new__(cls, author: str, message: str, char_count: int):
+    def __new__(
+        cls,
+        author: str,
+        message: str,
+        char_count: int,
+    ) -> CommentItem:
         """新しい CommentItem インスタンスを作成します。
 
         Args:
             author: 送信者名。
             message: メッセージ本文。
             char_count: 文字数。
+
+        Returns:
+            作成された CommentItem インスタンスです。
         """
         return super().__new__(cls, (author, message))
 
-    def __init__(self, author: str, message: str, char_count: int):
+    def __init__(self, author: str, message: str, char_count: int) -> None:
         """CommentItem インスタンスを初期化します。
 
         Args:
