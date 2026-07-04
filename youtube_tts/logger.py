@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""YouTube TTS アプリケーション用のカスタムロギングモジュール。
+"""YouTube TTS アプリケーション用のカスタムロギングモジュールです。
 
 このモジュールは、タイムスタンプおよびログレベルの識別子を自動付与する
 ロガーを提供します。メッセージの整形や重複プリフィックスの除去を
 標準の Filter 機能を用いて処理します。
 
 提供機能:
-    - setup_logger: ロガーの初期化とフォーマット設定
-    - get_logger: 初期化済みのロガーインスタンスの取得
+    - setup_logger: ロガーの初期化とフォーマット設定を行います。
+    - get_logger: 初期化済みのロガーインスタンスを取得します。
 """
+
+from __future__ import annotations
 
 import logging
 
@@ -29,7 +31,7 @@ LOGGER_NAME = "youtube_tts"
 
 
 class StripAndCleanupFilter(logging.Filter):
-    """ログメッセージの整形および重複プリフィックスの除去を行うフィルター。"""
+    """ログメッセージの整形および重複プリフィックスの除去を行うフィルタークラスです。"""
 
     def filter(self, record: logging.LogRecord) -> bool:
         """ログレコードにフィルターを適用し、メッセージを整形します。
@@ -40,13 +42,13 @@ class StripAndCleanupFilter(logging.Filter):
             record: 整形対象のログレコード。
 
         Returns:
-            常に True。
+            常に True を返します。
         """
         if isinstance(record.msg, str):
             msg_str = record.msg.strip()
             pfx = f"[{record.levelname}]"
 
-            # メッセージ先頭に同名のプリフィックスがある場合は除去
+            # メッセージ先頭に同名のプリフィックスがある場合は除去します。
             if msg_str.startswith(pfx):
                 msg_str = msg_str[len(pfx) :].strip()
 
@@ -65,20 +67,20 @@ def setup_logger(verbose: bool = False) -> logging.Logger:
             False の場合は INFO に設定します。
 
     Returns:
-        初期化済みのロガーインスタンス。
+        初期化済みのロガーインスタンスを返します。
     """
     logger = logging.getLogger(LOGGER_NAME)
 
     if logger.handlers:
         logger.handlers.clear()
 
-    # 引数に応じてログの出力閾値を DEBUG または INFO に設定
+    # 引数に応じてログの出力閾値を DEBUG または INFO に設定します。
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
-    # 標準エラー出力ストリームへ出力するハンドラを生成
+    # 標準エラー出力ストリームへ出力するハンドラを生成します。
     handler = logging.StreamHandler()
 
-    # タイムスタンプ、ログレベル、メッセージを半角スペース区切りで指定
+    # タイムスタンプ、ログレベル、メッセージを半角スペース区切りで指定します。
     formatter = logging.Formatter(
         fmt="[%(asctime)s] [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -98,7 +100,7 @@ def get_logger() -> logging.Logger:
     未初期化の場合は初期設定を実行します。
 
     Returns:
-        取得されたロガーインスタンス。
+        取得されたロガーインスタンスを返します。
     """
     logger = logging.getLogger(LOGGER_NAME)
     if not logger.handlers:
