@@ -18,6 +18,8 @@
 取得し、ライブチャット形式に整形する機能を提供します。
 """
 
+from __future__ import annotations
+
 from googleapiclient.errors import HttpError
 
 from .client import BaseYouTubeClient, logger
