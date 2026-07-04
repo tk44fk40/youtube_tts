@@ -29,9 +29,7 @@ def test_auth_valid_cache(mock_creds_class, tmp_path):
 
 @patch("youtube_tts.auth.Request")
 @patch("youtube_tts.auth.Credentials")
-def test_auth_expired_refresh_success(
-    mock_creds_class, mock_request_class, tmp_path
-):
+def test_auth_expired_refresh_success(mock_creds_class, mock_request_class, tmp_path):
     token_file = tmp_path / "token.json"
     token_file.write_text('{"token": "expired_token"}', encoding="utf-8")
 

@@ -45,9 +45,7 @@ def test_speak_failure(app):
         app.audio_player.play_wav.assert_not_called()
 
         assert mock_error.call_count == 3
-        mock_error.assert_any_call(
-            "[ERROR] 音声の合成または再生に失敗しました。"
-        )
+        mock_error.assert_any_call("[ERROR] 音声の合成または再生に失敗しました。")
         mock_debug.assert_not_called()
 
 

@@ -87,10 +87,7 @@ def test_query_devices_aplay_success(monkeypatch):
 
     mock_res = MagicMock()
     mock_res.stdout = (
-        "null\n"
-        "    Discard all samples\n"
-        "default\n"
-        "    Default ALSA Output\n"
+        "null\n    Discard all samples\ndefault\n    Default ALSA Output\n"
     )
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: mock_res)
 
@@ -419,7 +416,10 @@ def test_stop_exception_handling(monkeypatch):
     with patch("youtube_tts.audio.logger.warning") as mock_warning:
         player.stop()
         mock_warning.assert_called_once()
-        assert "外部再生プロセスの停止中にエラーが発生しました" in mock_warning.call_args[0][0]
+        assert (
+            "外部再生プロセスの停止中にエラーが発生しました"
+            in mock_warning.call_args[0][0]
+        )
 
 
 def test_audio_initialization_pactl_no_hz(monkeypatch):
@@ -514,4 +514,3 @@ def test_stop_already_terminated():
     player.stop()
     # terminate が呼ばれないこと
     mock_process.terminate.assert_not_called()
-

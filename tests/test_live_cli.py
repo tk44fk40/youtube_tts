@@ -46,9 +46,7 @@ def mock_cli_components():
     """主要コンポーネントを一括でモック化し、標準的な初期値を設定。"""
     with (
         patch("youtube_live_voicevox.YouTubeAuthenticator") as mock_auth,
-        patch(
-            "youtube_live_voicevox.YouTubeLiveChatClient"
-        ) as mock_live_client,
+        patch("youtube_live_voicevox.YouTubeLiveChatClient") as mock_live_client,
         patch("youtube_live_voicevox.YouTubeTtsApp") as mock_app_class,
         patch("youtube_live_voicevox.AudioPlayer") as mock_audio_player_class,
         patch("sounddevice.query_devices") as mock_query,
@@ -146,9 +144,7 @@ def test_live_cli_speed_option(mock_cli_components):
     """--speed オプションが config.speed_scale に反映されることを検証。"""
     components = mock_cli_components
 
-    with patch(
-        "sys.argv", ["youtube_live_voicevox.py", "--speed", "1.5", "video123"]
-    ):
+    with patch("sys.argv", ["youtube_live_voicevox.py", "--speed", "1.5", "video123"]):
         main()
 
     _, kwargs = components["app_class"].call_args
@@ -194,9 +190,7 @@ def test_live_cli_chat_log_option(mock_cli_components):
 def test_live_cli_auth_failure(mock_cli_components):
     """認証に失敗した場合、ステータスコード1でシステム終了することを検証。"""
     components = mock_cli_components
-    components["auth_instance"].get_credentials.side_effect = Exception(
-        "Auth Failure"
-    )
+    components["auth_instance"].get_credentials.side_effect = Exception("Auth Failure")
 
     with pytest.raises(SystemExit) as exc_info:
         with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):

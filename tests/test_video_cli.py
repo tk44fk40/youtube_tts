@@ -17,7 +17,6 @@
 youtube_video_voicevox.py のCLIオプションと例外ハンドリングのテスト。
 """
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -39,9 +38,7 @@ def mock_cli_components():
     """主要コンポーネントを一括でモック化し、標準的な初期値を設定。"""
     with (
         patch("youtube_video_voicevox.YouTubeAuthenticator") as mock_auth,
-        patch(
-            "youtube_video_voicevox.YouTubeVideoClient"
-        ) as mock_video_client,
+        patch("youtube_video_voicevox.YouTubeVideoClient") as mock_video_client,
         patch("youtube_video_voicevox.YouTubeTtsApp") as mock_app_class,
         patch("youtube_video_voicevox.AudioPlayer") as mock_audio_player_class,
         patch("sounddevice.query_devices") as mock_query,
@@ -139,9 +136,7 @@ def test_video_cli_chat_log_option(mock_cli_components):
 def test_video_cli_auth_failure(mock_cli_components):
     """認証に失敗した場合、ステータスコード1でシステム終了することを検証。"""
     components = mock_cli_components
-    components["auth_instance"].get_credentials.side_effect = Exception(
-        "Auth Failure"
-    )
+    components["auth_instance"].get_credentials.side_effect = Exception("Auth Failure")
 
     with pytest.raises(SystemExit) as exc_info:
         with patch("sys.argv", ["youtube_video_voicevox.py", "video123"]):

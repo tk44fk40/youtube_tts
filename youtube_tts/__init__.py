@@ -23,7 +23,8 @@ from .obs import ObsClient
 from .quota import QUOTA_SCOPES, get_project_id, get_quota_info
 from .logger import setup_logger, get_logger
 from .utils import extract_video_id
-from .app import YouTubeTtsApp, CommentItem
+from .app import YouTubeTtsApp
+from .models import CommentItem
 
 __all__ = [
     "YouTubeAuthenticator",

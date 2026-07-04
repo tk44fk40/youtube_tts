@@ -42,9 +42,7 @@ class BaseYouTubeClient:
         """
         if not hasattr(self, "_my_channel_id"):
             try:
-                response = (
-                    self.youtube.channels().list(part="id", mine=True).execute()
-                )
+                response = self.youtube.channels().list(part="id", mine=True).execute()
                 items = response.get("items", [])
                 if items:
                     self._my_channel_id = items[0]["id"]
@@ -107,8 +105,7 @@ class BaseYouTubeClient:
         if e.resp.status == 403:
             if "quotaExceeded" in err_msg:
                 logger.error(
-                    "[ERROR] YouTube API の本日の無料枠上限（クォータ）を"
-                    "超過しました。"
+                    "[ERROR] YouTube API の本日の無料枠上限（クォータ）を超過しました。"
                 )
                 logger.error(
                     "  - 太平洋時間 0:00（日本時間の午後4時〜5時頃）に"

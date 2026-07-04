@@ -48,9 +48,7 @@ def test_normalize_comment(mock_config):
     # Normalize message
     #
     # メッセージの正規化
-    msg = (
-        "こんにちは！ http://example.com/test 😄 wwwww youtubeでgoogleを見よう"
-    )
+    msg = "こんにちは！ http://example.com/test 😄 wwwww youtubeでgoogleを見よう"
     # Remove URL, remove emoji 😄, convert wwwww to 'わら',
     # and convert google to 'グーグル'.
     # 'こんにちは！' is normalized to 'こんにちは!'.
@@ -236,10 +234,7 @@ def test_normalize_message_stamps_and_kaomoji(mock_config):
     #
     # YouTubeスタンプ (コロン表記) の除去
     assert processor.normalize_message(":face-purple-crying:") == ""
-    assert (
-        processor.normalize_message("こんにちは！:custom_stamp:")
-        == "こんにちは!"
-    )
+    assert processor.normalize_message("こんにちは！:custom_stamp:") == "こんにちは!"
     assert processor.normalize_message(":emoji-1: 元気？ :emoji-2:") == "元気?"
 
     # Removal of parenthesized emoticons
@@ -253,22 +248,10 @@ def test_normalize_message_stamps_and_kaomoji(mock_config):
     # Normal parentheses remain
     #
     # 通常の括弧表記は残る
-    assert (
-        processor.normalize_message("りんご(林檎)を食べる")
-        == "りんご(林檎)を食べる"
-    )
-    assert (
-        processor.normalize_message("会議は水曜日(水)です")
-        == "会議は水曜日(水)です"
-    )
-    assert (
-        processor.normalize_message("これはテストです(笑)")
-        == "これはテストです(笑)"
-    )
-    assert (
-        processor.normalize_message("通常コメント(Taro)")
-        == "通常コメント(Taro)"
-    )
+    assert processor.normalize_message("りんご(林檎)を食べる") == "りんご(林檎)を食べる"
+    assert processor.normalize_message("会議は水曜日(水)です") == "会議は水曜日(水)です"
+    assert processor.normalize_message("これはテストです(笑)") == "これはテストです(笑)"
+    assert processor.normalize_message("通常コメント(Taro)") == "通常コメント(Taro)"
 
     # Removal of emoticons without parentheses
     #

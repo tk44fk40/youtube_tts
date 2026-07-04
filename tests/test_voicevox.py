@@ -23,9 +23,7 @@ def test_get_speakers_connection_error():
     client = VoicevoxClient(base_url="http://fake-vox")
 
     with patch("requests.get") as mock_get:
-        mock_get.side_effect = requests.exceptions.ConnectionError(
-            "Connection refused"
-        )
+        mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
 
         with pytest.raises(RuntimeError) as excinfo:
             client.get_speakers()
