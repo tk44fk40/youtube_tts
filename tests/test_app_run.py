@@ -101,8 +101,7 @@ def test_is_and_mark_processed(app):
     assert app.is_and_mark_processed("id2") is False
     assert app.is_and_mark_processed("id2") is True
 
-    # id3を追加すると最大2件制限により最古の id1 が破棄されるはず
-    # Adding id3 discards the oldest id1 due to the limit of 2
+    # id3を追加すると最大2件制限により最古の id1 が破棄される
     assert app.is_and_mark_processed("id3") is False
     assert app.is_and_mark_processed("id1") is False
 
@@ -114,21 +113,18 @@ def test_format_reset_time_for_speech(app):
     now = datetime.now().astimezone()
 
     # 今日 (delta_days = 0, minutes > 0)
-    # Today
     t0 = now.replace(hour=15, minute=30)
     res0 = app._format_reset_time_for_speech(t0)
     assert "今日" in res0
     assert "15時30分" in res0
 
     # 明日 (delta_days = 1, minutes = 0)
-    # Tomorrow
     t1 = (now + timedelta(days=1)).replace(hour=15, minute=0)
     res1 = app._format_reset_time_for_speech(t1)
     assert "明日" in res1
     assert "15時" in res1
 
     # 明後日以降 (delta_days = 2)
-    # Beyond tomorrow
     t2 = (now + timedelta(days=2)).replace(hour=15, minute=0)
     res2 = app._format_reset_time_for_speech(t2)
     assert f"{t2.month}月{t2.day}日" in res2

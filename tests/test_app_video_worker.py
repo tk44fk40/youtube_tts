@@ -3,7 +3,6 @@
 import queue
 from unittest.mock import MagicMock, patch
 
-import youtube_tts.workers.video  # noqa: F401
 from youtube_tts import YouTubeVideoClient
 
 
@@ -41,7 +40,7 @@ def test_video_worker_success(app):
             return (
                 [
                     {
-                        "id": "c1",  # Duplicate of backlog, will be skipped
+                        "id": "c1",  # バックログとの重複のためスキップ
                         "authorDetails": {
                             "displayName": "User1",
                             "channelId": "ch1",
@@ -52,7 +51,7 @@ def test_video_worker_success(app):
                         },
                     },
                     {
-                        "id": "c2",  # New comment
+                        "id": "c2",  # 新規コメント
                         "authorDetails": {
                             "displayName": "User2",
                             "channelId": "ch2",

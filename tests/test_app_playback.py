@@ -18,7 +18,7 @@ def test_speak_success(app):
     )
     app.audio_player.play_wav.assert_called_with(b"mock_wav")
 
-    # Speak with explicit speed_scale
+    # 明示的な speed_scale を指定した発話
     app.speak("テストテキスト2", speed_scale=1.5)
     app.voicevox_client.synthesize.assert_called_with(
         text="テストテキスト2",
@@ -45,7 +45,9 @@ def test_speak_failure(app):
         app.audio_player.play_wav.assert_not_called()
 
         assert mock_error.call_count == 3
-        mock_error.assert_any_call("[ERROR] 音声の合成または再生に失敗しました。")
+        mock_error.assert_any_call(
+            "[ERROR] 音声の合成または再生に失敗しました。"
+        )
         mock_debug.assert_not_called()
 
 

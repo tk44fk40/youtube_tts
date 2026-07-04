@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Read YouTube Live chat comments using VOICEVOX.
-
-YouTube Live のチャットコメントを VOICEVOX で読み上げる。
+"""VOICEVOX を使用して YouTube Live チャットコメントを
+読み上げるスクリプトです。
 """
 
 import argparse
@@ -37,7 +36,6 @@ from youtube_tts import (
     setup_logger,
 )
 
-# Constant definitions
 # 定数定義
 TOKEN_FILE = "token.json"
 CLIENT_SECRET_FILE = "client_secret.json"
@@ -46,6 +44,9 @@ SPEAKER_ID = int(os.getenv("VOICEVOX_SPEAKER_ID", "3"))
 
 
 def main():
+    """VOICEVOX を使用した YouTube Live チャット読み上げの
+    メイン処理を実行します。
+    """
     env_speed = 1.0
     if "VOICEVOX_SPEED_SCALE" in os.environ:
         try:

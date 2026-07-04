@@ -12,19 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from .auth import YouTubeAuthenticator, YOUTUBE_SCOPE
-from .live import YouTubeLiveChatClient
-from .video import YouTubeVideoClient
-from .voicevox import VoicevoxClient
+"""YouTube TTS パッケージの初期化モジュール。
+
+主要なクラス、関数、定数をパッケージレベルでインポートできるようにします。
+"""
+
+from .app import YouTubeTtsApp
 from .audio import AudioPlayer
+from .auth import YOUTUBE_SCOPE, YouTubeAuthenticator
 from .config import AppConfig
 from .dictionary import TextProcessor
+from .live import YouTubeLiveChatClient
+from .logger import get_logger, setup_logger
+from .models import CommentItem
 from .obs import ObsClient
 from .quota import QUOTA_SCOPES, get_project_id, get_quota_info
-from .logger import setup_logger, get_logger
 from .utils import extract_video_id
-from .app import YouTubeTtsApp
-from .models import CommentItem
+from .video import YouTubeVideoClient
+from .voicevox import VoicevoxClient
 
 __all__ = [
     "YouTubeAuthenticator",

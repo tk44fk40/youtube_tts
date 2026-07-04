@@ -20,10 +20,8 @@ from youtube_tts import (
 
 @pytest.fixture
 def dummy_wav_bytes():
-    """Generates a 0.1-second silent WAV data (24000Hz, mono, 16bit).
-
-    0.1秒の無音WAVデータ（24000Hz, モノラル, 16bit）を
-    生成する共通フィクスチャ。
+    """0.1秒の無音WAVデータ（24000Hz, モノラル, 16bit）を
+    生成するフィクスチャ。
     """
     wav_io = io.BytesIO()
     with wave.open(wav_io, "wb") as wav_file:
@@ -36,10 +34,8 @@ def dummy_wav_bytes():
 
 @pytest.fixture
 def dummy_stereo_wav_bytes():
-    """Generates a 0.1-second silent WAV data (24000Hz, stereo, 16bit).
-
-    0.1秒の無音WAVデータ（24000Hz, ステレオ, 16bit）を
-    生成する共通フィクスチャ。
+    """0.1秒の無音WAVデータ（24000Hz, ステレオ, 16bit）を
+    生成するフィクスチャ。
     """
     wav_io = io.BytesIO()
     with wave.open(wav_io, "wb") as wav_file:

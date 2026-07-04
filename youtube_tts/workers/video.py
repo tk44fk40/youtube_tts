@@ -39,7 +39,9 @@ def video_worker(
         verbose: 詳細ログを出力するかどうか。
         backlog_counts: 読み込む初期バックログの件数。
     """
-    app.logger.info(f"Loading initial comments backlog (limit: {backlog_counts})...")
+    app.logger.info(
+        f"Loading initial comments backlog (limit: {backlog_counts})..."
+    )
     backlog_items = []
     page_token = None
     remaining_to_fetch = backlog_counts if backlog_counts >= 0 else None
@@ -48,7 +50,9 @@ def video_worker(
         if remaining_to_fetch is not None and remaining_to_fetch <= 0:
             break
         max_results = (
-            min(remaining_to_fetch, 100) if remaining_to_fetch is not None else 100
+            min(remaining_to_fetch, 100)
+            if remaining_to_fetch is not None
+            else 100
         )
 
         try:
@@ -56,7 +60,9 @@ def video_worker(
                 video_id, page_token=page_token, max_results=max_results
             )
         except Exception as e:  # noqa: BLE001
-            app.logger.error("[ERROR] 初期コメントスレッドの取得に失敗しました。")
+            app.logger.error(
+                "[ERROR] 初期コメントスレッドの取得に失敗しました。"
+            )
             if verbose:
                 app.logger.debug(f"  (エラー詳細: {e})")
             break
@@ -115,9 +121,9 @@ def video_worker(
             app.stop_event.set()
             return
 
-        if verbose:
             app.logger.debug(
-                f"Fetched {len(items)} items. polling_interval: {polling_interval}ms"
+                f"Fetched {len(items)} items. "
+                f"polling_interval: {polling_interval}ms"
             )
 
         items.reverse()
@@ -138,7 +144,9 @@ def video_worker(
                 continue
 
             app.logger.info(f"[COMMENT] {author}: {message}")
-            author, message = app.text_processor.normalize_comment(author, message)
+            author, message = app.text_processor.normalize_comment(
+                author, message
+            )
 
             if app.comment_queue.full():
                 app.logger.info(f"[SKIP(QUEUE)] {author}: {message}")

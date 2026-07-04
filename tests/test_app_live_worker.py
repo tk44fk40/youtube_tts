@@ -3,7 +3,6 @@
 import queue
 from unittest.mock import MagicMock, patch
 
-import youtube_tts.workers.live  # noqa: F401
 from youtube_tts import YouTubeLiveChatClient
 
 
@@ -80,7 +79,7 @@ def test_live_worker_success(app):
         )
 
     # User1(7) + Hello(5) + SuperUser(10) + Thanks!(7) = 29
-    # Suffix 'さん' adds 2 chars for each author
+    # 各送信者名の末尾に「さん」を追加するため、それぞれ2文字増える
     assert app.comment_queue.qsize() == 3
     assert app.queued_char_count == 42
     mock_speak.assert_not_called()
@@ -1014,7 +1013,13 @@ def test_get_next_quota_reset_time_pst_winter(mock_datetime):
 
     # 12月（PST）に見せかける
     fake_now = datetime(2024, 12, 15, 10, 0, 0, tzinfo=timezone.utc)
-    mock_datetime.now.return_value = fake_now
+    
+    def mock_now(tz=None):
+        if tz is not None:
+            return fake_now.astimezone(tz)
+        return fake_now
+
+    mock_datetime.now.side_effect = mock_now
 
     with patch(
         "zoneinfo.ZoneInfo", side_effect=Exception("zoneinfo not available")
@@ -1028,7 +1033,7 @@ def test_get_next_quota_reset_time_pst_winter(mock_datetime):
     expected = (now_pst + timedelta(days=1)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    assert result.utcoffset() == expected.utcoffset()
+    assert result.astimezone(timezone.utc) == expected.astimezone(timezone.utc)
 
 
 def test_live_worker_quota_exceeded_drain_actual(app):

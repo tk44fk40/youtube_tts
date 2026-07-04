@@ -408,7 +408,9 @@ def test_stop_timeout_and_kill(monkeypatch):
 
 
 def test_stop_exception_handling(monkeypatch):
-    """stop() 内で例外が発生したときにログ警告を出して例外を握りつぶさないテスト。"""
+    """stop() 内で例外が発生したときに
+    ログ警告を出して例外を握りつぶさないテスト。
+    """
     player = AudioPlayer()
     mock_process = MagicMock()
     mock_process.poll.return_value = None

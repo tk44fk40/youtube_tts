@@ -1,7 +1,10 @@
+"""AppConfig クラスの単体テストを行うモジュール。"""
+
 from youtube_tts import AppConfig
 
 
 def test_config_initial_load(tmp_path):
+    """設定ファイルの初期ロードが正常に行われるか検証します。"""
     dict_file = tmp_path / "dictionary.txt"
     ng_file = tmp_path / "ng_words.txt"
     vol_file = tmp_path / "volume.txt"
@@ -29,6 +32,7 @@ def test_config_initial_load(tmp_path):
 
 
 def test_config_reload_on_change(tmp_path):
+    """設定ファイルが更新された際に正しく再ロードされるか検証します。"""
     dict_file = tmp_path / "dictionary.txt"
     ng_file = tmp_path / "ng_words.txt"
     vol_file = tmp_path / "volume.txt"
@@ -43,8 +47,6 @@ def test_config_reload_on_change(tmp_path):
 
     assert config.volume_scale == 1.0
 
-    # Apply changes
-    #
     # 変更を適用する
     vol_file.write_text("1.5")
     dict_file.write_text("orange = オレンジ")
@@ -58,6 +60,7 @@ def test_config_reload_on_change(tmp_path):
 
 
 def test_config_volume_invalid(tmp_path, caplog):
+    """音量設定ファイルに不正な値がある場合の挙動を検証します。"""
     vol_file = tmp_path / "volume.txt"
     vol_file.write_text("1.0")
 
@@ -67,8 +70,6 @@ def test_config_volume_invalid(tmp_path, caplog):
         volume_path=vol_file,
     )
 
-    # Invalid case 1: Not a float
-    #
     # 無効なケース 1: 浮動小数点数ではない
     vol_file.write_text("invalid_float")
     with caplog.at_level("WARNING"):
@@ -80,19 +81,19 @@ def test_config_volume_invalid(tmp_path, caplog):
     )
     caplog.clear()
 
-    # Invalid case 2: Out of range (max 2.0)
-    #
     # 無効なケース 2: 範囲外 (最大 2.0)
     vol_file.write_text("2.5")
     with caplog.at_level("INFO"):
         config.reload_if_changed()
     assert config.volume_scale == 1.0
     assert any(
-        "volume scale out of range" in record.message for record in caplog.records
+        "volume scale out of range" in record.message
+        for record in caplog.records
     )
 
 
 def test_config_dictionary_invalid(tmp_path):
+    """辞書ファイルに無効な行が含まれる場合の挙動を検証します。"""
     dict_file = tmp_path / "dictionary.txt"
     dict_file.write_text(
         "apple = 林檎\ninvalid_line_no_equal\nbanana = バナナ", encoding="utf-8"
@@ -104,15 +105,12 @@ def test_config_dictionary_invalid(tmp_path):
         volume_path=tmp_path / "vol.txt",
     )
 
-    # Ignore invalid lines and load valid lines
-    #
     # 無効な行を無視し、正常な行をロードする
     assert config.replacements == {"apple": "林檎", "banana": "バナナ"}
 
 
 def test_config_ng_words_missing_and_empty_lines(tmp_path):
-    # Non-existent file
-    #
+    """NGワードファイルが不在、または空行を含む場合の挙動を検証します。"""
     # 存在しないファイル
     config = AppConfig(
         dictionary_path=tmp_path / "dict.txt",
@@ -121,8 +119,6 @@ def test_config_ng_words_missing_and_empty_lines(tmp_path):
     )
     assert config.ng_words == set()
 
-    # Empty or blank lines
-    #
     # 空行または空白行
     ng_file = tmp_path / "ng_words.txt"
     ng_file.write_text("\n   \nspam\n\n", encoding="utf-8")
@@ -136,6 +132,7 @@ def test_config_ng_words_missing_and_empty_lines(tmp_path):
 
 
 def test_config_load_os_errors(tmp_path, caplog):
+    """ファイル読み込み時にOSエラーが発生した場合の挙動を検証します。"""
     import time
     from unittest.mock import patch
 
@@ -151,8 +148,6 @@ def test_config_load_os_errors(tmp_path, caplog):
         dictionary_path=dict_file, ng_words_path=ng_file, volume_path=vol_file
     )
 
-    # Update timestamp to trigger reload
-    #
     # タイムスタンプを更新して再ロードを促す
     time.sleep(0.01)
     dict_file.touch()

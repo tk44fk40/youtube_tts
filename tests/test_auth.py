@@ -1,3 +1,5 @@
+"""YouTube 認証ハンドラーの単体テストを行うモジュール。"""
+
 import json
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +10,7 @@ from youtube_tts import YouTubeAuthenticator
 
 @patch("youtube_tts.auth.Credentials")
 def test_auth_valid_cache(mock_creds_class, tmp_path):
+    """有効なキャッシュトークンが存在する場合の認証情報取得テスト。"""
     token_file = tmp_path / "token.json"
     token_file.write_text('{"token": "valid_token"}', encoding="utf-8")
 
@@ -29,7 +32,10 @@ def test_auth_valid_cache(mock_creds_class, tmp_path):
 
 @patch("youtube_tts.auth.Request")
 @patch("youtube_tts.auth.Credentials")
-def test_auth_expired_refresh_success(mock_creds_class, mock_request_class, tmp_path):
+def test_auth_expired_refresh_success(
+    mock_creds_class, mock_request_class, tmp_path
+):
+    """期限切れトークンのリフレッシュ処理が成功するかのテスト。"""
     token_file = tmp_path / "token.json"
     token_file.write_text('{"token": "expired_token"}', encoding="utf-8")
 
@@ -55,6 +61,7 @@ def test_auth_expired_refresh_success(mock_creds_class, mock_request_class, tmp_
 
 @patch("youtube_tts.auth.InstalledAppFlow")
 def test_auth_no_cache_oauth_success(mock_flow_class, tmp_path):
+    """キャッシュがない場合に新規OAuthフローが走るかのテスト。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"
@@ -84,6 +91,7 @@ def test_auth_no_cache_oauth_success(mock_flow_class, tmp_path):
 @patch("youtube_tts.auth.InstalledAppFlow")
 @patch("youtube_tts.auth.Credentials")
 def test_auth_corrupted_json(mock_creds_class, mock_flow_class, tmp_path):
+    """キャッシュファイルが破損している場合のフォールバックテスト。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"
@@ -111,6 +119,7 @@ def test_auth_corrupted_json(mock_creds_class, mock_flow_class, tmp_path):
 
 
 def test_auth_missing_client_secret(tmp_path):
+    """クライアントシークレットファイルが無い場合に例外が出るかのテスト。"""
     authenticator = YouTubeAuthenticator(
         client_secret_path=tmp_path / "non_existent_client_secret.json",
         token_path=tmp_path / "token.json",
@@ -126,6 +135,7 @@ def test_auth_missing_client_secret(tmp_path):
 def test_auth_corrupted_json_unlink_oserror(
     mock_unlink, mock_creds_class, mock_flow_class, tmp_path
 ):
+    """破損キャッシュの削除でOSエラーが出ても処理が継続するかのテスト。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"
@@ -156,6 +166,7 @@ def test_auth_corrupted_json_unlink_oserror(
 def test_auth_refresh_exception(
     mock_request_class, mock_creds_class, mock_flow_class, tmp_path
 ):
+    """トークンリフレッシュで例外時にOAuthへ遷移するかのテスト。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"

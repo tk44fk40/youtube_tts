@@ -22,7 +22,6 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 
-
 from .audio import AudioPlayer
 from .config import AppConfig
 from .dictionary import TextProcessor
@@ -38,11 +37,8 @@ MAX_PROCESSED_MESSAGE_IDS = 1000
 
 
 class YouTubeTtsApp:
-    """Manages the execution state and lifecycle of the entire
-    YouTube Live chat TTS tool.
-
-    YouTube Live チャット読み上げツール全体の実行状態・ライフサイクルを
-    管理するクラス
+    """YouTube Live チャット読み上げツール全体の実行状態・ライフサイクルを
+    管理するクラス。
     """
 
     def __init__(
@@ -64,7 +60,6 @@ class YouTubeTtsApp:
         else:
             self.logger = logger
 
-        # Initialize runtime state
         # 実行時状態の初期化
         self.comment_queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
         self.stop_event = threading.Event()
@@ -77,14 +72,15 @@ class YouTubeTtsApp:
         self.verbose = False
 
     def speak(self, text: str, speed_scale: float = None):
-        """Synthesizes and plays the specified text using VOICEVOX.
+        """指定されたテキストを VOICEVOX で音声合成し再生します。
 
-        指定されたテキストを VOICEVOX で音声合成し再生する。
+        Args:
+            text: 音声合成するテキスト。
+            speed_scale (float, optional): 再生速度スケール。
         """
         if speed_scale is None:
             speed_scale = self.config.speed_scale
         try:
-            # Audio synthesis
             # 音声合成
             wav_bytes = self.voicevox_client.synthesize(
                 text=text,
@@ -92,7 +88,6 @@ class YouTubeTtsApp:
                 speed_scale=speed_scale,
                 target_sample_rate=self.audio_player.target_sample_rate,
             )
-            # Audio playback
             # 音声再生
             self.audio_player.play_wav(wav_bytes)
         except Exception as e:
@@ -107,10 +102,13 @@ class YouTubeTtsApp:
                 self.logger.debug(f"  (エラー詳細: {e})")
 
     def is_and_mark_processed(self, message_id: str) -> bool:
-        """Determines whether the message ID has been processed, and adds it to
-        history if not.
+        """メッセージIDが処理済みかどうかを判定し、未処理なら履歴に追加します。
 
-        メッセージIDが処理済みかどうかを判定し、未処理なら履歴に追加する。
+        Args:
+            message_id: メッセージID。
+
+        Returns:
+            bool: 処理済みの場合は True、未処理の場合は False。
         """
         if message_id in self.processed_message_ids:
             return True
@@ -123,9 +121,11 @@ class YouTubeTtsApp:
         return False
 
     def write_chat_log(self, item: dict, video_id: str):
-        """Saves received chat/comment events in JSONL format.
+        """受信したチャット/コメントのイベントをJSONL形式で保存します。
 
-        受信したチャット/コメントのイベントをJSONL形式で保存する。
+        Args:
+            item: チャット/コメントのデータ辞書。
+            video_id: 動画のID。
         """
         published_at_str = item.get("snippet", {}).get("publishedAt")
         if not published_at_str:
@@ -162,26 +162,29 @@ class YouTubeTtsApp:
             self.logger.error(f"[ERROR] チャットログの保存に失敗しました: {e}")
 
     def playback_worker(self):
-        """Thread worker that monitors the comment queue and plays comments.
-        コメント再生キューを監視し、順次再生するスレッドワーカー。
-        """
+        """コメント再生キューを監視し、順次再生するスレッドワーカーです。"""
         from .workers.playback import playback_worker
 
         playback_worker(self)
 
     def _get_next_quota_reset_time(self):
-        """Calculates the next quota reset time in Pacific Time.
+        """太平洋時間における次のクォータリセット時刻を算出します。
 
-        太平洋時間における次のクォータリセット時刻を算出する。
+        Returns:
+            datetime: 次のリセット予定時刻。
         """
         from .workers.live import get_next_quota_reset_time
 
         return get_next_quota_reset_time()
 
     def _format_reset_time_for_speech(self, reset_time):
-        """Formats the reset time into a string for read-aloud speech.
+        """リセット時刻を音声読み上げ用の文字列にフォーマットします。
 
-        リセット時刻を音声読み上げ用の文字列にフォーマットする。
+        Args:
+            reset_time: クォータリセット予定時刻。
+
+        Returns:
+            str: 読み上げ用テキスト。
         """
         from .workers.live import format_reset_time_for_speech
 
@@ -202,9 +205,21 @@ class YouTubeTtsApp:
         verbose: bool = False,
         backlog_seconds: int = 10,
     ):
-        """Thread worker that periodically fetches YouTube Live chat comments.
+        """YouTube Live チャットの定期取得とキュー送信を行うワーカーです。
 
-        YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカー。
+        Args:
+            live_client: YouTubeLiveChatClient インスタンス。
+            video_id: 動画のID。
+            creds: 認証情報。
+            quota_check: クォータをチェックするかどうか。
+            quota_talk: クォータ超過時に読み上げるかどうか。
+            tts_test: テスト用のTTSテキスト。
+            chat_interval: コメント取得インターバル（秒）。
+            quota_interval: クォータ監視インターバル（秒）。
+            stream_check_interval: 配信状態チェックインターバル（秒）。
+            project_id: GCPのプロジェクトID。
+            verbose: 詳細ログを出力するかどうか。
+            backlog_seconds: 遡って取得する秒数。
         """
         from .workers.live import live_worker
 
@@ -232,9 +247,14 @@ class YouTubeTtsApp:
         verbose: bool = False,
         backlog_counts: int = 100,
     ):
-        """Thread worker that periodically fetches YouTube video comments.
+        """YouTube 動画コメントの定期取得を行い、キューへ送るワーカーです。
 
-        YouTube 動画コメントの定期取得を行い、キューへ送るワーカー。
+        Args:
+            video_client: YouTubeVideoClient インスタンス。
+            video_id: 動画のID。
+            chat_interval: コメント取得インターバル（秒）。
+            verbose: 詳細ログを出力するかどうか。
+            backlog_counts: 読み込む初期バックログの件数。
         """
         from .workers.video import video_worker
 
@@ -248,9 +268,11 @@ class YouTubeTtsApp:
         )
 
     def cleanup(self, playback_thread=None, wait_seconds=5):
-        """Cleanup method to stop threads and stop audio.
+        """スレッド停止、オーディオ停止を行うクリーンアップ処理です。
 
-        スレッド停止、オーディオ停止を行うクリーンアップ。
+        Args:
+            playback_thread (threading.Thread, optional): 再生スレッド。
+            wait_seconds (int): 待機秒数。
         """
         self.logger.info("Cleaning up...")
         self.stop_event.set()
@@ -290,9 +312,21 @@ class YouTubeTtsApp:
         verbose: bool = False,
         backlog_seconds: int = 10,
     ):
-        """Starts the live stream monitoring loop and playback worker.
+        """ライブ配信のチャット監視と再生スレッドを開始します。
 
-        ライブ配信のチャット監視と再生スレッドを開始する。
+        Args:
+            live_client: YouTubeLiveChatClient インスタンス。
+            video_id: 動画のID。
+            creds: 認証情報。
+            quota_check: クォータをチェックするかどうか。
+            quota_talk: クォータ超過時に読み上げるかどうか。
+            tts_test: テスト用のTTSテキスト。
+            chat_interval: コメント取得インターバル（秒）。
+            quota_interval: クォータ監視インターバル（秒）。
+            stream_check_interval: 配信状態チェックインターバル（秒）。
+            project_id: GCPのプロジェクトID。
+            verbose: 詳細ログを出力するかどうか。
+            backlog_seconds: 遡って取得する秒数。
         """
         self.verbose = verbose
 
@@ -337,9 +371,14 @@ class YouTubeTtsApp:
         verbose: bool = False,
         backlog_counts: int = 100,
     ):
-        """Starts the video comments monitoring loop and playback worker.
+        """動画・アーカイブコメントの監視と再生スレッドを開始します。
 
-        動画・アーカイブコメントの監視と再生スレッドを開始する。
+        Args:
+            video_client: YouTubeVideoClient インスタンス。
+            video_id: 動画のID。
+            chat_interval: コメント取得インターバル（秒）。
+            verbose: 詳細ログを出力するかどうか。
+            backlog_counts: 読み込む初期バックログの件数。
         """
         self.verbose = verbose
 

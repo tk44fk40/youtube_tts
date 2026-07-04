@@ -33,7 +33,9 @@ def playback_worker(app: Any) -> None:
                 char_count = len(author) + len(message)
 
             with app.queue_lock:
-                app.queued_char_count = max(0, app.queued_char_count - char_count)
+                app.queued_char_count = max(
+                    0, app.queued_char_count - char_count
+                )
                 remaining_chars = app.queued_char_count
         except queue.Empty:
             continue

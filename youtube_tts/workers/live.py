@@ -136,7 +136,9 @@ def live_worker(
         return
 
     if backlog_seconds >= 0:
-        threshold_time = datetime.now(timezone.utc) - timedelta(seconds=backlog_seconds)
+        threshold_time = datetime.now(timezone.utc) - timedelta(
+            seconds=backlog_seconds
+        )
     else:
         threshold_time = None
 
@@ -148,12 +150,15 @@ def live_worker(
         app.config.reload_if_changed()
 
         if verbose:
-            app.logger.debug(f"Fetching chat messages (pageToken: {next_page_token})")
+            app.logger.debug(
+                f"Fetching chat messages (pageToken: {next_page_token})"
+            )
 
         try:
-            items, next_page_token, polling_interval = live_client.fetch_chat_messages(
+            res = live_client.fetch_chat_messages(
                 live_chat_id, page_token=next_page_token
             )
+            items, next_page_token, polling_interval = res
         except Exception as e:  # noqa: BLE001
             is_quota_exceeded = False
             try:
@@ -167,7 +172,10 @@ def live_worker(
                                 "コンテンツのデコードに失敗しました: %s",
                                 ex,
                             )
-                    if "quotaExceeded" in str(e) or "quotaExceeded" in content_str:
+                    if (
+                        "quotaExceeded" in str(e)
+                        or "quotaExceeded" in content_str
+                    ):
                         is_quota_exceeded = True
             except Exception as ex:  # noqa: BLE001
                 app.logger.debug("クォータチェックエラー: %s", ex)
@@ -193,7 +201,9 @@ def live_worker(
                         app.logger.warning(
                             f"リセット予定時刻の取得に失敗しました: {ex}"
                         )
-                        quota_message = "ぴんぽーん！残念！クォータを超過しました。"
+                        quota_message = (
+                            "ぴんぽーん！残念！クォータを超過しました。"
+                        )
 
                     app.logger.info(f"[QUOTA] {quota_message}")
                     quota_author = ""
@@ -207,7 +217,7 @@ def live_worker(
                     timeout = time.time() + 5.0
                     while (
                         not app.comment_queue.empty() and time.time() < timeout
-                    ):  # fmt: skip
+                    ):
                         time.sleep(0.1)
 
             app.logger.error("[ERROR] チャットの取得に失敗しました。")
@@ -271,7 +281,7 @@ def live_worker(
 
         now = time.time()
 
-        # Stream active check
+        # 配信アクティブ状態の確認
         if now - last_stream_check_time >= stream_check_interval:
             if verbose:
                 app.logger.debug("Checking stream active status...")
@@ -283,7 +293,7 @@ def live_worker(
                 return
             last_stream_check_time = now
 
-        # Quota usage check
+        # クォータ使用量の確認
         if (
             quota_check
             and creds
@@ -315,7 +325,9 @@ def live_worker(
                     )
                     app.last_spoken_used = used
             except Exception as e:  # noqa: BLE001
-                app.logger.warning("[WARNING] クォータ情報の取得に失敗しました。")
+                app.logger.warning(
+                    "[WARNING] クォータ情報の取得に失敗しました。"
+                )
                 if verbose:
                     app.logger.debug(f"  (エラー詳細: {e})")
             last_quota_check_time = now
