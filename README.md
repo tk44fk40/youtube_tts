@@ -20,6 +20,11 @@ When switching to Linux environment, comment read-aloud tools used in Windows be
 This tool retrieves comments from YouTube Live chat in real-time and reads them aloud using the VOICEVOX speech synthesis engine.
 It supports dynamic configuration reloading and automatic URL updates for OBS browser sources.
 
+> [!WARNING]
+> **Important Security Notice Regarding Credentials (`client_secret.json` / `token.json`)**
+> This tool saves Google API (YouTube Data API v3) credentials in local files. Because these files contain sensitive credentials, they must NEVER be committed or publicly exposed to GitHub or other public repositories. (They are pre-configured to be excluded in the project's `.gitignore` file).
+> For setup instructions, please refer to [Placing Google OAuth Credentials](#4-placing-google-oauth-credentials).
+
 ### Prerequisites
 
 To use this tool, the following environment and services must be prepared:
