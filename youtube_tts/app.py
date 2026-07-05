@@ -98,10 +98,10 @@ class YouTubeTtsApp:
         except Exception as e:
             self.logger.error("音声の合成または再生に失敗しました。")
             self.logger.error(
-                "        - VOICEVOX サーバーが起動しているか確認してください。"
+                "- VOICEVOX サーバーが起動しているか確認してください。"
             )
             self.logger.error(
-                "        - 出力オーディオデバイスの設定を確認してください。"
+                "- 出力オーディオデバイスの設定を確認してください。"
             )
             self.logger.debug(f"  (エラー詳細: {e})")
 

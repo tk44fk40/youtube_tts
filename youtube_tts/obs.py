@@ -101,7 +101,7 @@ class ObsClient:
             )
             ws.disconnect()
             logger.info("[OBS] チャットURL設定成功")
-            logger.info(f"      URL: {url}")
+            logger.info(f"URL: {url}")
             return True
         except Exception as e:  # noqa: BLE001
             logger.error(f"[OBS] チャットURL設定失敗 (エラー詳細: {e})")

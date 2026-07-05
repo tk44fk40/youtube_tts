@@ -87,8 +87,7 @@ class BaseYouTubeClient:
         """
         try:
             response = (
-                self.youtube
-                .videos()
+                self.youtube.videos()
                 .list(part="snippet,liveStreamingDetails", id=video_id)
                 .execute()
             )
@@ -154,4 +153,4 @@ class BaseYouTubeClient:
             msg = "YouTube API エラーが発生しました"
             logger.error(f"{msg} (ステータスコード: {e.resp.status})")
 
-        logger.debug(f"  (エラー詳細: {err_msg.strip()})")
+        logger.debug(f"(エラー詳細: {err_msg.strip()})")

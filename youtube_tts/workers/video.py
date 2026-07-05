@@ -70,11 +70,9 @@ def video_worker(
                 video_id, page_token=page_token, max_results=max_results
             )
         except Exception as e:  # noqa: BLE001
-            app.logger.error(
-                "初期コメントスレッドの取得に失敗しました。"
-            )
+            app.logger.error("初期コメントスレッドの取得に失敗しました。")
             if verbose:
-                app.logger.debug(f"  (エラー詳細: {e})")
+                app.logger.debug(f"(エラー詳細: {e})")
             break
 
         if not items:
@@ -133,7 +131,7 @@ def video_worker(
         except Exception as e:  # noqa: BLE001
             app.logger.error("コメントスレッドの取得に失敗しました。")
             if verbose:
-                app.logger.debug(f"  (エラー詳細: {e})")
+                app.logger.debug(f"(エラー詳細: {e})")
             app.stop_event.set()
             return
 
@@ -181,4 +179,3 @@ def video_worker(
         # APIで指定されたポーリング間隔または設定値の
         # いずれか大きい時間待機します。
         time.sleep(max(polling_interval / 1000, chat_interval))
-

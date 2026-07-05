@@ -120,7 +120,7 @@ def live_worker(
     except Exception as e:  # noqa: BLE001
         app.logger.error("動画情報の取得に失敗しました。")
         if verbose:
-            app.logger.debug(f"  (エラー詳細: {e})")
+            app.logger.debug(f"(エラー詳細: {e})")
         app.stop_event.set()
         return
 
@@ -138,7 +138,7 @@ def live_worker(
     except Exception as e:  # noqa: BLE001
         app.logger.error("ライブチャットIDの取得に失敗しました。")
         if verbose:
-            app.logger.debug(f"  (エラー詳細: {e})")
+            app.logger.debug(f"(エラー詳細: {e})")
         app.stop_event.set()
         return
 
@@ -230,7 +230,7 @@ def live_worker(
 
             app.logger.error("チャットの取得に失敗しました。")
             if verbose:
-                app.logger.debug(f"  (エラー詳細: {e})")
+                app.logger.debug(f"(エラー詳細: {e})")
             app.stop_event.set()
             return
 
