@@ -8,6 +8,30 @@
 
 ---
 
+## Table of Contents
+
+- [Background](#background)
+- [1. Overview and Usage](#1-overview-and-usage)
+  - [Overview](#overview)
+  - [Prerequisites](#prerequisites)
+  - [Setup Instructions](#setup-instructions)
+  - [Execution / Usage](#execution--usage)
+  - [Differences in Stream Modes & Backlog Handling](#differences-in-stream-modes--backlog-handling)
+  - [Helper Scripts and Options](#helper-scripts-and-options)
+  - [Console Output Prefixes](#console-output-prefixes)
+  - [Environment Variables](#environment-variables)
+  - [Checking and Specifying Audio Devices](#checking-and-specifying-audio-devices)
+  - [Configuration Files](#configuration-files)
+  - [Credentials & Token Files (client_secret.json / token.json)](#credentials--token-files-client_secretjson--tokenjson)
+- [2. Library Overview](#2-library-overview)
+  - [Module Structure](#module-structure)
+  - [Key Classes and Functions](#key-classes-and-functions)
+- [3. Testing](#3-testing)
+  - [Running Tests](#running-tests)
+- [4. License](#4-license)
+
+---
+
 ## Background
 
 When switching to Linux environment, comment read-aloud tools used in Windows became unavailable. Thus, this tool was created from scratch using VOICEVOX. While utilizing it in actual live streaming, features like dictionary replacement, NG words filter, and OBS integration were gradually added to form the current project.
