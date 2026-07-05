@@ -71,8 +71,7 @@ def video_worker(
             )
         except Exception as e:  # noqa: BLE001
             app.logger.error("初期コメントスレッドの取得に失敗しました。")
-            if verbose:
-                app.logger.debug(f"(エラー詳細: {e})")
+            app.logger.debug(f"(エラー詳細: {e})")
             break
 
         if not items:
@@ -119,8 +118,7 @@ def video_worker(
     while not app.stop_event.is_set():
         app.config.reload_if_changed()
 
-        if verbose:
-            app.logger.debug("最新の動画コメントを取得しています...")
+        app.logger.debug("最新の動画コメントを取得しています...")
 
         try:
             # 最新のコメントを最大100件取得します。
@@ -130,15 +128,14 @@ def video_worker(
             items, _, polling_interval = res
         except Exception as e:  # noqa: BLE001
             app.logger.error("コメントスレッドの取得に失敗しました。")
-            if verbose:
-                app.logger.debug(f"(エラー詳細: {e})")
+            app.logger.debug(f"(エラー詳細: {e})")
             app.stop_event.set()
             return
 
-            app.logger.debug(
-                f"{len(items)} 件のアイテムを取得しました。 "
-                f"(polling_interval: {polling_interval}ms)"
-            )
+        app.logger.debug(
+            f"{len(items)} 件のアイテムを取得しました。 "
+            f"(polling_interval: {polling_interval}ms)"
+        )
 
         # 取得したコメントを古い順に処理します。
         items.reverse()

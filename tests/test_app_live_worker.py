@@ -777,8 +777,8 @@ def test_live_worker_quota_exceeded_reset_time_failure(
     assert app.stop_event.is_set() is True
 
 
-def test_live_worker_fetch_error_verbose(app: Any) -> None:
-    """チャット取得失敗時に verbose=True でデバッグログが出るかを検証します。"""
+def test_live_worker_fetch_error_emits_debug_log(app: Any) -> None:
+    """チャット取得失敗時に DEBUG ログが出ることを検証します。"""
     mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
     mock_live_client.get_my_channel_id.return_value = "ch"
     mock_live_client.get_video_details.return_value = {
@@ -787,15 +787,17 @@ def test_live_worker_fetch_error_verbose(app: Any) -> None:
     mock_live_client.get_live_chat_id.return_value = "chat_id"
     mock_live_client.fetch_chat_messages.side_effect = Exception("error")
 
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        verbose=True,
-        chat_interval=0.01,
-        stream_check_interval=100.0,
-        quota_interval=100.0,
-    )
+    with patch.object(app.logger, "debug") as mock_debug:
+        app.live_worker(
+            live_client=mock_live_client,
+            video_id="video_123",
+            verbose=False,
+            chat_interval=0.01,
+            stream_check_interval=100.0,
+            quota_interval=100.0,
+        )
 
+    mock_debug.assert_called()
     assert app.stop_event.is_set() is True
 
 

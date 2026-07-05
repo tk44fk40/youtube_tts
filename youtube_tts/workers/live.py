@@ -73,6 +73,54 @@ def format_reset_time_for_speech(reset_time: datetime) -> str:
     return f"{day_prefix}の{time_str}"
 
 
+def is_quota_exceeded_error(error: Exception) -> bool:
+    """HTTP 403 のクォータ超過エラーかどうかを判定します。"""
+    # APIの例外の形は環境差異があるため、ステータスと本文を確認して判定する。
+    if not isinstance(error, HttpError):
+        return False
+
+    resp_status = getattr(getattr(error, "resp", None), "status", None)
+    if resp_status != 403:
+        return False
+
+    content = getattr(error, "content", None)
+    if isinstance(content, bytes):
+        content = content.decode("utf-8", errors="ignore")
+    elif not isinstance(content, str):
+        content = ""
+
+    return "quotaExceeded" in str(error) or "quotaExceeded" in content
+
+
+def format_error_details(error: Exception) -> str:
+    """ログに出力するために例外の詳細を安全に整形します。"""
+    try:
+        return str(error)
+    except Exception:
+        pass
+
+    try:
+        return repr(error)
+    except Exception:
+        return f"{type(error).__name__}(details unavailable)"
+
+
+def enqueue_quota_message(app: YouTubeTtsApp, message: str) -> None:
+    """キューを空にして、クォータ超過メッセージを再生キューへ積みます。"""
+    # 直前のコメントが残っている場合に備えて、通知メッセージを優先して再生する。
+    while not app.comment_queue.empty():
+        try:
+            app.comment_queue.get_nowait()
+            app.comment_queue.task_done()
+        except queue.Empty:
+            break
+
+    char_count = len(message)
+    with app.queue_lock:
+        app.queued_char_count = char_count
+    app.comment_queue.put(CommentItem("", message, char_count))
+
+
 def live_worker(
     app: YouTubeTtsApp,
     live_client: YouTubeLiveChatClient,
@@ -119,8 +167,7 @@ def live_worker(
         video_details = live_client.get_video_details(video_id)
     except Exception as e:  # noqa: BLE001
         app.logger.error("動画情報の取得に失敗しました。")
-        if verbose:
-            app.logger.debug(f"(エラー詳細: {e})")
+        app.logger.debug(f"(エラー詳細: {format_error_details(e)})")
         app.stop_event.set()
         return
 
@@ -137,8 +184,7 @@ def live_worker(
         app.logger.info(f"ライブチャットID: {live_chat_id}")
     except Exception as e:  # noqa: BLE001
         app.logger.error("ライブチャットIDの取得に失敗しました。")
-        if verbose:
-            app.logger.debug(f"(エラー詳細: {e})")
+        app.logger.debug(f"(エラー詳細: {format_error_details(e)})")
         app.stop_event.set()
         return
 
@@ -154,13 +200,12 @@ def live_worker(
     last_stream_check_time = time.time()
 
     while not app.stop_event.is_set():
+        # 設定ファイルの変更を反映したうえで、次のポーリング周期へ進む。
         app.config.reload_if_changed()
 
-        if verbose:
-            app.logger.debug(
-                "チャットメッセージを取得しています "
-                f"(pageToken: {next_page_token})"
-            )
+        app.logger.debug(
+            f"チャットメッセージを取得しています (pageToken: {next_page_token})"
+        )
 
         try:
             res = live_client.fetch_chat_messages(
@@ -168,78 +213,43 @@ def live_worker(
             )
             items, next_page_token, polling_interval = res
         except Exception as e:  # noqa: BLE001
-            is_quota_exceeded = False
-            try:
-                if isinstance(e, HttpError) and e.resp.status == 403:
-                    content_str = ""
-                    if hasattr(e, "content") and e.content:
-                        try:
-                            content_str = e.content.decode("utf-8")
-                        except Exception as ex:  # noqa: BLE001
-                            app.logger.debug(
-                                "コンテンツのデコードに失敗しました: %s",
-                                ex,
-                            )
-                    if (
-                        "quotaExceeded" in str(e)
-                        or "quotaExceeded" in content_str
-                    ):
-                        is_quota_exceeded = True
-            except Exception as ex:  # noqa: BLE001
-                app.logger.debug("クォータチェックエラー: %s", ex)
+            # クォータ超過時のみ、音声読み上げ用の案内メッセージをキューへ流す。
+            is_quota_exceeded = is_quota_exceeded_error(e)
 
-            if is_quota_exceeded:
-                if quota_talk:
-                    while not app.comment_queue.empty():
-                        try:
-                            app.comment_queue.get_nowait()
-                            app.comment_queue.task_done()
-                        except queue.Empty:
-                            break
-
-                    try:
-                        reset_time = get_next_quota_reset_time()
-                        reset_str = format_reset_time_for_speech(reset_time)
-                        quota_message = (
-                            f"ぴんぽーん！残念！"
-                            f"クォータを超過しました。"
-                            f"{reset_str}頃までお待ち下さい。"
-                        )
-                    except Exception as ex:  # noqa: BLE001
-                        app.logger.warning(
-                            f"リセット予定時刻の取得に失敗しました: {ex}"
-                        )
-                        quota_message = (
-                            "ぴんぽーん！残念！クォータを超過しました。"
-                        )
-
-                    app.logger.info(f"[QUOTA] {quota_message}")
-                    quota_author = ""
-                    char_count = len(quota_message)
-                    with app.queue_lock:
-                        app.queued_char_count = char_count
-                    app.comment_queue.put(
-                        CommentItem(quota_author, quota_message, char_count)
+            if is_quota_exceeded and quota_talk:
+                try:
+                    reset_time = get_next_quota_reset_time()
+                    reset_str = format_reset_time_for_speech(reset_time)
+                    quota_message = (
+                        f"ぴんぽーん！残念！"
+                        f"クォータを超過しました。"
+                        f"{reset_str}頃までお待ち下さい。"
                     )
+                except Exception as ex:  # noqa: BLE001
+                    app.logger.warning(
+                        f"リセット予定時刻の取得に失敗しました: {ex}"
+                    )
+                    quota_message = "ぴんぽーん！残念！クォータを超過しました。"
 
-                    timeout = time.time() + 5.0
-                    while (
-                        not app.comment_queue.empty() and time.time() < timeout
-                    ):
-                        time.sleep(0.1)
+                # 画面表示用のメッセージをログに残し、再生キューへ優先して積む。
+                app.logger.info(f"[QUOTA] {quota_message}")
+                enqueue_quota_message(app, quota_message)
+
+                # 再生キューに入れた案内メッセージが処理されるまで少し待つ。
+                timeout = time.time() + 5.0
+                while not app.comment_queue.empty() and time.time() < timeout:
+                    time.sleep(0.1)
 
             app.logger.error("チャットの取得に失敗しました。")
-            if verbose:
-                app.logger.debug(f"(エラー詳細: {e})")
+            app.logger.debug(f"(エラー詳細: {format_error_details(e)})")
             app.stop_event.set()
             return
 
-        if verbose:
-            app.logger.debug(
-                f"{len(items)} 件のアイテムを取得しました。 "
-                f"(next_page_token: {next_page_token}, "
-                f"polling_interval: {polling_interval}ms)"
-            )
+        app.logger.debug(
+            f"{len(items)} 件のアイテムを取得しました。 "
+            f"(next_page_token: {next_page_token}, "
+            f"polling_interval: {polling_interval}ms)"
+        )
 
         for item in items:
             message_id = item["id"]
@@ -291,11 +301,9 @@ def live_worker(
 
         # 配信がアクティブであるか確認します。
         if now - last_stream_check_time >= stream_check_interval:
-            if verbose:
-                app.logger.debug("配信のアクティブ状態を確認しています...")
+            app.logger.debug("配信のアクティブ状態を確認しています...")
             is_active = live_client.check_stream_active(video_id)
-            if verbose:
-                app.logger.debug(f"配信アクティブ状態: {is_active}")
+            app.logger.debug(f"配信アクティブ状態: {is_active}")
             if not is_active:
                 app.stop_event.set()
                 return
@@ -308,8 +316,7 @@ def live_worker(
             and project_id
             and (now - last_quota_check_time >= quota_interval)
         ):
-            if verbose:
-                app.logger.debug("クォータ情報を取得しています...")
+            app.logger.debug("クォータ情報を取得しています...")
             try:
                 used, limit = get_quota_info(creds, project_id)
                 remaining = max(0, limit - used)
@@ -334,8 +341,7 @@ def live_worker(
                     app.last_spoken_used = used
             except Exception as e:  # noqa: BLE001
                 app.logger.warning("クォータ情報の取得に失敗しました。")
-                if verbose:
-                    app.logger.debug(f"  (エラー詳細: {e})")
+                app.logger.debug(f"(エラー詳細: {e})")
             last_quota_check_time = now
 
         time.sleep(max(polling_interval / 1000, chat_interval))

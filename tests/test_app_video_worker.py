@@ -458,37 +458,23 @@ def test_video_worker_backlog_remaining_exhausted(app: Any) -> None:
     assert app.comment_queue.qsize() == 1
 
 
-@patch("time.sleep")
-def test_video_worker_backlog_error_verbose_true(
-    mock_sleep: Any,
-    app: Any,
-) -> None:
-    """バックログ取得エラー時に
-    verbose=True でデバッグログが出るかを検証します。
-    """
+def test_video_worker_backlog_error_emits_debug_log(app: Any) -> None:
+    """バックログ取得エラー時に DEBUG ログが出ることを検証します。"""
     mock_video_client = MagicMock(spec=YouTubeVideoClient)
-    call_count = 0
-
-    def fetch_side_effect(video_id, page_token=None, max_results=100):
-        """フェッチのサイドエフェクト。"""
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            raise Exception("バックログ取得エラー")
-        else:
-            app.stop_event.set()
-            return [], None, 3000
-
-    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
-
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        verbose=True,
-        backlog_counts=10,
+    mock_video_client.fetch_comment_threads.side_effect = Exception(
+        "バックログ取得エラー"
     )
 
+    with patch.object(app.logger, "debug") as mock_debug:
+        app.video_worker(
+            video_client=mock_video_client,
+            video_id="video_123",
+            chat_interval=0.01,
+            verbose=False,
+            backlog_counts=10,
+        )
+
+    mock_debug.assert_called()
     assert app.comment_queue.qsize() == 0
 
 
