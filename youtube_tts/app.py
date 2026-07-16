@@ -23,7 +23,6 @@ import signal
 import threading
 import time
 from collections import deque
-from datetime import datetime, timezone
 from typing import Any
 
 from .audio import AudioPlayer
@@ -126,7 +125,9 @@ class YouTubeTtsApp:
             self.processed_message_ids.discard(oldest_message_id)
         return False
 
-    def write_chat_log(self, message: YouTubeMessage | dict[str, Any], video_id: str) -> None:
+    def write_chat_log(
+        self, message: YouTubeMessage | dict[str, Any], video_id: str
+    ) -> None:
         """受信したチャット/コメントのイベントを JSONL 形式で保存します。
 
         Args:

@@ -34,11 +34,16 @@ def test_quota_info() -> None:
     assert quota.limit == 10000
     assert quota.remaining == 7000
     assert quota.usage_percent == 30.0
-    assert quota.speech_text == "ぴんぽーん！クォータ使用量は 3000 ユニットです。"
+    assert quota.speech_text == (
+        "ぴんぽーん！クォータ使用量は 3000 ユニットです。"
+    )
 
 
 def test_super_chat_details() -> None:
-    """SuperChatDetails のプロパティが正しく計算・変換されることを検証します。"""
+    """SuperChatDetails のプロパティが正しく計算・変換されることを
+
+    検証します。
+    """
     details = SuperChatDetails(
         amount_micros=10000000,
         currency="JPY",
@@ -56,7 +61,10 @@ def test_super_chat_details() -> None:
 
 
 def test_youtube_message_from_dict() -> None:
-    """YouTubeMessage.from_dict が正しくインスタンスを生成することを検証します。"""
+    """YouTubeMessage.from_dict が正しくインスタンスを生成することを
+
+    検証します。
+    """
     item = {
         "id": "msg-123",
         "authorDetails": {
@@ -88,7 +96,10 @@ def test_youtube_message_from_dict() -> None:
 
 
 def test_youtube_message_with_super_chat() -> None:
-    """スーパーチャットを含む YouTubeMessage が正しく生成されることを検証します。"""
+    """スーパーチャットを含む YouTubeMessage が正しく生成されることを
+
+    検証します。
+    """
     item = {
         "id": "msg-456",
         "authorDetails": {

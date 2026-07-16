@@ -320,10 +320,14 @@ def live_worker(
             try:
                 quota_info = get_quota_info(creds, project_id)
                 if isinstance(quota_info, tuple):
-                    quota_info = QuotaInfo(used=quota_info[0], limit=quota_info[1])
+                    quota_info = QuotaInfo(
+                        used=quota_info[0], limit=quota_info[1]
+                    )
                 app.logger.info(
-                    f"[QUOTA] 使用量: {quota_info.used:,} / {quota_info.limit:,} "
-                    f"({quota_info.usage_percent:.2f}%), 残量: {quota_info.remaining:,}"
+                    f"[QUOTA] 使用量: {quota_info.used:,} / "
+                    f"{quota_info.limit:,} "
+                    f"({quota_info.usage_percent:.2f}%), "
+                    f"残量: {quota_info.remaining:,}"
                 )
 
                 is_diff = quota_info.used != app.last_spoken_used

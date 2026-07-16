@@ -22,7 +22,6 @@ from .client import BaseYouTubeClient, logger
 from .models import YouTubeMessage
 
 
-
 class YouTubeLiveChatClient(BaseYouTubeClient):
     """YouTube のライブ配信やチャットに特化したクライアントです。"""
 
@@ -110,8 +109,9 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
                 データを取得するためのトークンです。デフォルトは None です。
 
         Returns:
-            tuple[list[YouTubeMessage], str | None, int]: 以下の3つの要素を含むタプルです。
-                - list[YouTubeMessage]: チャットメッセージのオブジェクトリストです。
+            tuple[list[YouTubeMessage], str | None, int]:
+                以下の3つの要素を含むタプルです。
+                - list[YouTubeMessage]: メッセージオブジェクトのリスト。
                 - str | None: 次のページを取得するためのトークンです。
                     存在しない場合は None です。
                 - int: 次回呼び出しまでの推奨ポーリング間隔（ミリ秒）です。

@@ -110,7 +110,8 @@ def test_get_quota_info_limit_fallback(mock_client_class: MagicMock) -> None:
     quota_info = get_quota_info(creds, "my-project")
 
     assert quota_info.used == 200
-    assert quota_info.limit == 10000  # 例外発生時は10000にフォールバックされます。
+    # 例外発生時は10000にフォールバックされます。
+    assert quota_info.limit == 10000
 
 
 @patch("youtube_tts.quota.monitoring_v3.MetricServiceClient")
@@ -184,7 +185,7 @@ def test_get_quota_info_midnight_boundary(mock_client_class: MagicMock) -> None:
         mock_dt.side_effect = None
         # 境界補正が適用されても例外なく完了することを確認します。
         try:
-            quota_info = get_quota_info(creds, "my-project")
+            get_quota_info(creds, "my-project")
         except Exception:
             # datetime のモック化の挙動によって失敗することがありますが、
             # 境界補正ロジックのカバレッジ取得を目的とします。

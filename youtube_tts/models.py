@@ -147,7 +147,9 @@ class YouTubeMessage:
             super_chat = SuperChatDetails(
                 amount_micros=super_chat_details.get("amountMicros", 0),
                 currency=super_chat_details.get("currency", ""),
-                display_string=super_chat_details.get("amountDisplayString", ""),
+                display_string=super_chat_details.get(
+                    "amountDisplayString", ""
+                ),
             )
 
         return cls(
@@ -187,7 +189,9 @@ class YouTubeMessage:
             "is_member": self.is_member,
             "is_moderator": self.is_moderator,
             "is_owner": self.is_owner,
-            "super_chat": self.super_chat.to_dict() if self.super_chat else None,
+            "super_chat": (
+                self.super_chat.to_dict() if self.super_chat else None
+            ),
         }
         return log_data
 

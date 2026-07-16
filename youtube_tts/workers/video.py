@@ -102,7 +102,9 @@ def video_worker(
             continue
 
         app.logger.info(f"[COMMENT] {author}: {msg_text}")
-        author, msg_text = app.text_processor.normalize_comment(author, msg_text)
+        author, msg_text = app.text_processor.normalize_comment(
+            author, msg_text
+        )
 
         # 読み上げキューが満杯の場合はスキップします。
         if app.comment_queue.full():

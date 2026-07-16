@@ -24,7 +24,6 @@ from youtube_tts import (
     get_logger,
     get_project_id,
     get_quota_info,
-    QuotaInfo,
 )
 
 SCOPES = QUOTA_SCOPES

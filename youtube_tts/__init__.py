@@ -23,7 +23,13 @@ from .config import AppConfig
 from .dictionary import TextProcessor
 from .live import YouTubeLiveChatClient
 from .logger import get_logger, setup_logger
-from .models import QuotaInfo, SpeechItem, SuperChatDetails, VideoDetails, YouTubeMessage
+from .models import (
+    QuotaInfo,
+    SpeechItem,
+    SuperChatDetails,
+    VideoDetails,
+    YouTubeMessage,
+)
 from .obs import ObsClient
 from .quota import QUOTA_SCOPES, get_project_id, get_quota_info
 from .utils import extract_video_id

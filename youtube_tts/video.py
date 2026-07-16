@@ -26,7 +26,6 @@ from .client import BaseYouTubeClient, logger
 from .models import YouTubeMessage
 
 
-
 class YouTubeVideoClient(BaseYouTubeClient):
     """YouTube 動画の詳細とコメントを取得するクライアントクラスです。"""
 
