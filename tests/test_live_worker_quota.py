@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
 from googleapiclient.errors import HttpError
 from httplib2 import Response
 
@@ -201,112 +202,46 @@ def test_live_worker_quota_exceeded_content_str(
     assert app.stop_event.is_set() is True
 
 
+@pytest.mark.parametrize(
+    "quota_info_side_effect, last_spoken_used, verbose, expected_qsize",
+    [
+        ((1000, 10000), None, True, 1),
+        (Exception("Quota check failure"), None, True, 0),
+        ((1000, 10000), None, False, 1),
+        ((1000, 10000), 1000, None, 0),
+        (Exception("quota error"), None, False, 0),
+    ],
+)
 @patch("youtube_tts.workers.live.get_quota_info")
-def test_live_worker_quota_info_check(
+@patch("time.sleep")
+def test_live_worker_quota_info_cases(
+    mock_sleep: Any,
     mock_quota_info: Any,
     app: Any,
     mock_live_client: MagicMock,
+    quota_info_side_effect: Any,
+    last_spoken_used: int | None,
+    verbose: bool | None,
+    expected_qsize: int,
 ) -> None:
-    """クォータ情報取得が実行され、
-    通知キューが更新されるかを検証します。
-    """
+    """クォータ情報取得時の各種処理を検証します。"""
     mock_live_client.fetch_chat_messages.return_value = (
         [],
         "next_token",
         1000,
     )
-    mock_quota_info.return_value = (1000, 10000)
 
-    call_count = 0
+    if isinstance(quota_info_side_effect, Exception):
+        mock_quota_info.side_effect = quota_info_side_effect
+    else:
+        mock_quota_info.return_value = quota_info_side_effect
 
-    def sleep_side_effect(*args):
-        nonlocal call_count
-        call_count += 1
-        if call_count >= 2:
-            app.stop_event.set()
-
-    with patch("time.sleep", side_effect=sleep_side_effect):
-        app.live_worker(
-            live_client=mock_live_client,
-            video_id="video_123",
-            creds=MagicMock(),
-            quota_check=True,
-            quota_talk=True,
-            chat_interval=0.01,
-            stream_check_interval=100.0,
-            quota_interval=0.01,
-            project_id="proj123",
-            verbose=True,
-        )
-
-    assert mock_quota_info.call_count >= 1
-    assert app.comment_queue.qsize() == 1
-
-
-@patch("youtube_tts.workers.live.get_quota_info")
-def test_live_worker_quota_info_error(
-    mock_quota_info: Any,
-    app: Any,
-    mock_live_client: MagicMock,
-) -> None:
-    """クォータ情報取得中にエラーが発生しても
-    処理が継続するかを検証します。
-    """
-    mock_live_client.fetch_chat_messages.return_value = (
-        [],
-        "next_token",
-        1000,
-    )
-    mock_quota_info.side_effect = Exception("Quota check failure")
-
-    call_count = 0
-
-    def sleep_side_effect(*args):
-        nonlocal call_count
-        call_count += 1
-        if call_count >= 2:
-            app.stop_event.set()
-
-    with patch("time.sleep", side_effect=sleep_side_effect):
-        app.live_worker(
-            live_client=mock_live_client,
-            video_id="video_123",
-            creds=MagicMock(),
-            quota_check=True,
-            quota_talk=True,
-            chat_interval=0.01,
-            stream_check_interval=100.0,
-            quota_interval=0.01,
-            project_id="proj123",
-            verbose=True,
-        )
-
-    assert mock_quota_info.call_count >= 1
-    assert app.comment_queue.qsize() == 0
-
-
-@patch("youtube_tts.workers.live.get_quota_info")
-@patch("time.sleep")
-def test_live_worker_quota_check_verbose_false(
-    mock_sleep: Any,
-    mock_quota_info: Any,
-    app: Any,
-    mock_live_client: MagicMock,
-) -> None:
-    """クォータチェック時に verbose=False の
-    分岐を検証します。
-    """
-    mock_live_client.fetch_chat_messages.return_value = (
-        [],
-        "token",
-        1000,
-    )
-    mock_quota_info.return_value = (1000, 10000)
+    if last_spoken_used is not None:
+        app.last_spoken_used = last_spoken_used
 
     sleep_call_count = 0
 
-    def sleep_side_effect(*args):
-        """sleep のサイドエフェクトです。"""
+    def sleep_side_effect(*args: Any) -> None:
         nonlocal sleep_call_count
         sleep_call_count += 1
         if sleep_call_count >= 2:
@@ -314,112 +249,24 @@ def test_live_worker_quota_check_verbose_false(
 
     mock_sleep.side_effect = sleep_side_effect
 
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        creds=MagicMock(),
-        quota_check=True,
-        quota_talk=True,
-        chat_interval=0.01,
-        stream_check_interval=100.0,
-        quota_interval=0.01,
-        project_id="proj123",
-        verbose=False,
-    )
+    kwargs: dict[str, Any] = {
+        "live_client": mock_live_client,
+        "video_id": "video_123",
+        "creds": MagicMock(),
+        "quota_check": True,
+        "quota_talk": True,
+        "chat_interval": 0.01,
+        "stream_check_interval": 100.0,
+        "quota_interval": 0.01,
+        "project_id": "proj123",
+    }
+    if verbose is not None:
+        kwargs["verbose"] = verbose
+
+    app.live_worker(**kwargs)
 
     assert mock_quota_info.call_count >= 1
-
-
-@patch("youtube_tts.workers.live.get_quota_info")
-@patch("time.sleep")
-def test_live_worker_quota_talk_same_used(
-    mock_sleep: Any,
-    mock_quota_info: Any,
-    app: Any,
-    mock_live_client: MagicMock,
-) -> None:
-    """前回と使用量が同じ場合に
-    読み上げがスキップされるかを検証します。
-    """
-    mock_live_client.fetch_chat_messages.return_value = (
-        [],
-        "token",
-        1000,
-    )
-    mock_quota_info.return_value = (1000, 10000)
-    # 前回の使用量を同じ値にして
-    # is_diff=False にします。
-    app.last_spoken_used = 1000
-
-    sleep_call_count = 0
-
-    def sleep_side_effect(*args):
-        """sleep のサイドエフェクトです。"""
-        nonlocal sleep_call_count
-        sleep_call_count += 1
-        if sleep_call_count >= 2:
-            app.stop_event.set()
-
-    mock_sleep.side_effect = sleep_side_effect
-
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        creds=MagicMock(),
-        quota_check=True,
-        quota_talk=True,
-        chat_interval=0.01,
-        stream_check_interval=100.0,
-        quota_interval=0.01,
-        project_id="proj123",
-    )
-
-    assert app.comment_queue.qsize() == 0
-
-
-@patch("youtube_tts.workers.live.get_quota_info")
-@patch("time.sleep")
-def test_live_worker_quota_error_verbose_false(
-    mock_sleep: Any,
-    mock_quota_info: Any,
-    app: Any,
-    mock_live_client: MagicMock,
-) -> None:
-    """クォータ情報取得失敗時に verbose=False の
-    分岐を検証します。
-    """
-    mock_live_client.fetch_chat_messages.return_value = (
-        [],
-        "token",
-        1000,
-    )
-    mock_quota_info.side_effect = Exception("quota error")
-
-    sleep_call_count = 0
-
-    def sleep_side_effect(*args):
-        """sleep のサイドエフェクトです。"""
-        nonlocal sleep_call_count
-        sleep_call_count += 1
-        if sleep_call_count >= 2:
-            app.stop_event.set()
-
-    mock_sleep.side_effect = sleep_side_effect
-
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        creds=MagicMock(),
-        quota_check=True,
-        quota_talk=True,
-        chat_interval=0.01,
-        stream_check_interval=100.0,
-        quota_interval=0.01,
-        project_id="proj123",
-        verbose=False,
-    )
-
-    assert app.comment_queue.qsize() == 0
+    assert app.comment_queue.qsize() == expected_qsize
 
 
 def test_format_reset_time_for_speech_direct(
