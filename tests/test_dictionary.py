@@ -60,8 +60,7 @@ def test_normalize_comment(mock_config: MagicMock) -> None:
 
     # メッセージの正規化を検証します。
     msg = (
-        "こんにちは！ http://example.com/test 😄 wwwww "
-        "youtubeでgoogleを見よう"
+        "こんにちは！ http://example.com/test 😄 wwwww youtubeでgoogleを見よう"
     )
     # URLの除去、😄（絵文字）の除去、
     # wwwwwを ' わら ' に変換、

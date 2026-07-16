@@ -1059,3 +1059,97 @@ def test_live_worker_quota_exceeded_drain_actual(app: Any) -> None:
     )
 
     assert app.stop_event.is_set() is True
+
+
+@patch("youtube_tts.workers.live.get_quota_info")
+def test_live_worker_success_with_dataclasses(
+    mock_quota_info: Any, app: Any
+) -> None:
+    """本番用のデータクラスオブジェクトをモックとして返し、
+    キャストがバイパスされることを検証します。
+    """
+    from datetime import datetime, timezone
+
+    from youtube_tts.models import QuotaInfo, VideoDetails, YouTubeMessage
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_live_client.get_video_details.return_value = VideoDetails(
+        video_id="video_123",
+        channel_id="my_channel_123",
+        title="My Title",
+    )
+    mock_live_client.get_live_chat_id.return_value = "chat_live_123"
+
+    now = datetime.now(timezone.utc)
+    mock_live_client.fetch_chat_messages.return_value = (
+        [
+            YouTubeMessage(
+                id="msg1",
+                author_name="User1",
+                author_id="ch-user1",
+                message="Hello",
+                published_at=now,
+            )
+        ],
+        "next_token",
+        1000,
+    )
+
+    def quota_side_effect(*args):
+        app.stop_event.set()
+        return QuotaInfo(used=1000, limit=10000)
+
+    mock_quota_info.side_effect = quota_side_effect
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        creds=MagicMock(),
+        quota_check=True,
+        quota_talk=True,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=0.01,
+        project_id="proj123",
+        verbose=True,
+    )
+
+    assert mock_quota_info.call_count >= 1
+
+
+def test_live_worker_quota_exceeded_content_str(app: Any) -> None:
+    """HttpError の content が str の場合でも正しく判定されることを
+
+    検証します。
+    """
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+
+    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
+    mock_live_client.get_my_channel_id.return_value = "my_channel_123"
+    mock_live_client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+    }
+    mock_live_client.get_live_chat_id.return_value = "chat_live_123"
+
+    resp = Response({"status": 403, "reason": "Forbidden"})
+    ex = HttpError(resp, b"")
+    # 例外生成後に content 属性を文字列に差し替えます。
+    ex.content = '{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
+    mock_live_client.fetch_chat_messages.side_effect = ex
+
+    app.live_worker(
+        live_client=mock_live_client,
+        video_id="video_123",
+        creds=MagicMock(),
+        quota_check=True,
+        quota_talk=True,
+        tts_test=None,
+        chat_interval=0.01,
+        stream_check_interval=100.0,
+        quota_interval=5.0,
+    )
+
+    assert app.comment_queue.qsize() == 1
+    assert app.stop_event.is_set() is True

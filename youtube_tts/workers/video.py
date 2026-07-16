@@ -112,9 +112,7 @@ def video_worker(
             continue
 
         # 文字数カウントを更新し、読み上げキューへ追加します。
-        speech_item = SpeechItem.from_youtube_message(
-            message, author, msg_text
-        )
+        speech_item = SpeechItem.from_youtube_message(message, author, msg_text)
         with app.queue_lock:
             app.queued_char_count += speech_item.char_count
         app.comment_queue.put(speech_item)

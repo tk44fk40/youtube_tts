@@ -203,9 +203,7 @@ class TextProcessor:
         message = self.replace_words(message)
         return message.strip()
 
-    def normalize_comment(
-        self, author: str, message: str
-    ) -> tuple[str, str]:
+    def normalize_comment(self, author: str, message: str) -> tuple[str, str]:
         """投稿者名とメッセージをまとめて正規化します。
 
         Args:

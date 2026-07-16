@@ -41,8 +41,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         """
         try:
             response = (
-                self.youtube
-                .videos()
+                self.youtube.videos()
                 .list(part="liveStreamingDetails", id=video_id)
                 .execute()
             )
@@ -74,8 +73,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         """
         try:
             response = (
-                self.youtube
-                .liveBroadcasts()
+                self.youtube.liveBroadcasts()
                 .list(part="id,status", mine=True)
                 .execute()
             )
@@ -121,8 +119,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         """
         try:
             response = (
-                self.youtube
-                .liveChatMessages()
+                self.youtube.liveChatMessages()
                 .list(
                     liveChatId=live_chat_id,
                     part="snippet,authorDetails",
@@ -162,16 +159,13 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         """
         try:
             vresp = (
-                self.youtube
-                .videos()
+                self.youtube.videos()
                 .list(part="liveStreamingDetails", id=video_id)
                 .execute()
             )
         except HttpError as e:
             self._handle_api_error(e)
-            logger.warning(
-                f"動画ステータスの確認中にエラーが発生しました: {e}"
-            )
+            logger.warning(f"動画ステータスの確認中にエラーが発生しました: {e}")
             return True
 
         items = vresp.get("items", [])

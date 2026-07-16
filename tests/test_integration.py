@@ -57,8 +57,8 @@ def test_tts_pipeline_integration(
     message = "I like apple"
 
     # A. 正規化を行います（TextProcessor）。
-    normalized_author, normalized_msg = (
-        processor.normalize_comment(author, message)
+    normalized_author, normalized_msg = processor.normalize_comment(
+        author, message
     )
     assert normalized_author == "Taroさん"
     assert normalized_msg == "I like 林檎"

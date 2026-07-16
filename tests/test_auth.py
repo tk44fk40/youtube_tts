@@ -12,9 +12,7 @@ from youtube_tts import YouTubeAuthenticator
 
 
 @patch("youtube_tts.auth.Credentials")
-def test_auth_valid_cache(
-    mock_creds_class: MagicMock, tmp_path: Path
-) -> None:
+def test_auth_valid_cache(mock_creds_class: MagicMock, tmp_path: Path) -> None:
     """有効なキャッシュトークンが存在する場合の認証情報取得を検証します。"""
     token_file = tmp_path / "token.json"
     token_file.write_text('{"token": "valid_token"}', encoding="utf-8")

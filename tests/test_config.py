@@ -105,8 +105,7 @@ def test_config_volume_invalid(
         config.reload_if_changed()
     assert config.volume_scale == 1.0
     assert any(
-        "音量スケールが範囲外" in record.message
-        for record in caplog.records
+        "音量スケールが範囲外" in record.message for record in caplog.records
     )
 
 
@@ -183,13 +182,9 @@ def test_config_load_os_errors(
 
     combined_output = "\n".join(record.message for record in caplog.records)
 
+    assert "辞書のロードに失敗しました: Permission Denied" in combined_output
     assert (
-        "辞書のロードに失敗しました: Permission Denied"
-        in combined_output
-    )
-    assert (
-        "NGワードのロードに失敗しました: Permission Denied"
-        in combined_output
+        "NGワードのロードに失敗しました: Permission Denied" in combined_output
     )
     assert (
         "volume.txt の読み込みに失敗しました: Permission Denied"

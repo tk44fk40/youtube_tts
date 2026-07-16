@@ -59,11 +59,8 @@ def test_speak_failure(app: YouTubeTtsApp, verbose: bool) -> None:
         app.audio_player.play_wav.assert_not_called()
 
         assert mock_error.call_count == 3
-        mock_error.assert_any_call(
-            "音声の合成または再生に失敗しました。"
-        )
+        mock_error.assert_any_call("音声の合成または再生に失敗しました。")
         mock_debug.assert_called_once_with("  (エラー詳細: VOICEVOX Error)")
-
 
 
 def test_playback_worker(app: YouTubeTtsApp) -> None:
@@ -109,7 +106,6 @@ def test_playback_worker_dynamic_speed_boost(app: YouTubeTtsApp) -> None:
 
         assert app.queued_char_count == 180
         mock_speak.assert_called_once_with("User1 Hello", speed_scale=1.8)
-
 
 
 def test_playback_worker_speed_boost_lower_limit(app: YouTubeTtsApp) -> None:

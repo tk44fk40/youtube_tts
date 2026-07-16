@@ -259,4 +259,3 @@ def test_handle_quota_error(
         "本日の無料枠上限（クォータ）を超過しました" in r.message
         for r in caplog.records
     )
-

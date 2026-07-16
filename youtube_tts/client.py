@@ -32,7 +32,6 @@ from .models import VideoDetails
 logger = get_logger()
 
 
-
 class BaseYouTubeClient:
     """YouTube API との通信および共通処理を管理する基盤クラスです。"""
 

@@ -146,6 +146,21 @@ def test_speech_item() -> None:
     assert item.message == "ハロー"
     assert item.char_count == 6
 
+    # JSTタイムゾーンでのto_log_dictを検証します。
+    # (endswith("+00:00")がFalseになるルートのカバー)
+    from zoneinfo import ZoneInfo
+
+    msg_jst = YouTubeMessage(
+        id="2",
+        author_name="Bob",
+        author_id="b",
+        message="Hi",
+        published_at=datetime.datetime.now(ZoneInfo("Asia/Tokyo")),
+    )
+    log_dict_jst = msg_jst.to_log_dict("video-xyz")
+    assert not log_dict_jst["timestamp"].endswith("Z")
+    assert "+09:00" in log_dict_jst["timestamp"]
+
 
 def test_video_details() -> None:
     """VideoDetails が正しく動作することを検証します。"""

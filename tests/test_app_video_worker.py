@@ -808,3 +808,64 @@ def test_video_worker_backlog_ng_word_verbose_false(
     )
 
     assert app.comment_queue.qsize() == 0
+
+
+def test_video_worker_success_with_dataclasses(app: Any) -> None:
+    """本番用のデータクラスオブジェクトをモックとして返し、
+    キャストがバイパスされることを検証します。
+    """
+    from datetime import datetime, timezone
+
+    from youtube_tts.models import YouTubeMessage
+
+    mock_video_client = MagicMock(spec=YouTubeVideoClient)
+
+    call_count = 0
+    now = datetime.now(timezone.utc)
+
+    def fetch_side_effect(video_id, page_token=None, max_results=100):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # バックログコメント
+            return (
+                [
+                    YouTubeMessage(
+                        id="c1",
+                        author_name="User1",
+                        author_id="ch1",
+                        message="Hello",
+                        published_at=now,
+                    )
+                ],
+                None,
+                3000,
+            )
+        else:
+            # ポーリングコメント
+            app.stop_event.set()
+            return (
+                [
+                    YouTubeMessage(
+                        id="c2",
+                        author_name="User2",
+                        author_id="ch2",
+                        message="World",
+                        published_at=now,
+                    )
+                ],
+                None,
+                3000,
+            )
+
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
+
+    app.video_worker(
+        video_client=mock_video_client,
+        video_id="video_123",
+        chat_interval=0.01,
+        verbose=True,
+        backlog_counts=10,
+    )
+
+    assert app.comment_queue.qsize() == 2

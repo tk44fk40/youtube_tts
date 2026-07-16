@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from youtube_tts.models import SpeechItem
 
 
-
 def playback_worker(app: YouTubeTtsApp) -> None:
     """コメント再生キューを監視し、順次再生するスレッドワーカーです。
 

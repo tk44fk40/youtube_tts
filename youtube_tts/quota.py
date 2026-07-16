@@ -112,10 +112,12 @@ def get_quota_info(creds: Any, project_id: str) -> QuotaInfo:
         start_sec = int((now - timedelta(days=1)).timestamp())
         end_sec = int(now.timestamp())
 
-    interval = monitoring_v3.TimeInterval({
-        "end_time": {"seconds": end_sec},
-        "start_time": {"seconds": start_sec},
-    })
+    interval = monitoring_v3.TimeInterval(
+        {
+            "end_time": {"seconds": end_sec},
+            "start_time": {"seconds": start_sec},
+        }
+    )
 
     # クォータ消費量 (net_usage) のフィルターを定義します。
     usage_filter = (
@@ -141,10 +143,14 @@ def get_quota_info(creds: Any, project_id: str) -> QuotaInfo:
     # 失敗した場合はデフォルト値 10000 とします。
     quota_limit = 10000
     try:
-        limit_interval = monitoring_v3.TimeInterval({
-            "end_time": {"seconds": end_sec},
-            "start_time": {"seconds": max(start_sec - 3600, end_sec - 3600)},
-        })
+        limit_interval = monitoring_v3.TimeInterval(
+            {
+                "end_time": {"seconds": end_sec},
+                "start_time": {
+                    "seconds": max(start_sec - 3600, end_sec - 3600)
+                },
+            }
+        )
         limit_filter = (
             'metric.type="serviceruntime.googleapis.com/quota/limit" '
             'AND resource.labels.service="youtube.googleapis.com" '

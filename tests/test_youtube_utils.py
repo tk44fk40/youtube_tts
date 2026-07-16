@@ -22,9 +22,7 @@ def test_extract_video_id_success() -> None:
     assert extract_video_id(url) == "dQw4w9WgXcQ"
 
     # 3. 短縮 URL
-    assert (
-        extract_video_id("https://youtu.be/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
-    )
+    assert extract_video_id("https://youtu.be/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
 
     # 4. ライブ配信 URL
     live_url = "https://www.youtube.com/live/dQw4w9WgXcQ"

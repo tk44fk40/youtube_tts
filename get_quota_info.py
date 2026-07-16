@@ -49,9 +49,7 @@ def main() -> None:
         logger.info("クォータ情報を取得中...")
         quota_info = get_quota_info(creds, project_id)
 
-        print(
-            "\n================ YouTube API クォータ状況 ================"
-        )
+        print("\n================ YouTube API クォータ状況 ================")
         print(f"  GCP プロジェクト : {project_id}")
         print(f"  本日上限 (Limit) : {quota_info.limit:,} units")
         print(f"  本日使用 (Used)  : {quota_info.used:,} units")

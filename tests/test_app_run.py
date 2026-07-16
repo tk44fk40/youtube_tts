@@ -169,6 +169,7 @@ def test_write_chat_log_exception(app: Any) -> None:
 def test_get_next_quota_reset_time(mock_get: MagicMock, app: Any) -> None:
     """次のクォータリセット時刻が正しく取得できるかを検証します。"""
     from datetime import datetime
+
     mock_get.return_value = datetime.now()
     res = app._get_next_quota_reset_time()
     assert res is not None
