@@ -9,148 +9,66 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def test_video_worker_backlog_counts_zero(
-    app: Any, mock_video_client: MagicMock
+@pytest.mark.parametrize(
+    "backlog_counts, side_effect, verbose, expect_debug, expect_qsize",
+    [
+        (0, ([], None, 3000), True, False, 0),
+        (-1, ([], None, 3000), True, False, 0),
+        (10, ([], None, 3000), True, False, 0),
+        (10, Exception("API error"), True, False, 0),
+        (10, Exception("バックログ取得エラー"), False, True, 0),
+        (10, "error_then_success", False, False, 0),
+    ],
+)
+def test_video_worker_backlog_cases(
+    app: Any,
+    mock_video_client: MagicMock,
+    backlog_counts: int,
+    side_effect: Any,
+    verbose: bool,
+    expect_debug: bool,
+    expect_qsize: int,
 ) -> None:
-    """backlog_countsが0の場合に初期コメントロードが
-    スキップされるかを検証します。
-    """
-    app.stop_event.set()
+    """初期バックログ取得の各種ケースを検証します。"""
+    call_count = 0
 
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        verbose=True,
-        backlog_counts=0,
-    )
+    def fetch_side_effect(
+        video_id: str,
+        page_token: str | None = None,
+        max_results: int = 100,
+    ) -> tuple[list[Any], str | None, int]:
+        nonlocal call_count
+        call_count += 1
+        if side_effect == "error_then_success":
+            if call_count == 1:
+                raise Exception("バックログ取得エラー")
+            else:
+                app.stop_event.set()
+                return [], None, 3000
+        elif isinstance(side_effect, Exception):
+            if call_count == 1:
+                raise side_effect
+            else:
+                app.stop_event.set()
+                return [], None, 3000
+        else:
+            app.stop_event.set()
+            return side_effect
 
-    assert app.comment_queue.qsize() == 0
-
-
-def test_video_worker_backlog_counts_negative(
-    app: Any, mock_video_client: MagicMock
-) -> None:
-    """backlog_countsが負数の場合に
-    制限なしでロードできるかを検証します。
-    """
-    mock_video_client.fetch_comment_threads.return_value = (
-        [],
-        None,
-        3000,
-    )
-    app.stop_event.set()
-
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        verbose=True,
-        backlog_counts=-1,
-    )
-
-    assert app.comment_queue.qsize() == 0
-
-
-def test_video_worker_backlog_empty(
-    app: Any, mock_video_client: MagicMock
-) -> None:
-    """初期バックログが空の場合に
-    正しく動作するかを検証します。
-    """
-    mock_video_client.fetch_comment_threads.return_value = (
-        [],
-        None,
-        3000,
-    )
-    app.stop_event.set()
-
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        verbose=True,
-        backlog_counts=10,
-    )
-
-    assert app.comment_queue.qsize() == 0
-
-
-def test_video_worker_backlog_error(
-    app: Any, mock_video_client: MagicMock
-) -> None:
-    """初期バックログ取得中にエラーが発生しても
-    処理が継続するかを検証します。
-    """
-    mock_video_client.fetch_comment_threads.side_effect = Exception("API error")
-    app.stop_event.set()
-
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        verbose=True,
-        backlog_counts=10,
-    )
-
-    assert app.comment_queue.qsize() == 0
-
-
-def test_video_worker_backlog_error_emits_debug_log(
-    app: Any, mock_video_client: MagicMock
-) -> None:
-    """バックログ取得エラー時に DEBUG ログが
-    出ることを検証します。
-    """
-    mock_video_client.fetch_comment_threads.side_effect = Exception(
-        "バックログ取得エラー"
-    )
+    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
     with patch.object(app.logger, "debug") as mock_debug:
         app.video_worker(
             video_client=mock_video_client,
             video_id="video_123",
             chat_interval=0.01,
-            verbose=False,
-            backlog_counts=10,
+            verbose=verbose,
+            backlog_counts=backlog_counts,
         )
 
-    mock_debug.assert_called()
-    assert app.comment_queue.qsize() == 0
-
-
-@patch("time.sleep")
-def test_video_worker_backlog_error_verbose_false(
-    mock_sleep: Any,
-    app: Any,
-    mock_video_client: MagicMock,
-) -> None:
-    """バックログ取得エラー時に verbose=False の
-    分岐を検証します。
-    """
-    call_count = 0
-
-    def fetch_side_effect(video_id, page_token=None, max_results=100):
-        """フェッチのサイドエフェクトです。"""
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            raise Exception("バックログ取得エラー")
-        else:
-            app.stop_event.set()
-            return [], None, 3000
-
-    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
-
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        verbose=False,
-        backlog_counts=10,
-    )
-
-    assert app.comment_queue.qsize() == 0
+    if expect_debug:
+        mock_debug.assert_called()
+    assert app.comment_queue.qsize() == expect_qsize
 
 
 @pytest.mark.parametrize("verbose", [True, False])
