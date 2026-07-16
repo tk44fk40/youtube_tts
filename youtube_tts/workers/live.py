@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from googleapiclient.errors import HttpError
 
 from ..live import YouTubeLiveChatClient
-from ..models import CommentItem
+from ..models import QuotaInfo, SpeechItem, VideoDetails, YouTubeMessage
 from ..quota import get_quota_info
 
 if TYPE_CHECKING:
@@ -118,7 +118,7 @@ def enqueue_quota_message(app: YouTubeTtsApp, message: str) -> None:
     char_count = len(message)
     with app.queue_lock:
         app.queued_char_count = char_count
-    app.comment_queue.put(CommentItem("", message, char_count))
+    app.comment_queue.put(SpeechItem("", message, char_count))
 
 
 def live_worker(
@@ -165,6 +165,13 @@ def live_worker(
     """
     try:
         video_details = live_client.get_video_details(video_id)
+        if isinstance(video_details, dict):
+            snippet = video_details.get("snippet", {})
+            video_details = VideoDetails(
+                video_id=video_id,
+                channel_id=snippet.get("channelId", ""),
+                title=snippet.get("title", ""),
+            )
     except Exception as e:  # noqa: BLE001
         app.logger.error("動画情報の取得に失敗しました。")
         app.logger.debug(f"(エラー詳細: {format_error_details(e)})")
@@ -172,8 +179,7 @@ def live_worker(
         return
 
     my_channel_id = live_client.get_my_channel_id()
-    channel_id = video_details.get("snippet", {}).get("channelId")
-    is_mine = my_channel_id is not None and channel_id == my_channel_id
+    is_mine = video_details.is_owner(my_channel_id)
 
     if tts_test and is_mine:
         app.logger.info(f"[TTS-TEST] {tts_test}")
@@ -251,51 +257,45 @@ def live_worker(
             f"polling_interval: {polling_interval}ms)"
         )
 
-        for item in items:
-            message_id = item["id"]
-            if app.is_and_mark_processed(message_id):
+        for message in items:
+            if isinstance(message, dict):
+                message = YouTubeMessage.from_dict(message)
+
+            if app.is_and_mark_processed(message.id):
                 continue
 
-            app.write_chat_log(item, video_id)
+            app.write_chat_log(message, video_id)
 
             if threshold_time is not None:
-                published_at_str = item.get("snippet", {}).get("publishedAt")
-                if published_at_str:
-                    try:
-                        published_at = datetime.fromisoformat(published_at_str)
-                        if published_at < threshold_time:
-                            author_name = item["authorDetails"]["displayName"]
-                            app.logger.debug(
-                                f"[SKIP(過去コメント)] {author_name}: "
-                                f"{item['snippet']['displayMessage']} "
-                                f"(投稿日時: {published_at_str})"
-                            )
-                            continue
-                    except ValueError as ex:
-                        app.logger.warning(
-                            f"publishedAt のパースに失敗しました: "
-                            f"{published_at_str}, エラー: {ex}"
-                        )
+                if message.published_at < threshold_time:
+                    app.logger.debug(
+                        f"[SKIP(過去コメント)] {message.author_name}: "
+                        f"{message.message} "
+                        f"(投稿日時: {message.published_at.isoformat()})"
+                    )
+                    continue
 
-            author = item["authorDetails"]["displayName"]
-            message = item["snippet"]["displayMessage"]
+            author = message.author_name
+            msg_text = message.message
 
-            if app.text_processor.contains_ng_word(message):
-                app.logger.info(f"[SKIP(NG)] {author}: {message}")
+            if app.text_processor.contains_ng_word(msg_text):
+                app.logger.info(f"[SKIP(NG)] {author}: {msg_text}")
                 continue
 
-            app.logger.info(f"[CHAT] {author}: {message}")
+            app.logger.info(f"[CHAT] {author}: {msg_text}")
             proc = app.text_processor
-            author, message = proc.normalize_comment(author, message)
+            author, msg_text = proc.normalize_comment(author, msg_text)
 
             if app.comment_queue.full():
-                app.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
+                app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
                 continue
 
-            char_count = len(author) + len(message)
+            speech_item = SpeechItem.from_youtube_message(
+                message, author, msg_text
+            )
             with app.queue_lock:
-                app.queued_char_count += char_count
-            app.comment_queue.put(CommentItem(author, message, char_count))
+                app.queued_char_count += speech_item.char_count
+            app.comment_queue.put(speech_item)
 
         now = time.time()
 
@@ -318,27 +318,29 @@ def live_worker(
         ):
             app.logger.debug("クォータ情報を取得しています...")
             try:
-                used, limit = get_quota_info(creds, project_id)
-                remaining = max(0, limit - used)
-                usage_percent = (used / limit) * 100 if limit > 0 else 0
+                quota_info = get_quota_info(creds, project_id)
+                if isinstance(quota_info, tuple):
+                    quota_info = QuotaInfo(
+                        used=quota_info[0], limit=quota_info[1]
+                    )
                 app.logger.info(
-                    f"[QUOTA] 使用量: {used:,} / {limit:,} "
-                    f"({usage_percent:.2f}%), 残量: {remaining:,}"
+                    f"[QUOTA] 使用量: {quota_info.used:,} / "
+                    f"{quota_info.limit:,} "
+                    f"({quota_info.usage_percent:.2f}%), "
+                    f"残量: {quota_info.remaining:,}"
                 )
 
-                is_diff = used != app.last_spoken_used
+                is_diff = quota_info.used != app.last_spoken_used
                 if quota_talk and is_diff and not app.comment_queue.full():
                     quota_author = ""
-                    quota_message = (
-                        f"ぴんぽーん！クォータ使用量は {used} ユニットです。"
+                    quota_message = quota_info.speech_text
+                    speech_item = SpeechItem(
+                        quota_author, quota_message, len(quota_message)
                     )
-                    char_count = len(quota_author) + len(quota_message)
                     with app.queue_lock:
-                        app.queued_char_count += char_count
-                    app.comment_queue.put(
-                        CommentItem(quota_author, quota_message, char_count)
-                    )
-                    app.last_spoken_used = used
+                        app.queued_char_count += speech_item.char_count
+                    app.comment_queue.put(speech_item)
+                    app.last_spoken_used = quota_info.used
             except Exception as e:  # noqa: BLE001
                 app.logger.warning("クォータ情報の取得に失敗しました。")
                 app.logger.debug(f"(エラー詳細: {e})")

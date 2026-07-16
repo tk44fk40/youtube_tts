@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from youtube_tts import CommentItem
+from youtube_tts import SpeechItem
 
 if TYPE_CHECKING:
     from youtube_tts.app import YouTubeTtsApp
@@ -59,11 +59,8 @@ def test_speak_failure(app: YouTubeTtsApp, verbose: bool) -> None:
         app.audio_player.play_wav.assert_not_called()
 
         assert mock_error.call_count == 3
-        mock_error.assert_any_call(
-            "音声の合成または再生に失敗しました。"
-        )
+        mock_error.assert_any_call("音声の合成または再生に失敗しました。")
         mock_debug.assert_called_once_with("  (エラー詳細: VOICEVOX Error)")
-
 
 
 def test_playback_worker(app: YouTubeTtsApp) -> None:
@@ -72,7 +69,7 @@ def test_playback_worker(app: YouTubeTtsApp) -> None:
     Args:
         app: YouTubeTtsApp インスタンス。
     """
-    app.comment_queue.put(("User1", "こんにちは"))
+    app.comment_queue.put(SpeechItem("User1", "こんにちは", 11))
 
     with patch.object(app, "speak") as mock_speak:
 
@@ -95,8 +92,8 @@ def test_playback_worker_dynamic_speed_boost(app: YouTubeTtsApp) -> None:
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.2
 
-    app.comment_queue.put(CommentItem("User1", "Hello", 11))
-    app.comment_queue.put(CommentItem("User2", "A" * 175, 180))
+    app.comment_queue.put(SpeechItem("User1", "Hello", 11))
+    app.comment_queue.put(SpeechItem("User2", "A" * 175, 180))
     app.queued_char_count = 191
 
     with patch.object(app, "speak") as mock_speak:
@@ -111,27 +108,6 @@ def test_playback_worker_dynamic_speed_boost(app: YouTubeTtsApp) -> None:
         mock_speak.assert_called_once_with("User1 Hello", speed_scale=1.8)
 
 
-def test_playback_worker_backward_compatibility(app: YouTubeTtsApp) -> None:
-    """再生キューにおける旧仕様（タプル形式）データとの互換性を検証します。
-
-    Args:
-        app: YouTubeTtsApp インスタンス。
-    """
-    app.comment_queue.put(("UserOld", "HelloOld"))
-    app.queued_char_count = 15
-
-    with patch.object(app, "speak") as mock_speak:
-
-        def side_effect(text: str, speed_scale: float | None = None) -> None:
-            app.stop_event.set()
-
-        mock_speak.side_effect = side_effect
-        app.playback_worker()
-
-        assert app.queued_char_count == 0
-        mock_speak.assert_called_once_with("UserOld HelloOld", speed_scale=1.0)
-
-
 def test_playback_worker_speed_boost_lower_limit(app: YouTubeTtsApp) -> None:
     """自動ブーストの閾値未満において通常速度が維持されるかを検証します。
 
@@ -142,8 +118,8 @@ def test_playback_worker_speed_boost_lower_limit(app: YouTubeTtsApp) -> None:
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.2
 
-    app.comment_queue.put(CommentItem("User", "Hello", 11))
-    app.comment_queue.put(CommentItem("User2", "A" * 25, 30))
+    app.comment_queue.put(SpeechItem("User", "Hello", 11))
+    app.comment_queue.put(SpeechItem("User2", "A" * 25, 30))
     app.queued_char_count = 41
 
     with patch.object(app, "speak") as mock_speak:
@@ -166,8 +142,8 @@ def test_playback_worker_speed_boost_upper_limit(app: YouTubeTtsApp) -> None:
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.0
 
-    app.comment_queue.put(CommentItem("User", "Hello", 11))
-    app.comment_queue.put(CommentItem("User2", "A" * 295, 300))
+    app.comment_queue.put(SpeechItem("User", "Hello", 11))
+    app.comment_queue.put(SpeechItem("User2", "A" * 295, 300))
     app.queued_char_count = 311
 
     with patch.object(app, "speak") as mock_speak:
@@ -219,8 +195,8 @@ def test_playback_worker_auto_speed_boost_info_log(app: YouTubeTtsApp) -> None:
     app.config.auto_speed_boost = True
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.2
-    app.comment_queue.put(CommentItem("User", "Hello", 11))
-    app.comment_queue.put(CommentItem("User2", "A" * 175, 180))
+    app.comment_queue.put(SpeechItem("User", "Hello", 11))
+    app.comment_queue.put(SpeechItem("User2", "A" * 175, 180))
     app.queued_char_count = 191
 
     with (
@@ -249,8 +225,8 @@ def test_playback_worker_speed_boost_no_boost_needed(
     app.config.auto_speed_boost = True
     app.config.speed_scale = 2.5
     app.config.max_speed = 2.2
-    app.comment_queue.put(CommentItem("User", "Hello", 11))
-    app.comment_queue.put(CommentItem("User2", "A" * 175, 180))
+    app.comment_queue.put(SpeechItem("User", "Hello", 11))
+    app.comment_queue.put(SpeechItem("User2", "A" * 175, 180))
     app.queued_char_count = 191
 
     with patch.object(app, "speak") as mock_speak:
@@ -273,7 +249,7 @@ def test_playback_worker_rate_at_base_zero(app: YouTubeTtsApp) -> None:
     app.config.auto_speed_boost = True
     app.config.speed_scale = 0.0
     app.config.max_speed = 2.2
-    app.comment_queue.put(CommentItem("User", "Hello", 11))
+    app.comment_queue.put(SpeechItem("User", "Hello", 11))
     app.queued_char_count = 11
 
     with patch.object(app, "speak") as mock_speak:

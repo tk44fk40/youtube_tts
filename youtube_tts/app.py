@@ -23,7 +23,6 @@ import signal
 import threading
 import time
 from collections import deque
-from datetime import datetime, timezone
 from typing import Any
 
 from .audio import AudioPlayer
@@ -31,6 +30,7 @@ from .config import AppConfig
 from .dictionary import TextProcessor
 from .live import YouTubeLiveChatClient
 from .logger import get_logger
+from .models import YouTubeMessage
 from .obs import ObsClient
 from .video import YouTubeVideoClient
 from .voicevox import VoicevoxClient
@@ -125,42 +125,19 @@ class YouTubeTtsApp:
             self.processed_message_ids.discard(oldest_message_id)
         return False
 
-    def write_chat_log(self, item: dict[str, Any], video_id: str) -> None:
-        """受信したチャット/コメントのイベントをJSONL形式で保存します。
+    def write_chat_log(
+        self, message: YouTubeMessage | dict[str, Any], video_id: str
+    ) -> None:
+        """受信したチャット/コメントのイベントを JSONL 形式で保存します。
 
         Args:
-            item: チャット/コメントのデータ辞書です。
+            message: YouTubeMessage または辞書オブジェクトです。
             video_id: 動画のIDです。
 
         """
-        published_at_str = item.get("snippet", {}).get("publishedAt")
-        if not published_at_str:
-            published_at_str = datetime.now(timezone.utc).isoformat()
-
-        author_details = item.get("authorDetails", {})
-        snippet = item.get("snippet", {})
-
-        log_data = {
-            "timestamp": published_at_str,
-            "video_id": video_id,
-            "author_id": author_details.get("channelId"),
-            "author_name": author_details.get("displayName", ""),
-            "message": snippet.get("displayMessage", ""),
-            "message_type": snippet.get("type", "textMessageEvent"),
-            "is_member": author_details.get("isChatSponsor", False),
-            "is_moderator": author_details.get("isChatModerator", False),
-            "is_owner": author_details.get("isChatOwner", False),
-            "super_chat": None,
-        }
-
-        super_chat_details = snippet.get("superChatDetails")
-        if super_chat_details:
-            log_data["super_chat"] = {
-                "amount_micros": super_chat_details.get("amountMicros"),
-                "currency": super_chat_details.get("currency"),
-                "display_string": super_chat_details.get("amountDisplayString"),
-            }
-
+        if isinstance(message, dict):
+            message = YouTubeMessage.from_dict(message)
+        log_data = message.to_log_dict(video_id)
         try:
             with open(self.config.chat_log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(log_data, ensure_ascii=False) + "\n")

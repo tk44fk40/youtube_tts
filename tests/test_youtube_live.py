@@ -190,7 +190,7 @@ def test_fetch_chat_messages_success(
     }
     # 取得されたメッセージとトークン、ポーリング間隔を検証します。
     items, token, interval = client.fetch_chat_messages("chat_id")
-    assert items[0]["id"] == "msg1"
+    assert items[0].id == "msg1"
     assert token == "next_token"
     assert interval == 4000
 
@@ -259,4 +259,3 @@ def test_handle_quota_error(
         "本日の無料枠上限（クォータ）を超過しました" in r.message
         for r in caplog.records
     )
-

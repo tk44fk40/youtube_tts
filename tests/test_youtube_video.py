@@ -48,8 +48,8 @@ def test_get_video_details_success(
 
     # 取得された詳細情報が期待通りであることを検証します。
     details = client.get_video_details("vid123")
-    assert details["id"] == "vid123"
-    assert details["snippet"]["title"] == "My Video"
+    assert details.video_id == "vid123"
+    assert details.title == "My Video"
 
 
 def test_get_video_details_not_found(
@@ -110,10 +110,10 @@ def test_fetch_comment_threads_success(
     # コメントスレッドを取得し、期待通りにパースされるか検証します。
     items, next_token, interval = client.fetch_comment_threads("vid123")
     assert len(items) == 1
-    assert items[0]["id"] == "c1"
-    assert items[0]["authorDetails"]["displayName"] == "Alice"
-    assert items[0]["authorDetails"]["channelId"] == "UC_a123"
-    assert items[0]["snippet"]["displayMessage"] == "Nice!"
+    assert items[0].id == "c1"
+    assert items[0].author_name == "Alice"
+    assert items[0].author_id == "UC_a123"
+    assert items[0].message == "Nice!"
     assert next_token == "next_token"
     assert interval == 3000
 
@@ -175,7 +175,7 @@ def test_fetch_comment_threads_parse_error(
         items, _, _ = client.fetch_comment_threads("vid")
 
     assert len(items) == 1
-    assert items[0]["id"] == "c_ok"
+    assert items[0].id == "c_ok"
     assert any(
         "コメントのパースに失敗しました" in r.message for r in caplog.records
     )

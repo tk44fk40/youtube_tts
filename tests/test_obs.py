@@ -24,9 +24,7 @@ def test_obs_update_success() -> None:
 
     が呼ばれることを検証します。
     """
-    client = ObsClient(
-        host="127.0.0.1", port=4455, password="secret_password"
-    )
+    client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
 
     # obswebsocket ライブラリが存在することをシミュレートし、
     # モックを直接注入します。
@@ -49,9 +47,7 @@ def test_obs_update_not_available(caplog: pytest.LogCaptureFixture) -> None:
 
     False を返すことを検証します。
     """
-    client = ObsClient(
-        host="127.0.0.1", port=4455, password="secret_password"
-    )
+    client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
     # インストールされていない状態をシミュレートします。
     client._available = False
 
@@ -67,9 +63,7 @@ def test_obs_update_not_available(caplog: pytest.LogCaptureFixture) -> None:
 
 def test_obs_update_connection_failure() -> None:
     """接続時に例外が発生した場合に False を返すことを検証します。"""
-    client = ObsClient(
-        host="127.0.0.1", port=4455, password="secret_password"
-    )
+    client = ObsClient(host="127.0.0.1", port=4455, password="secret_password")
     client._available = True
     mock_ws = MagicMock()
     mock_ws.connect.side_effect = Exception("Connection timed out")

@@ -19,7 +19,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from ..models import CommentItem
+from ..models import SpeechItem, YouTubeMessage
 from ..video import YouTubeVideoClient
 
 if TYPE_CHECKING:
@@ -86,33 +86,36 @@ def video_worker(
 
     # 取得したコメントを古い順に処理するために並べ替えます。
     backlog_items.reverse()
-    for item in backlog_items:
-        message_id = item["id"]
-        app.is_and_mark_processed(message_id)
-        app.write_chat_log(item, video_id)
+    for message in backlog_items:
+        if isinstance(message, dict):
+            message = YouTubeMessage.from_dict(message)
+        app.is_and_mark_processed(message.id)
+        app.write_chat_log(message, video_id)
 
-        author = item["authorDetails"]["displayName"]
-        message = item["snippet"]["displayMessage"]
+        author = message.author_name
+        msg_text = message.message
 
         # NGワードが含まれるコメントはスキップします。
-        if app.text_processor.contains_ng_word(message):
+        if app.text_processor.contains_ng_word(msg_text):
             if verbose:
-                app.logger.info(f"[SKIP(NG)] {author}: {message}")
+                app.logger.info(f"[SKIP(NG)] {author}: {msg_text}")
             continue
 
-        app.logger.info(f"[COMMENT] {author}: {message}")
-        author, message = app.text_processor.normalize_comment(author, message)
+        app.logger.info(f"[COMMENT] {author}: {msg_text}")
+        author, msg_text = app.text_processor.normalize_comment(
+            author, msg_text
+        )
 
         # 読み上げキューが満杯の場合はスキップします。
         if app.comment_queue.full():
-            app.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
+            app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
             continue
 
         # 文字数カウントを更新し、読み上げキューへ追加します。
-        char_count = len(author) + len(message)
+        speech_item = SpeechItem.from_youtube_message(message, author, msg_text)
         with app.queue_lock:
-            app.queued_char_count += char_count
-        app.comment_queue.put(CommentItem(author, message, char_count))
+            app.queued_char_count += speech_item.char_count
+        app.comment_queue.put(speech_item)
 
     # コメントのリアルタイム監視ポーリングループです。
     while not app.stop_event.is_set():
@@ -140,38 +143,41 @@ def video_worker(
         # 取得したコメントを古い順に処理します。
         items.reverse()
 
-        for item in items:
-            message_id = item["id"]
+        for message in items:
+            if isinstance(message, dict):
+                message = YouTubeMessage.from_dict(message)
             # 既に処理済みのコメントはスキップします。
-            if app.is_and_mark_processed(message_id):
+            if app.is_and_mark_processed(message.id):
                 continue
 
-            app.write_chat_log(item, video_id)
+            app.write_chat_log(message, video_id)
 
-            author = item["authorDetails"]["displayName"]
-            message = item["snippet"]["displayMessage"]
+            author = message.author_name
+            msg_text = message.message
 
             # NGワードが含まれるコメントはスキップします。
-            if app.text_processor.contains_ng_word(message):
+            if app.text_processor.contains_ng_word(msg_text):
                 if verbose:
-                    app.logger.info(f"[SKIP(NG)] {author}: {message}")
+                    app.logger.info(f"[SKIP(NG)] {author}: {msg_text}")
                 continue
 
-            app.logger.info(f"[COMMENT] {author}: {message}")
-            author, message = app.text_processor.normalize_comment(
-                author, message
+            app.logger.info(f"[COMMENT] {author}: {msg_text}")
+            author, msg_text = app.text_processor.normalize_comment(
+                author, msg_text
             )
 
             # 読み上げキューが満杯の場合はスキップします。
             if app.comment_queue.full():
-                app.logger.info(f"[SKIP(QUEUE)] {author}: {message}")
+                app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
                 continue
 
             # 文字数カウントを更新し、読み上げキューへ追加します。
-            char_count = len(author) + len(message)
+            speech_item = SpeechItem.from_youtube_message(
+                message, author, msg_text
+            )
             with app.queue_lock:
-                app.queued_char_count += char_count
-            app.comment_queue.put(CommentItem(author, message, char_count))
+                app.queued_char_count += speech_item.char_count
+            app.comment_queue.put(speech_item)
 
         # APIで指定されたポーリング間隔または設定値の
         # いずれか大きい時間待機します。

@@ -47,19 +47,14 @@ def main() -> None:
         creds = authenticator.get_credentials()
 
         logger.info("クォータ情報を取得中...")
-        used, limit = get_quota_info(creds, project_id)
+        quota_info = get_quota_info(creds, project_id)
 
-        remaining = max(0, limit - used)
-        usage_percent = (used / limit) * 100 if limit > 0 else 0
-
-        print(
-            "\n================ YouTube API クォータ状況 ================"
-        )
+        print("\n================ YouTube API クォータ状況 ================")
         print(f"  GCP プロジェクト : {project_id}")
-        print(f"  本日上限 (Limit) : {limit:,} units")
-        print(f"  本日使用 (Used)  : {used:,} units")
-        print(f"  残量 (Remaining) : {remaining:,} units")
-        print(f"  使用率 (Usage)   : {usage_percent:.2f}%")
+        print(f"  本日上限 (Limit) : {quota_info.limit:,} units")
+        print(f"  本日使用 (Used)  : {quota_info.used:,} units")
+        print(f"  残量 (Remaining) : {quota_info.remaining:,} units")
+        print(f"  使用率 (Usage)   : {quota_info.usage_percent:.2f}%")
         print("==========================================================")
 
     except Exception as e:  # noqa: BLE001

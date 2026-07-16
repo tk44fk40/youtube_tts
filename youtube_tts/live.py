@@ -19,6 +19,7 @@ from __future__ import annotations
 from googleapiclient.errors import HttpError
 
 from .client import BaseYouTubeClient, logger
+from .models import YouTubeMessage
 
 
 class YouTubeLiveChatClient(BaseYouTubeClient):
@@ -40,8 +41,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         """
         try:
             response = (
-                self.youtube
-                .videos()
+                self.youtube.videos()
                 .list(part="liveStreamingDetails", id=video_id)
                 .execute()
             )
@@ -73,8 +73,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         """
         try:
             response = (
-                self.youtube
-                .liveBroadcasts()
+                self.youtube.liveBroadcasts()
                 .list(part="id,status", mine=True)
                 .execute()
             )
@@ -99,7 +98,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
 
     def fetch_chat_messages(
         self, live_chat_id: str, page_token: str | None = None
-    ) -> tuple[list, str | None, int]:
+    ) -> tuple[list[YouTubeMessage], str | None, int]:
         """指定されたライブチャットIDからチャットメッセージを取得します。
 
         Args:
@@ -108,8 +107,9 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
                 データを取得するためのトークンです。デフォルトは None です。
 
         Returns:
-            tuple[list, str | None, int]: 以下の3つの要素を含むタプルです。
-                - list: チャットメッセージのアイテムリストです。
+            tuple[list[YouTubeMessage], str | None, int]:
+                以下の3つの要素を含むタプルです。
+                - list[YouTubeMessage]: メッセージオブジェクトのリスト。
                 - str | None: 次のページを取得するためのトークンです。
                     存在しない場合は None です。
                 - int: 次回呼び出しまでの推奨ポーリング間隔（ミリ秒）です。
@@ -119,8 +119,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         """
         try:
             response = (
-                self.youtube
-                .liveChatMessages()
+                self.youtube.liveChatMessages()
                 .list(
                     liveChatId=live_chat_id,
                     part="snippet,authorDetails",
@@ -134,6 +133,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
             raise
 
         items = response.get("items", [])
+        messages = [YouTubeMessage.from_dict(item) for item in items]
         next_page_token = response.get("nextPageToken")
         polling_interval_min = 3000
         polling_interval = max(
@@ -141,7 +141,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
             polling_interval_min,
         )
 
-        return items, next_page_token, polling_interval
+        return messages, next_page_token, polling_interval
 
     def check_stream_active(self, video_id: str) -> bool:
         """対象のライブ配信がアクティブ（配信中）か確認します。
@@ -159,16 +159,13 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         """
         try:
             vresp = (
-                self.youtube
-                .videos()
+                self.youtube.videos()
                 .list(part="liveStreamingDetails", id=video_id)
                 .execute()
             )
         except HttpError as e:
             self._handle_api_error(e)
-            logger.warning(
-                f"動画ステータスの確認中にエラーが発生しました: {e}"
-            )
+            logger.warning(f"動画ステータスの確認中にエラーが発生しました: {e}")
             return True
 
         items = vresp.get("items", [])

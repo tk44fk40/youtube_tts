@@ -195,8 +195,7 @@ class AudioPlayer:
                     self.process.wait()
                 except Exception as e:  # noqa: BLE001
                     logger.debug(
-                        "古いプロセスの強制終了中に"
-                        f"エラーが発生しました: {e}"
+                        f"古いプロセスの強制終了中にエラーが発生しました: {e}"
                     )
             if use_stdin:
                 self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE)

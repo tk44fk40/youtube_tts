@@ -31,10 +31,12 @@ from google.cloud import monitoring_v3
 
 from .auth import YOUTUBE_SCOPE
 from .logger import get_logger
+from .models import QuotaInfo
 
 logger = get_logger()
 
 CLIENT_SECRET_FILE = "client_secret.json"
+
 
 QUOTA_SCOPES = [
     YOUTUBE_SCOPE,
@@ -72,7 +74,7 @@ def get_project_id(
     raise RuntimeError(f"{path.name} から project_id を取得できませんでした。")
 
 
-def get_quota_info(creds: Any, project_id: str) -> tuple[int, int]:
+def get_quota_info(creds: Any, project_id: str) -> QuotaInfo:
     """YouTube API のクォータ消費量と上限値を取得します。
 
     Cloud Monitoring API を使用して、太平洋時間（PT）の本日午前0時から
@@ -84,7 +86,7 @@ def get_quota_info(creds: Any, project_id: str) -> tuple[int, int]:
         project_id: クォータ情報を取得する Google Cloud プロジェクトのIDです。
 
     Returns:
-        消費されたクォータと、クォータの上限値のタプルです。
+        QuotaInfo: クォータ使用状況の情報です。
     """
     client = monitoring_v3.MetricServiceClient(credentials=creds)
     project_name = f"projects/{project_id}"
@@ -110,10 +112,12 @@ def get_quota_info(creds: Any, project_id: str) -> tuple[int, int]:
         start_sec = int((now - timedelta(days=1)).timestamp())
         end_sec = int(now.timestamp())
 
-    interval = monitoring_v3.TimeInterval({
-        "end_time": {"seconds": end_sec},
-        "start_time": {"seconds": start_sec},
-    })
+    interval = monitoring_v3.TimeInterval(
+        {
+            "end_time": {"seconds": end_sec},
+            "start_time": {"seconds": start_sec},
+        }
+    )
 
     # クォータ消費量 (net_usage) のフィルターを定義します。
     usage_filter = (
@@ -139,10 +143,14 @@ def get_quota_info(creds: Any, project_id: str) -> tuple[int, int]:
     # 失敗した場合はデフォルト値 10000 とします。
     quota_limit = 10000
     try:
-        limit_interval = monitoring_v3.TimeInterval({
-            "end_time": {"seconds": end_sec},
-            "start_time": {"seconds": max(start_sec - 3600, end_sec - 3600)},
-        })
+        limit_interval = monitoring_v3.TimeInterval(
+            {
+                "end_time": {"seconds": end_sec},
+                "start_time": {
+                    "seconds": max(start_sec - 3600, end_sec - 3600)
+                },
+            }
+        )
         limit_filter = (
             'metric.type="serviceruntime.googleapis.com/quota/limit" '
             'AND resource.labels.service="youtube.googleapis.com" '
@@ -166,4 +174,4 @@ def get_quota_info(creds: Any, project_id: str) -> tuple[int, int]:
             f"（デフォルト値を使用します）: {e}"
         )
 
-    return total_used, quota_limit
+    return QuotaInfo(used=total_used, limit=quota_limit)
