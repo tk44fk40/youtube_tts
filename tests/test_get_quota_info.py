@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from youtube_tts.models import QuotaInfo
+
 
 @patch("get_quota_info.get_quota_info")
 @patch("get_quota_info.get_project_id")
@@ -25,7 +27,7 @@ def test_main_success(
     mock_authenticator = MagicMock()
     mock_authenticator_class.return_value = mock_authenticator
     mock_authenticator.get_credentials.return_value = MagicMock()
-    mock_get_quota_info.return_value = (3000, 10000)
+    mock_get_quota_info.return_value = QuotaInfo(used=3000, limit=10000)
 
     import get_quota_info as gqi
 
@@ -56,7 +58,7 @@ def test_main_limit_zero(
     mock_authenticator = MagicMock()
     mock_authenticator_class.return_value = mock_authenticator
     mock_authenticator.get_credentials.return_value = MagicMock()
-    mock_get_quota_info.return_value = (0, 0)
+    mock_get_quota_info.return_value = QuotaInfo(used=0, limit=0)
 
     import get_quota_info as gqi
 
@@ -84,7 +86,7 @@ def test_main_remaining_clamped_to_zero(
     mock_authenticator_class.return_value = mock_authenticator
     mock_authenticator.get_credentials.return_value = MagicMock()
     # 使用量が上限を超えている場合です。
-    mock_get_quota_info.return_value = (12000, 10000)
+    mock_get_quota_info.return_value = QuotaInfo(used=12000, limit=10000)
 
     import get_quota_info as gqi
 

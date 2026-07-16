@@ -27,8 +27,10 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from .logger import get_logger
+from .models import VideoDetails
 
 logger = get_logger()
+
 
 
 class BaseYouTubeClient:
@@ -68,7 +70,7 @@ class BaseYouTubeClient:
                 self._my_channel_id = None
         return self._my_channel_id
 
-    def get_video_details(self, video_id: str) -> dict[str, Any]:
+    def get_video_details(self, video_id: str) -> VideoDetails:
         """YouTube 動画の詳細情報を取得します。
 
         snippet および liveStreamingDetails を含む詳細情報を
@@ -78,8 +80,7 @@ class BaseYouTubeClient:
             video_id: YouTube の動画 ID です。
 
         Returns:
-            dict[str, Any]: 動画の詳細情報を含む API レスポンスの
-                アイテムオブジェクトです。
+            VideoDetails: 動画の詳細情報です。
 
         Raises:
             RuntimeError: 動画が見つからない場合です。
@@ -98,7 +99,14 @@ class BaseYouTubeClient:
         items = response.get("items", [])
         if not items:
             raise RuntimeError("video not found")
-        return items[0]
+        snippet = items[0].get("snippet", {})
+        channel_id = snippet.get("channelId", "")
+        title = snippet.get("title", "")
+        return VideoDetails(
+            video_id=video_id,
+            channel_id=channel_id,
+            title=title,
+        )
 
     def _handle_api_error(self, e: HttpError) -> None:
         """YouTube API エラーを検知し、原因に応じたガイダンスをログ出力します。

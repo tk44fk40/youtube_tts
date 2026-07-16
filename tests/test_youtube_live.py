@@ -190,7 +190,7 @@ def test_fetch_chat_messages_success(
     }
     # 取得されたメッセージとトークン、ポーリング間隔を検証します。
     items, token, interval = client.fetch_chat_messages("chat_id")
-    assert items[0]["id"] == "msg1"
+    assert items[0].id == "msg1"
     assert token == "next_token"
     assert interval == 4000
 

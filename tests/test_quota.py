@@ -80,10 +80,10 @@ def test_get_quota_info_success(mock_client_class: MagicMock) -> None:
     ]
 
     creds = MagicMock()
-    used, limit = get_quota_info(creds, "my-project")
+    quota_info = get_quota_info(creds, "my-project")
 
-    assert used == 963
-    assert limit == 15000
+    assert quota_info.used == 963
+    assert quota_info.limit == 15000
     mock_client_class.assert_called_with(credentials=creds)
 
 
@@ -107,10 +107,10 @@ def test_get_quota_info_limit_fallback(mock_client_class: MagicMock) -> None:
     ]
 
     creds = MagicMock()
-    used, limit = get_quota_info(creds, "my-project")
+    quota_info = get_quota_info(creds, "my-project")
 
-    assert used == 200
-    assert limit == 10000  # 例外発生時は10000にフォールバックされます。
+    assert quota_info.used == 200
+    assert quota_info.limit == 10000  # 例外発生時は10000にフォールバックされます。
 
 
 @patch("youtube_tts.quota.monitoring_v3.MetricServiceClient")
@@ -142,10 +142,10 @@ def test_get_quota_info_tz_error_fallback(
     ]
 
     creds = MagicMock()
-    used, limit = get_quota_info(creds, "my-project")
+    quota_info = get_quota_info(creds, "my-project")
 
-    assert used == 120
-    assert limit == 5000
+    assert quota_info.used == 120
+    assert quota_info.limit == 5000
 
 
 @patch("youtube_tts.quota.monitoring_v3.MetricServiceClient")
@@ -184,7 +184,7 @@ def test_get_quota_info_midnight_boundary(mock_client_class: MagicMock) -> None:
         mock_dt.side_effect = None
         # 境界補正が適用されても例外なく完了することを確認します。
         try:
-            used, limit = get_quota_info(creds, "my-project")
+            quota_info = get_quota_info(creds, "my-project")
         except Exception:
             # datetime のモック化の挙動によって失敗することがありますが、
             # 境界補正ロジックのカバレッジ取得を目的とします。
@@ -208,8 +208,8 @@ def test_get_quota_info_limit_empty(mock_client_class: MagicMock) -> None:
     ]
 
     creds = MagicMock()
-    _, limit = get_quota_info(creds, "my-project")
-    assert limit == 10000
+    quota_info = get_quota_info(creds, "my-project")
+    assert quota_info.limit == 10000
 
 
 @patch("youtube_tts.quota.monitoring_v3.MetricServiceClient")
@@ -232,5 +232,5 @@ def test_get_quota_info_limit_no_points(mock_client_class: MagicMock) -> None:
     ]
 
     creds = MagicMock()
-    _, limit = get_quota_info(creds, "my-project")
-    assert limit == 10000
+    quota_info = get_quota_info(creds, "my-project")
+    assert quota_info.limit == 10000

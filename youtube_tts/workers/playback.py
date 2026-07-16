@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from youtube_tts.app import YouTubeTtsApp  # pragma: no cover
+    from youtube_tts.models import SpeechItem
+
 
 
 def playback_worker(app: YouTubeTtsApp) -> None:
@@ -32,11 +34,10 @@ def playback_worker(app: YouTubeTtsApp) -> None:
     """
     while not app.stop_event.is_set():
         try:
-            item = app.comment_queue.get(timeout=1)
-            author, message = item
-            char_count = getattr(item, "char_count", None)
-            if char_count is None:
-                char_count = len(author) + len(message)
+            item: SpeechItem = app.comment_queue.get(timeout=1)
+            author = item.author
+            message = item.message
+            char_count = item.char_count
 
             with app.queue_lock:
                 app.queued_char_count = max(

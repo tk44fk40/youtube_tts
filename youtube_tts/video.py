@@ -23,6 +23,8 @@ from __future__ import annotations
 from googleapiclient.errors import HttpError
 
 from .client import BaseYouTubeClient, logger
+from .models import YouTubeMessage
+
 
 
 class YouTubeVideoClient(BaseYouTubeClient):
@@ -33,7 +35,7 @@ class YouTubeVideoClient(BaseYouTubeClient):
         video_id: str,
         page_token: str | None = None,
         max_results: int = 100,
-    ) -> tuple[list[dict], str | None, int]:
+    ) -> tuple[list[YouTubeMessage], str | None, int]:
         """YouTube動画のコメントスレッドを取得します。
 
         指定された動画コメントスレッドを取得し、ライブチャット形式に
@@ -107,5 +109,5 @@ class YouTubeVideoClient(BaseYouTubeClient):
 
         next_page_token = response.get("nextPageToken")
         polling_interval = 3000
-
-        return items, next_page_token, polling_interval
+        messages = [YouTubeMessage.from_dict(item) for item in items]
+        return messages, next_page_token, polling_interval
