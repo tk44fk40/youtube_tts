@@ -16,12 +16,41 @@ from youtube_tts import (
     AppConfig,
     AudioPlayer,
     VoicevoxClient,
+    YouTubeLiveChatClient,
     YouTubeTtsApp,
+    YouTubeVideoClient,
     setup_logger,
 )
 
 if TYPE_CHECKING:
     import logging
+
+
+@pytest.fixture
+def mock_live_client() -> MagicMock:
+    """標準的な YouTubeLiveChatClient モックを生成します。
+
+    Returns:
+        MagicMock: 自チャンネル所有の配信として
+            セットアップ済みの live_client モックです。
+    """
+    client = MagicMock(spec=YouTubeLiveChatClient)
+    client.get_my_channel_id.return_value = "my_channel_123"
+    client.get_video_details.return_value = {
+        "snippet": {"channelId": "my_channel_123"},
+    }
+    client.get_live_chat_id.return_value = "chat_live_123"
+    return client
+
+
+@pytest.fixture
+def mock_video_client() -> MagicMock:
+    """標準的な YouTubeVideoClient モックを生成します。
+
+    Returns:
+        MagicMock: YouTubeVideoClient のモックです。
+    """
+    return MagicMock(spec=YouTubeVideoClient)
 
 
 @pytest.fixture
