@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def test_live_worker_success(app: Any, mock_live_client: MagicMock) -> None:
     """正常にチャットを取得し、コメントキューが更新されるかを検証します。"""
@@ -116,77 +118,47 @@ def test_live_worker_backlog_seconds_negative(
     assert app.comment_queue.qsize() == 0
 
 
-def test_live_worker_skip_past_comments(
-    app: Any, mock_live_client: MagicMock
+@pytest.mark.parametrize(
+    "display_message, published_at, ng_words, queue_maxsize, "
+    "backlog_seconds, expect_qsize",
+    [
+        ("Hello", "2026-07-03T00:00:00Z", [], None, 10, 0),
+        ("World", "invalid_date", [], None, 10, 1),
+        ("This badword message", None, ["badword"], None, 10, 0),
+        ("New message", None, [], 1, 10, 0),
+        ("Hello", "2026-07-03T00:00:00Z", [], None, -1, 1),
+    ],
+)
+def test_live_worker_filters(
+    app: Any,
+    mock_live_client: MagicMock,
+    display_message: str,
+    published_at: str | None,
+    ng_words: list[str],
+    queue_maxsize: int | None,
+    backlog_seconds: int,
+    expect_qsize: int,
 ) -> None:
-    """backlog_seconds を超えて古いコメントが
-    スキップされるかを検証します。
-    """
+    """チャット取得時の各種フィルタリング処理を検証します。"""
+    app.config.ng_words = ng_words
+    if queue_maxsize is not None:
+        app.comment_queue = queue.Queue(maxsize=queue_maxsize)
+        if queue_maxsize == 1:
+            app.comment_queue.put(("Existing", "Comment"))
 
-    def fetch_side_effect(*args, **kwargs):
+    def fetch_side_effect(
+        *args: Any, **kwargs: Any
+    ) -> tuple[list[dict[str, Any]], str, int]:
         app.stop_event.set()
+        snippet: dict[str, Any] = {"displayMessage": display_message}
+        if published_at is not None:
+            snippet["publishedAt"] = published_at
         return (
             [
                 {
                     "id": "msg1",
-                    "authorDetails": {
-                        "displayName": "User1",
-                    },
-                    "snippet": {
-                        "displayMessage": "Hello",
-                        "publishedAt": ("2026-07-03T00:00:00Z"),
-                    },
-                },
-                {
-                    "id": "msg2",
-                    "authorDetails": {
-                        "displayName": "User2",
-                    },
-                    "snippet": {
-                        "displayMessage": "World",
-                        "publishedAt": "invalid_date",
-                    },
-                },
-            ],
-            "next_token_123",
-            1000,
-        )
-
-    mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
-
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        tts_test=None,
-        chat_interval=0.01,
-        stream_check_interval=100.0,
-        quota_interval=100.0,
-        backlog_seconds=10,
-    )
-
-    assert app.comment_queue.qsize() == 1
-
-
-def test_live_worker_skip_ng_word(
-    app: Any, mock_live_client: MagicMock
-) -> None:
-    """NGワードを含むメッセージが
-    スキップされるかを検証します。
-    """
-    app.config.ng_words = ["badword"]
-
-    def fetch_side_effect(*args, **kwargs):
-        app.stop_event.set()
-        return (
-            [
-                {
-                    "id": "msg1",
-                    "authorDetails": {
-                        "displayName": "User1",
-                    },
-                    "snippet": {
-                        "displayMessage": ("This badword message"),
-                    },
+                    "authorDetails": {"displayName": "User1"},
+                    "snippet": snippet,
                 }
             ],
             "next_token_123",
@@ -202,90 +174,14 @@ def test_live_worker_skip_ng_word(
         chat_interval=0.01,
         stream_check_interval=100.0,
         quota_interval=100.0,
+        backlog_seconds=backlog_seconds,
     )
 
-    assert app.comment_queue.qsize() == 0
-
-
-def test_live_worker_queue_full(app: Any, mock_live_client: MagicMock) -> None:
-    """コメントキューがいっぱいのときに新規コメントが
-    スキップされるかを検証します。
-    """
-    app.comment_queue = queue.Queue(maxsize=1)
-    app.comment_queue.put(("Existing", "Comment"))
-
-    def fetch_side_effect(*args, **kwargs):
-        app.stop_event.set()
-        return (
-            [
-                {
-                    "id": "msg1",
-                    "authorDetails": {
-                        "displayName": "User1",
-                    },
-                    "snippet": {
-                        "displayMessage": "New message",
-                    },
-                }
-            ],
-            "next_token_123",
-            1000,
-        )
-
-    mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
-
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        tts_test=None,
-        chat_interval=0.01,
-        stream_check_interval=100.0,
-        quota_interval=100.0,
-    )
-
-    assert app.comment_queue.qsize() == 1
-
-
-def test_live_worker_threshold_time_none(
-    app: Any, mock_live_client: MagicMock
-) -> None:
-    """backlog_seconds=-1（threshold_time=None）の場合に
-    全コメントを処理するかを検証します。
-    """
-    now_iso = datetime.now(timezone.utc).isoformat()
-
-    def fetch_side_effect(*args, **kwargs):
-        """フェッチのサイドエフェクトです。"""
-        app.stop_event.set()
-        return (
-            [
-                {
-                    "id": "msg1",
-                    "authorDetails": {
-                        "displayName": "User1",
-                    },
-                    "snippet": {
-                        "displayMessage": "Hello",
-                        "publishedAt": now_iso,
-                    },
-                }
-            ],
-            None,
-            1000,
-        )
-
-    mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
-
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        backlog_seconds=-1,
-        chat_interval=0.01,
-        stream_check_interval=100.0,
-        quota_interval=100.0,
-    )
-
-    assert app.comment_queue.qsize() == 1
+    actual_qsize = app.comment_queue.qsize()
+    if queue_maxsize == 1:
+        assert actual_qsize == 1
+    else:
+        assert actual_qsize == expect_qsize
 
 
 def test_live_worker_tts_test_triggered(
