@@ -13,61 +13,31 @@ import pytest
 from youtube_tts import AudioPlayer
 
 
-def test_play_wav_pacat(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pacat を使用した再生処理を検証します。"""
+@pytest.mark.parametrize(
+    "cmd_name, device, use_tempfile, expected_opt",
+    [
+        ("pacat", "my_device", False, "-d"),
+        ("pacat", None, False, None),
+        ("pw-play", "my_device", True, "--target"),
+        ("pw-play", None, True, None),
+        ("aplay", "my_device", False, "-D"),
+        ("aplay", None, False, None),
+        ("paplay", "my_device", True, "-d"),
+        ("paplay", None, True, None),
+    ],
+)
+def test_play_wav_commands(
+    monkeypatch: pytest.MonkeyPatch,
+    cmd_name: str,
+    device: str | None,
+    use_tempfile: bool,
+    expected_opt: str | None,
+) -> None:
+    """各再生コマンドによる再生処理を検証します。"""
     monkeypatch.setattr(
         shutil,
         "which",
-        lambda cmd: "/usr/bin/pacat" if cmd == "pacat" else None,
-    )
-
-    mock_popen = MagicMock()
-    mock_process = MagicMock()
-    mock_popen.return_value = mock_process
-    monkeypatch.setattr(subprocess, "Popen", mock_popen)
-
-    player = AudioPlayer()
-    player.play_wav(b"dummy_wav_data", device="my_device")
-
-    mock_popen.assert_called_once()
-    cmd = mock_popen.call_args[0][0]
-    assert "pacat" in cmd
-    assert "-d" in cmd
-    assert "my_device" in cmd
-    assert mock_popen.call_args[1].get("stdin") == subprocess.PIPE
-    mock_process.communicate.assert_called_once_with(input=b"dummy_wav_data")
-
-
-def test_play_wav_pacat_no_device(monkeypatch: pytest.MonkeyPatch) -> None:
-    """引数 device が指定されない場合の pacat での再生を検証します。"""
-    monkeypatch.setattr(
-        shutil,
-        "which",
-        lambda cmd: "/usr/bin/pacat" if cmd == "pacat" else None,
-    )
-
-    mock_popen = MagicMock()
-    mock_process = MagicMock()
-    mock_popen.return_value = mock_process
-    monkeypatch.setattr(subprocess, "Popen", mock_popen)
-
-    player = AudioPlayer()
-    player.play_wav(b"dummy")
-
-    mock_popen.assert_called_once()
-    cmd = mock_popen.call_args[0][0]
-    assert "pacat" in cmd
-    assert "-d" not in cmd
-    assert mock_popen.call_args[1].get("stdin") == subprocess.PIPE
-    mock_process.communicate.assert_called_once_with(input=b"dummy")
-
-
-def test_play_wav_pw_play(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pw-play を使用した再生処理（一時ファイル経由）を検証します。"""
-    monkeypatch.setattr(
-        shutil,
-        "which",
-        lambda cmd: "/usr/bin/pw-play" if cmd == "pw-play" else None,
+        lambda cmd: f"/usr/bin/{cmd_name}" if cmd == cmd_name else None,
     )
 
     mock_popen = MagicMock()
@@ -76,143 +46,38 @@ def test_play_wav_pw_play(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(subprocess, "Popen", mock_popen)
 
     unlinked_paths = []
-    original_unlink = os.unlink
+    if use_tempfile:
+        original_unlink = os.unlink
 
-    def mock_unlink(path: str) -> None:
-        unlinked_paths.append(path)
-        original_unlink(path)
+        def mock_unlink(path: str) -> None:
+            unlinked_paths.append(path)
+            original_unlink(path)
 
-    monkeypatch.setattr(os, "unlink", mock_unlink)
+        monkeypatch.setattr(os, "unlink", mock_unlink)
 
     player = AudioPlayer()
-    player.play_wav(b"dummy_wav_data", device="my_device")
+    player.play_wav(b"dummy_wav_data", device=device)
 
     mock_popen.assert_called_once()
     cmd = mock_popen.call_args[0][0]
-    assert "pw-play" in cmd
-    assert "--target" in cmd
-    assert "my_device" in cmd
+    assert cmd_name in cmd
 
-    temp_path = cmd[1]
-    assert temp_path.endswith(".wav")
-    assert os.path.exists(temp_path) is False
-    assert temp_path in unlinked_paths
-    assert mock_popen.call_args[1].get("stdin") is None
-    mock_process.wait.assert_called_once()
-    mock_process.communicate.assert_not_called()
+    if expected_opt:
+        assert expected_opt in cmd
+        assert device in cmd
 
-
-def test_play_wav_aplay(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Aplay を使用した再生処理を検証します。"""
-
-    def mock_which(cmd: str) -> str | None:
-        if cmd == "aplay":
-            return "/usr/bin/aplay"
-        return None
-
-    monkeypatch.setattr(shutil, "which", mock_which)
-
-    mock_popen = MagicMock()
-    mock_process = MagicMock()
-    mock_popen.return_value = mock_process
-    monkeypatch.setattr(subprocess, "Popen", mock_popen)
-
-    player = AudioPlayer()
-    player.play_wav(b"dummy_wav_data", device="my_device")
-
-    mock_popen.assert_called_once()
-    cmd = mock_popen.call_args[0][0]
-    assert "aplay" in cmd
-    assert "-D" in cmd
-    assert "my_device" in cmd
-    assert mock_popen.call_args[1].get("stdin") == subprocess.PIPE
-    mock_process.communicate.assert_called_once_with(input=b"dummy_wav_data")
-
-
-def test_play_wav_aplay_no_device(monkeypatch: pytest.MonkeyPatch) -> None:
-    """引数 device が指定されない場合の aplay での再生を検証します。"""
-
-    def mock_which(cmd: str) -> str | None:
-        return "/usr/bin/aplay" if cmd == "aplay" else None
-
-    monkeypatch.setattr(shutil, "which", mock_which)
-
-    mock_popen = MagicMock()
-    mock_process = MagicMock()
-    mock_popen.return_value = mock_process
-    monkeypatch.setattr(subprocess, "Popen", mock_popen)
-
-    player = AudioPlayer()
-    player.play_wav(b"dummy")
-
-    mock_popen.assert_called_once()
-    cmd = mock_popen.call_args[0][0]
-    assert "aplay" in cmd
-    assert "-D" not in cmd
-
-
-def test_play_wav_paplay(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Paplay を使用した再生処理（一時ファイル経由）を検証します。"""
-
-    def mock_which(cmd: str) -> str | None:
-        if cmd == "paplay":
-            return "/usr/bin/paplay"
-        return None
-
-    monkeypatch.setattr(shutil, "which", mock_which)
-
-    mock_popen = MagicMock()
-    mock_process = MagicMock()
-    mock_popen.return_value = mock_process
-    monkeypatch.setattr(subprocess, "Popen", mock_popen)
-
-    unlinked_paths = []
-    original_unlink = os.unlink
-
-    def mock_unlink(path: str) -> None:
-        unlinked_paths.append(path)
-        original_unlink(path)
-
-    monkeypatch.setattr(os, "unlink", mock_unlink)
-
-    player = AudioPlayer()
-    player.play_wav(b"dummy_wav_data", device="my_device")
-
-    mock_popen.assert_called_once()
-    cmd = mock_popen.call_args[0][0]
-    assert "paplay" in cmd
-    assert "-d" in cmd
-    assert "my_device" in cmd
-
-    temp_path = cmd[1]
-    assert temp_path.endswith(".wav")
-    assert os.path.exists(temp_path) is False
-    assert temp_path in unlinked_paths
-    assert mock_popen.call_args[1].get("stdin") is None
-    mock_process.wait.assert_called_once()
-    mock_process.communicate.assert_not_called()
-
-
-def test_play_wav_paplay_no_device(monkeypatch: pytest.MonkeyPatch) -> None:
-    """引数 device が指定されない場合の paplay での再生を検証します。"""
-
-    def mock_which(cmd: str) -> str | None:
-        return "/usr/bin/paplay" if cmd == "paplay" else None
-
-    monkeypatch.setattr(shutil, "which", mock_which)
-
-    mock_popen = MagicMock()
-    mock_process = MagicMock()
-    mock_popen.return_value = mock_process
-    monkeypatch.setattr(subprocess, "Popen", mock_popen)
-
-    player = AudioPlayer()
-    player.play_wav(b"dummy")
-
-    mock_popen.assert_called_once()
-    cmd = mock_popen.call_args[0][0]
-    assert "paplay" in cmd
-    assert "-d" not in cmd
+    if use_tempfile:
+        temp_path = cmd[1]
+        assert temp_path.endswith(".wav")
+        assert os.path.exists(temp_path) is False
+        assert temp_path in unlinked_paths
+        assert mock_popen.call_args[1].get("stdin") is None
+        mock_process.wait.assert_called_once()
+    else:
+        assert mock_popen.call_args[1].get("stdin") == subprocess.PIPE
+        mock_process.communicate.assert_called_once_with(
+            input=b"dummy_wav_data"
+        )
 
 
 def test_play_wav_tempfile_unlink_error(
