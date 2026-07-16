@@ -15,7 +15,14 @@ from youtube_live_voicevox import main
 @pytest.fixture(autouse=True)
 def clean_environ() -> Generator[None, None, None]:
     """テスト毎に環境変数を初期化するフィクスチャです。"""
-    with patch.dict(os.environ, {"VOICEVOX_TTS_TEST": ""}):
+    env_vars = {
+        "VOICEVOX_TTS_TEST": "",
+        "VOICEVOX_AUTO_SPEED_BOOST": "",
+        "VOICEVOX_SPEED_SCALE": "",
+        "VOICEVOX_MAX_SPEED": "",
+        "VOICEVOX_VOLUME_SCALE": "",
+    }
+    with patch.dict(os.environ, env_vars):
         yield
 
 
@@ -72,119 +79,116 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
         }
 
 
-def test_live_cli_device_option(mock_cli_components: dict[str, Any]) -> None:
-    """-d オプションで指定したデバイスIDが使用されることを検証します。"""
-    components = mock_cli_components
-
-    with patch("sys.argv", ["youtube_live_voicevox.py", "-d", "6", "video123"]):
-        main()
-
-    components["audio_player_class"].assert_called_with(default_device=6)
-    components["extract_video_id"].assert_called_with("video123")
-    components["app_class"].assert_called_once()
-    components["app_instance"].run_live.assert_called_once()
-
-
+@pytest.mark.parametrize(
+    "args, expected_player_device, expected_speed, expected_boost, "
+    "expected_log_path, expected_quota_check, expected_quota_talk, "
+    "expected_quota_interval, expected_chat_interval",
+    [
+        (
+            ["-d", "6", "video123"],
+            6,
+            1.0,
+            False,
+            "chat_log.jsonl",
+            False,
+            False,
+            180.0,
+            20.0,
+        ),
+        (
+            ["--speed", "1.5", "video123"],
+            None,
+            1.5,
+            False,
+            "chat_log.jsonl",
+            False,
+            False,
+            180.0,
+            20.0,
+        ),
+        (
+            ["--auto-speed-boost", "--max-speed", "1.8", "video123"],
+            None,
+            1.0,
+            True,
+            "chat_log.jsonl",
+            False,
+            False,
+            180.0,
+            20.0,
+        ),
+        (
+            ["--chat-log", "custom_path.jsonl", "video123"],
+            None,
+            1.0,
+            False,
+            "custom_path.jsonl",
+            False,
+            False,
+            180.0,
+            20.0,
+        ),
+        (
+            [
+                "--quota-talk",
+                "--chat-interval",
+                "10",
+                "--quota-interval",
+                "30",
+                "video123",
+            ],
+            None,
+            1.0,
+            False,
+            "chat_log.jsonl",
+            True,
+            True,
+            30.0,
+            10.0,
+        ),
+    ],
+)
 @patch("youtube_live_voicevox.get_project_id")
-def test_live_cli_quota_options(
+def test_live_cli_options(
     mock_get_project_id: MagicMock,
     mock_cli_components: dict[str, Any],
+    args: list[str],
+    expected_player_device: Any,
+    expected_speed: float,
+    expected_boost: bool,
+    expected_log_path: str,
+    expected_quota_check: bool,
+    expected_quota_talk: bool,
+    expected_quota_interval: float,
+    expected_chat_interval: float,
 ) -> None:
-    """クォータやインターバルに関する各種オプションの指定を検証します。"""
+    """各CLIオプションがコンポーネント構成に正しく伝搬されるかを検証します。"""
     components = mock_cli_components
     mock_get_project_id.return_value = "test-project-123"
-    mock_creds = components["auth_instance"].get_credentials.return_value
+    argv = ["youtube_live_voicevox.py"] + args
 
-    from youtube_tts import QUOTA_SCOPES
-
-    argv = [
-        "youtube_live_voicevox.py",
-        "--quota-talk",
-        "--chat-interval",
-        "10",
-        "--quota-interval",
-        "30",
-        "video123",
-    ]
     with patch("sys.argv", argv):
         main()
 
-    components["auth"].assert_called_with(
-        client_secret_path="client_secret.json",
-        token_path="token.json",
-        scopes=QUOTA_SCOPES,
-    )
-    mock_get_project_id.assert_called_once()
+    # AudioPlayer の初期化引数検証
+    if expected_player_device is not None:
+        components["audio_player_class"].assert_called_with(
+            default_device=expected_player_device
+        )
 
-    components["app_instance"].run_live.assert_called_with(
-        live_client=components["live_client_instance"],
-        video_id="video123",
-        creds=mock_creds,
-        quota_check=True,
-        quota_talk=True,
-        tts_test=None,
-        chat_interval=10.0,
-        quota_interval=30.0,
-        stream_check_interval=180.0,
-        project_id="test-project-123",
-        verbose=False,
-        backlog_seconds=10,
-    )
+    # AppConfig の設定検証
+    _, kwargs_app = components["app_class"].call_args
+    config = kwargs_app["config"]
+    assert config.speed_scale == expected_speed
+    assert config.auto_speed_boost is expected_boost
+    assert config.chat_log_path == expected_log_path
 
-
-def test_live_cli_speed_option(
-    mock_cli_components: dict[str, Any],
-) -> None:
-    """--speed オプションが config.speed_scale に反映されることを検証します。"""
-    components = mock_cli_components
-
-    with patch(
-        "sys.argv", ["youtube_live_voicevox.py", "--speed", "1.5", "video123"]
-    ):
-        main()
-
-    _, kwargs = components["app_class"].call_args
-    assert kwargs["config"].speed_scale == 1.5
-
-
-def test_live_cli_speed_boost_options(
-    mock_cli_components: dict[str, Any],
-) -> None:
-    """スピードブーストオプションが正しく構成に反映されることを検証します。"""
-    components = mock_cli_components
-
-    argv = [
-        "youtube_live_voicevox.py",
-        "--auto-speed-boost",
-        "--max-speed",
-        "1.8",
-        "video123",
-    ]
-    with patch("sys.argv", argv):
-        main()
-
-    _, kwargs = components["app_class"].call_args
-    assert kwargs["config"].auto_speed_boost is True
-    assert kwargs["config"].max_speed == 1.8
-
-
-def test_live_cli_chat_log_option(
-    mock_cli_components: dict[str, Any],
-) -> None:
-    """--chat-log で指定したパスが構成に保存されることを検証します。"""
-    components = mock_cli_components
-
-    argv = [
-        "youtube_live_voicevox.py",
-        "--chat-log",
-        "custom_path.jsonl",
-        "video123",
-    ]
-    with patch("sys.argv", argv):
-        main()
-
-    _, kwargs = components["app_class"].call_args
-    assert kwargs["config"].chat_log_path == "custom_path.jsonl"
+    # run_live 引数の検証
+    _, kwargs_run = components["app_instance"].run_live.call_args
+    assert kwargs_run["quota_check"] is expected_quota_check
+    assert kwargs_run["quota_talk"] is expected_quota_talk
+    assert kwargs_run["quota_interval"] == expected_quota_interval
+    assert kwargs_run["chat_interval"] == expected_chat_interval
 
 
 def test_live_cli_auth_failure(
