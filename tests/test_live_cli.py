@@ -321,9 +321,6 @@ def test_live_cli_get_speakers_failure(
     components["app_instance"].run_live.assert_called_once()
 
 
-
-
-
 @patch("youtube_live_voicevox.get_project_id")
 def test_live_cli_quota_check_project_id_failure(
     mock_get_project_id: MagicMock,
@@ -388,7 +385,6 @@ def test_live_cli_run_live_unexpected_error(
         ),
     ],
 )
-
 @patch("youtube_live_voicevox.get_project_id")
 def test_live_cli_env_vars(
     mock_get_project_id: MagicMock,

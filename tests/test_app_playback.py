@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -82,11 +83,15 @@ def test_playback_worker(app: YouTubeTtsApp) -> None:
         mock_speak.assert_called_once_with("User1 こんにちは", speed_scale=1.0)
 
 
-def test_playback_worker_dynamic_speed_boost(app: YouTubeTtsApp) -> None:
+def test_playback_worker_dynamic_speed_boost(
+    app: YouTubeTtsApp,
+    stop_on_speak: Callable[..., None],
+) -> None:
     """滞留文字数に応じて再生速度が自動でブーストされるかを検証します。
 
     Args:
         app: YouTubeTtsApp インスタンス。
+        stop_on_speak: speak 時に停止するコールバックです。
     """
     app.config.auto_speed_boost = True
     app.config.speed_scale = 1.0
@@ -97,22 +102,22 @@ def test_playback_worker_dynamic_speed_boost(app: YouTubeTtsApp) -> None:
     app.queued_char_count = 191
 
     with patch.object(app, "speak") as mock_speak:
-
-        def side_effect(text: str, speed_scale: float | None = None) -> None:
-            app.stop_event.set()
-
-        mock_speak.side_effect = side_effect
+        mock_speak.side_effect = stop_on_speak
         app.playback_worker()
 
         assert app.queued_char_count == 180
         mock_speak.assert_called_once_with("User1 Hello", speed_scale=1.8)
 
 
-def test_playback_worker_speed_boost_lower_limit(app: YouTubeTtsApp) -> None:
+def test_playback_worker_speed_boost_lower_limit(
+    app: YouTubeTtsApp,
+    stop_on_speak: Callable[..., None],
+) -> None:
     """自動ブーストの閾値未満において通常速度が維持されるかを検証します。
 
     Args:
         app: YouTubeTtsApp インスタンス。
+        stop_on_speak: speak 時に停止するコールバックです。
     """
     app.config.auto_speed_boost = True
     app.config.speed_scale = 1.0
@@ -123,20 +128,20 @@ def test_playback_worker_speed_boost_lower_limit(app: YouTubeTtsApp) -> None:
     app.queued_char_count = 41
 
     with patch.object(app, "speak") as mock_speak:
-
-        def side_effect(text: str, speed_scale: float | None = None) -> None:
-            app.stop_event.set()
-
-        mock_speak.side_effect = side_effect
+        mock_speak.side_effect = stop_on_speak
         app.playback_worker()
         mock_speak.assert_called_once_with("User Hello", speed_scale=1.0)
 
 
-def test_playback_worker_speed_boost_upper_limit(app: YouTubeTtsApp) -> None:
+def test_playback_worker_speed_boost_upper_limit(
+    app: YouTubeTtsApp,
+    stop_on_speak: Callable[..., None],
+) -> None:
     """自動ブースト時に最大速度を超えないかを検証します。
 
     Args:
         app: YouTubeTtsApp インスタンス。
+        stop_on_speak: speak 時に停止するコールバックです。
     """
     app.config.auto_speed_boost = True
     app.config.speed_scale = 1.0
@@ -147,11 +152,7 @@ def test_playback_worker_speed_boost_upper_limit(app: YouTubeTtsApp) -> None:
     app.queued_char_count = 311
 
     with patch.object(app, "speak") as mock_speak:
-
-        def side_effect(text: str, speed_scale: float | None = None) -> None:
-            app.stop_event.set()
-
-        mock_speak.side_effect = side_effect
+        mock_speak.side_effect = stop_on_speak
         app.playback_worker()
         mock_speak.assert_called_once_with("User Hello", speed_scale=2.0)
 
@@ -216,11 +217,13 @@ def test_playback_worker_auto_speed_boost_info_log(app: YouTubeTtsApp) -> None:
 
 def test_playback_worker_speed_boost_no_boost_needed(
     app: YouTubeTtsApp,
+    stop_on_speak: Callable[..., None],
 ) -> None:
     """基本速度が最大速度以上の場合にブーストが行われないことを検証します。
 
     Args:
         app: YouTubeTtsApp インスタンス。
+        stop_on_speak: speak 時に停止するコールバックです。
     """
     app.config.auto_speed_boost = True
     app.config.speed_scale = 2.5
@@ -230,21 +233,21 @@ def test_playback_worker_speed_boost_no_boost_needed(
     app.queued_char_count = 191
 
     with patch.object(app, "speak") as mock_speak:
-
-        def side_effect(text: str, speed_scale: float | None = None) -> None:
-            app.stop_event.set()
-
-        mock_speak.side_effect = side_effect
+        mock_speak.side_effect = stop_on_speak
         app.playback_worker()
         mock_speak.assert_called_once_with("User Hello", speed_scale=2.5)
 
 
-def test_playback_worker_rate_at_base_zero(app: YouTubeTtsApp) -> None:
+def test_playback_worker_rate_at_base_zero(
+    app: YouTubeTtsApp,
+    stop_on_speak: Callable[..., None],
+) -> None:
     """基本速度が0の場合に、推定所要時間が0となり、
     ブースト速度が基本速度のままとなることを検証します。
 
     Args:
         app: YouTubeTtsApp インスタンス。
+        stop_on_speak: speak 時に停止するコールバックです。
     """
     app.config.auto_speed_boost = True
     app.config.speed_scale = 0.0
@@ -253,10 +256,6 @@ def test_playback_worker_rate_at_base_zero(app: YouTubeTtsApp) -> None:
     app.queued_char_count = 11
 
     with patch.object(app, "speak") as mock_speak:
-
-        def side_effect(text: str, speed_scale: float | None = None) -> None:
-            app.stop_event.set()
-
-        mock_speak.side_effect = side_effect
+        mock_speak.side_effect = stop_on_speak
         app.playback_worker()
         mock_speak.assert_called_once_with("User Hello", speed_scale=0.0)
