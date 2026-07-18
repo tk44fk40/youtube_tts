@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from youtube_tts.workers.live import live_worker
+
 
 def test_live_worker_success(app: Any, mock_live_client: MagicMock) -> None:
     """正常にチャットを取得し、コメントキューが更新されるかを検証します。"""
@@ -73,7 +75,8 @@ def test_live_worker_success(app: Any, mock_live_client: MagicMock) -> None:
     mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
 
     with patch.object(app, "speak") as mock_speak:
-        app.live_worker(
+        live_worker(
+            app=app,
             live_client=mock_live_client,
             video_id="video_123",
             tts_test=None,
@@ -87,8 +90,8 @@ def test_live_worker_success(app: Any, mock_live_client: MagicMock) -> None:
     # = 29 と計算されます。
     # 各送信者名の末尾に「さん」を追加するため、
     # それぞれ2文字増えます。
-    assert app.comment_queue.qsize() == 3
-    assert app.queued_char_count == 42
+    assert app.speech_queue.qsize() == 3
+    assert app.speech_queue.queued_char_count == 42
     mock_speak.assert_not_called()
 
 
@@ -105,7 +108,8 @@ def test_live_worker_backlog_seconds_negative(
     )
     app.stop_event.set()
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         tts_test=None,
@@ -115,7 +119,7 @@ def test_live_worker_backlog_seconds_negative(
         backlog_seconds=-1,
     )
 
-    assert app.comment_queue.qsize() == 0
+    assert app.speech_queue.qsize() == 0
 
 
 @pytest.mark.parametrize(
@@ -142,9 +146,11 @@ def test_live_worker_filters(
     """チャット取得時の各種フィルタリング処理を検証します。"""
     app.config.ng_words = ng_words
     if queue_maxsize is not None:
-        app.comment_queue = queue.Queue(maxsize=queue_maxsize)
+        from youtube_tts.queue import SpeechQueue
+        app.speech_queue = SpeechQueue(maxsize=queue_maxsize)
         if queue_maxsize == 1:
-            app.comment_queue.put(("Existing", "Comment"))
+            from youtube_tts.models import SpeechItem
+            app.speech_queue.put(SpeechItem("Existing", "Comment", 15))
 
     def fetch_side_effect(
         *args: Any, **kwargs: Any
@@ -167,7 +173,8 @@ def test_live_worker_filters(
 
     mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         tts_test=None,
@@ -177,7 +184,7 @@ def test_live_worker_filters(
         backlog_seconds=backlog_seconds,
     )
 
-    actual_qsize = app.comment_queue.qsize()
+    actual_qsize = app.speech_queue.qsize()
     if queue_maxsize == 1:
         assert actual_qsize == 1
     else:
@@ -198,7 +205,8 @@ def test_live_worker_tts_test_triggered(
     mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
 
     with patch.object(app, "speak") as mock_speak:
-        app.live_worker(
+        live_worker(
+            app=app,
             live_client=mock_live_client,
             video_id="video_my_live",
             tts_test="テスト音声です",
@@ -228,7 +236,8 @@ def test_live_worker_tts_test_not_triggered_on_others_live(
     mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
 
     with patch.object(app, "speak") as mock_speak:
-        app.live_worker(
+        live_worker(
+            app=app,
             live_client=mock_live_client,
             video_id="video_other_live",
             tts_test="テスト音声です",

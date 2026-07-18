@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""YouTube TTS アプリケーションクラスです。"""
+"""YouTube TTS アプリケーションのコンテキストクラスです。"""
 
 from __future__ import annotations
 
 import json
 import logging
-import queue
-import signal
 import threading
 import time
 from collections import deque
@@ -28,11 +26,10 @@ from typing import Any
 from .audio import AudioPlayer
 from .config import AppConfig
 from .dictionary import TextProcessor
-from .live import YouTubeLiveChatClient
 from .logger import get_logger
 from .models import YouTubeMessage
 from .obs import ObsClient
-from .video import YouTubeVideoClient
+from .queue import SpeechQueue
 from .voicevox import VoicevoxClient
 
 # 定数を定義します。
@@ -41,8 +38,8 @@ MAX_PROCESSED_MESSAGE_IDS = 1000
 
 
 class YouTubeTtsApp:
-    """YouTube Live のチャット読み上げツール全体の実行状態とライフサイクルを
-    管理するクラスです。
+    """YouTube Live のチャット読み上げツール全体の実行状態とコンテキストを
+    保持するクラスです。
     """
 
     def __init__(
@@ -65,14 +62,12 @@ class YouTubeTtsApp:
             self.logger = logger
 
         # 実行時状態の初期化
-        self.comment_queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
+        self.speech_queue = SpeechQueue(maxsize=QUEUE_MAXSIZE)
         self.stop_event = threading.Event()
         self.processed_message_ids = set()
         self.processed_message_queue = deque()
         self.max_processed_message_ids = MAX_PROCESSED_MESSAGE_IDS
         self.last_spoken_used = None
-        self.queued_char_count = 0
-        self.queue_lock = threading.Lock()
         self.verbose = False
 
     def speak(self, text: str, speed_scale: float | None = None) -> None:
@@ -144,116 +139,6 @@ class YouTubeTtsApp:
         except Exception as e:
             self.logger.error(f"チャットログの保存に失敗しました: {e}")
 
-    def playback_worker(self) -> None:
-        """コメント再生キューを監視し、順次再生するスレッドワーカーです。"""
-        from .workers.playback import playback_worker
-
-        playback_worker(self)
-
-    def _get_next_quota_reset_time(self) -> Any:
-        """太平洋時間における次のクォータリセット時刻を算出します。
-
-        Returns:
-            datetime: 次のリセット予定時刻です。
-
-        """
-        from .workers.live import get_next_quota_reset_time
-
-        return get_next_quota_reset_time()
-
-    def _format_reset_time_for_speech(self, reset_time: Any) -> str:
-        """リセット時刻を音声読み上げ用の文字列にフォーマットします。
-
-        Args:
-            reset_time: クォータリセット予定時刻です。
-
-        Returns:
-            str: 読み上げ用テキストです。
-
-        """
-        from .workers.live import format_reset_time_for_speech
-
-        return format_reset_time_for_speech(reset_time)
-
-    def live_worker(
-        self,
-        live_client: YouTubeLiveChatClient,
-        video_id: str,
-        creds: Any | None = None,
-        quota_check: bool = False,
-        quota_talk: bool = False,
-        tts_test: str | None = None,
-        chat_interval: float = 20.0,
-        quota_interval: float = 180.0,
-        stream_check_interval: float = 180.0,
-        project_id: str | None = None,
-        verbose: bool = False,
-        backlog_seconds: int = 10,
-    ) -> None:
-        """YouTube Live チャットの定期取得とキュー送信を行うワーカーです。
-
-        Args:
-            live_client: YouTubeLiveChatClient インスタンスです。
-            video_id: 動画の ID です。
-            creds: 認証情報です。
-            quota_check: クォータをチェックするかどうかです。
-            quota_talk: クォータ超過時に読み上げるかどうかです。
-            tts_test: テスト用の TTS テキストです。
-            chat_interval: コメント取得インターバル（秒）です。
-            quota_interval: クォータ監視インターバル（秒）です。
-            stream_check_interval: 配信状態チェックインターバル（秒）です。
-            project_id: GCP のプロジェクト ID です。
-            verbose: 詳細ログを出力するかどうかです。
-            backlog_seconds: 遡って取得する秒数です。
-
-        """
-        from .workers.live import live_worker
-
-        live_worker(
-            app=self,
-            live_client=live_client,
-            video_id=video_id,
-            creds=creds,
-            quota_check=quota_check,
-            quota_talk=quota_talk,
-            tts_test=tts_test,
-            chat_interval=chat_interval,
-            quota_interval=quota_interval,
-            stream_check_interval=stream_check_interval,
-            project_id=project_id,
-            verbose=verbose,
-            backlog_seconds=backlog_seconds,
-        )
-
-    def video_worker(
-        self,
-        video_client: YouTubeVideoClient,
-        video_id: str,
-        chat_interval: float = 20.0,
-        verbose: bool = False,
-        backlog_counts: int = 100,
-    ) -> None:
-        """YouTube 動画コメントの定期取得を行い、キューへ送るワーカーです。
-
-        Args:
-            video_client: YouTubeVideoClient インスタンスです。
-            video_id: 動画の ID です。
-            chat_interval: コメント取得インターバル（秒）です。
-            verbose: 詳細ログを出力するかどうかです。
-            backlog_counts: 読み込む初期バックログの件数です。
-
-        """
-        from .workers.video import video_worker
-
-        video_worker(
-            app=self,
-            video_client=video_client,
-            video_id=video_id,
-            chat_interval=chat_interval,
-            verbose=verbose,
-            backlog_counts=backlog_counts,
-        )
-
     def cleanup(
         self,
         playback_thread: threading.Thread | None = None,
@@ -271,15 +156,12 @@ class YouTubeTtsApp:
         self.audio_player.stop()
 
         end_time = time.time() + wait_seconds
-        while time.time() < end_time and not self.comment_queue.empty():
+        while time.time() < end_time and not self.speech_queue.empty():
             time.sleep(0.1)
 
-        while True:
-            try:
-                self.comment_queue.get_nowait()
-                self.comment_queue.task_done()
-            except queue.Empty:
-                break
+        while not self.speech_queue.empty():
+            self.speech_queue.get_nowait()
+            self.speech_queue.task_done()
 
         if playback_thread is not None:
             try:
@@ -288,120 +170,3 @@ class YouTubeTtsApp:
                 pass
 
         self.logger.info("クリーンアップが完了しました。")
-
-    def run_live(
-        self,
-        live_client: YouTubeLiveChatClient,
-        video_id: str,
-        creds: Any | None = None,
-        quota_check: bool = False,
-        quota_talk: bool = False,
-        tts_test: str | None = None,
-        chat_interval: float = 20.0,
-        quota_interval: float = 180.0,
-        stream_check_interval: float = 180.0,
-        project_id: str | None = None,
-        verbose: bool = False,
-        backlog_seconds: int = 10,
-    ) -> None:
-        """ライブ配信のチャット監視と再生スレッドを開始します。
-
-        Args:
-            live_client: YouTubeLiveChatClient インスタンスです。
-            video_id: 動画の ID です。
-            creds: 認証情報です。
-            quota_check: クォータをチェックするかどうかです。
-            quota_talk: クォータ超過時に読み上げるかどうかです。
-            tts_test: テスト用の TTS テキストです。
-            chat_interval: コメント取得インターバル（秒）です。
-            quota_interval: クォータ監視インターバル（秒）です。
-            stream_check_interval: 配信状態チェックインターバル（秒）です。
-            project_id: GCP のプロジェクト ID です。
-            verbose: 詳細ログを出力するかどうかです。
-            backlog_seconds: 遡って取得する秒数です。
-
-        """
-        self.verbose = verbose
-
-        def handle_signal(signum, frame):
-            self.logger.info(
-                "シグナルを受信しました。シャットダウンしています..."
-            )
-            self.stop_event.set()
-
-        try:
-            signal.signal(signal.SIGINT, handle_signal)
-            signal.signal(signal.SIGTERM, handle_signal)
-        except ValueError:
-            pass
-
-        playback_thread = threading.Thread(target=self.playback_worker)
-        playback_thread.start()
-
-        try:
-            self.live_worker(
-                live_client=live_client,
-                video_id=video_id,
-                creds=creds,
-                quota_check=quota_check,
-                quota_talk=quota_talk,
-                tts_test=tts_test,
-                chat_interval=chat_interval,
-                quota_interval=quota_interval,
-                stream_check_interval=stream_check_interval,
-                project_id=project_id,
-                verbose=verbose,
-                backlog_seconds=backlog_seconds,
-            )
-        except Exception:
-            self.logger.exception("予期しないエラーが発生しました。")
-        finally:
-            self.cleanup(playback_thread=playback_thread, wait_seconds=5)
-
-    def run_video(
-        self,
-        video_client: YouTubeVideoClient,
-        video_id: str,
-        chat_interval: float = 20.0,
-        verbose: bool = False,
-        backlog_counts: int = 100,
-    ) -> None:
-        """動画・アーカイブコメントの監視と再生スレッドを開始します。
-
-        Args:
-            video_client: YouTubeVideoClient インスタンスです。
-            video_id: 動画の ID です。
-            chat_interval: コメント取得インターバル（秒）です。
-            verbose: 詳細ログを出力するかどうかです。
-            backlog_counts: 読み込む初期バックログの件数です。
-
-        """
-        self.verbose = verbose
-
-        def handle_signal(signum, frame):
-            self.logger.info(
-                "シグナルを受信しました。シャットダウンしています..."
-            )
-            self.stop_event.set()
-
-        try:
-            signal.signal(signal.SIGINT, handle_signal)
-            signal.signal(signal.SIGTERM, handle_signal)
-        except ValueError:
-            pass
-
-        playback_thread = threading.Thread(target=self.playback_worker)
-        playback_thread.start()
-
-        try:
-            self.video_worker(
-                video_client=video_client,
-                video_id=video_id,
-                chat_interval=chat_interval,
-                verbose=verbose,
-                backlog_counts=backlog_counts,
-            )
-        except Exception:
-            self.logger.exception("予期しないエラーが発生しました。")
-        finally:
-            self.cleanup(playback_thread=playback_thread, wait_seconds=5)

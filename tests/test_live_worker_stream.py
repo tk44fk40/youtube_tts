@@ -11,6 +11,7 @@ from youtube_tts.models import (
     VideoDetails,
     YouTubeMessage,
 )
+from youtube_tts.workers.live import live_worker
 
 
 def test_live_worker_stream_inactive(
@@ -26,7 +27,8 @@ def test_live_worker_stream_inactive(
     )
     mock_live_client.check_stream_active.return_value = False
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         tts_test=None,
@@ -62,7 +64,8 @@ def test_live_worker_stream_active_then_stop(
 
     mock_live_client.fetch_chat_messages.side_effect = fetch_side_effect
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         verbose=True,
@@ -74,7 +77,7 @@ def test_live_worker_stream_active_then_stop(
     assert mock_live_client.check_stream_active.called
 
 
-@patch("youtube_tts.workers.live.get_quota_info")
+@patch("youtube_tts.workers.quota_monitor.get_quota_info")
 def test_live_worker_success_with_dataclasses(
     mock_quota_info: Any,
     app: Any,
@@ -110,7 +113,8 @@ def test_live_worker_success_with_dataclasses(
 
     mock_quota_info.side_effect = quota_side_effect
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         creds=MagicMock(),

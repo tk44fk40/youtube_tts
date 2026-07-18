@@ -16,80 +16,16 @@
 
 from __future__ import annotations
 
-import queue
 import time
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
-from googleapiclient.errors import HttpError
-
 from ..live import YouTubeLiveChatClient
-from ..models import QuotaInfo, SpeechItem, VideoDetails, YouTubeMessage
-from ..quota import get_quota_info
+from ..models import SpeechItem, VideoDetails, YouTubeMessage
+from .quota_monitor import QuotaMonitor
 
 if TYPE_CHECKING:
     from youtube_tts.app import YouTubeTtsApp
-
-
-def get_next_quota_reset_time() -> datetime:
-    """太平洋時間における次のクォータリセット時刻を算出します。
-
-    Returns:
-        datetime: 次のリセット予定時刻です。
-    """
-    from zoneinfo import ZoneInfo
-
-    tz_la = ZoneInfo("America/Los_Angeles")
-    now_la = datetime.now(tz_la)
-    next_reset_la = (now_la + timedelta(days=1)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    return next_reset_la.astimezone()
-
-
-def format_reset_time_for_speech(reset_time: datetime) -> str:
-    """リセット時刻を音声読み上げ用の文字列にフォーマットします。
-
-    Args:
-        reset_time (datetime): クォータリセット予定時刻です。
-
-    Returns:
-        str: 読み上げ用テキストです。
-    """
-    now_local = datetime.now().astimezone()
-    delta_days = (reset_time.date() - now_local.date()).days
-
-    time_str = f"{reset_time.hour}時"
-    if reset_time.minute > 0:
-        time_str += f"{reset_time.minute}分"
-
-    if delta_days == 0:
-        day_prefix = "今日"
-    elif delta_days == 1:
-        day_prefix = "明日"
-    else:
-        day_prefix = f"{reset_time.month}月{reset_time.day}日"
-
-    return f"{day_prefix}の{time_str}"
-
-
-def is_quota_exceeded_error(error: Exception) -> bool:
-    """HTTP 403 のクォータ超過エラーかどうかを判定します。"""
-    # APIの例外の形は環境差異があるため、ステータスと本文を確認して判定する。
-    if not isinstance(error, HttpError):
-        return False
-
-    resp_status = getattr(getattr(error, "resp", None), "status", None)
-    if resp_status != 403:
-        return False
-
-    content = getattr(error, "content", None)
-    if isinstance(content, bytes):
-        content = content.decode("utf-8", errors="ignore")
-    elif not isinstance(content, str):
-        content = ""
-
-    return "quotaExceeded" in str(error) or "quotaExceeded" in content
 
 
 def format_error_details(error: Exception) -> str:
@@ -103,22 +39,6 @@ def format_error_details(error: Exception) -> str:
         return repr(error)
     except Exception:
         return f"{type(error).__name__}(details unavailable)"
-
-
-def enqueue_quota_message(app: YouTubeTtsApp, message: str) -> None:
-    """キューを空にして、クォータ超過メッセージを再生キューへ積みます。"""
-    # 直前のコメントが残っている場合に備えて、通知メッセージを優先して再生する。
-    while not app.comment_queue.empty():
-        try:
-            app.comment_queue.get_nowait()
-            app.comment_queue.task_done()
-        except queue.Empty:
-            break
-
-    char_count = len(message)
-    with app.queue_lock:
-        app.queued_char_count = char_count
-    app.comment_queue.put(SpeechItem("", message, char_count))
 
 
 def live_worker(
@@ -136,33 +56,7 @@ def live_worker(
     verbose: bool = False,
     backlog_seconds: int = 10,
 ) -> None:
-    """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカーです。
-
-    Args:
-        app (YouTubeTtsApp): YouTubeTtsApp インスタンスです。
-        live_client (YouTubeLiveChatClient):
-            YouTubeLiveChatClient インスタンスです。
-        video_id (str): 動画のIDです。
-        creds (Any | None): 認証資格です。デフォルトは None です。
-        quota_check (bool): クォータを監視するかどうかを表す真偽値です。
-            デフォルトは False です。
-        quota_talk (bool): クォータ超過時に読み上げるかどうかを表す真偽値です。
-            デフォルトは False です。
-        tts_test (str | None): テスト用のTTSテキストです。
-            デフォルトは None です。
-        chat_interval (float): コメント取得インターバル（秒）です。
-            デフォルトは 20.0 です。
-        quota_interval (float): クォータ監視インターバル（秒）です。
-            デフォルトは 180.0 です。
-        stream_check_interval (float): 配信状態チェックインターバル（秒）です。
-            デフォルトは 180.0 です。
-        project_id (str | None): GCPのプロジェクトIDです。
-            デフォルトは None です。
-        verbose (bool): 詳細ログを出力するかどうかを表す真偽値です。
-            デフォルトは False です。
-        backlog_seconds (int): 遡って取得する秒数です。
-            デフォルトは 10 です。
-    """
+    """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカーです。"""
     try:
         video_details = live_client.get_video_details(video_id)
         if isinstance(video_details, dict):
@@ -202,52 +96,44 @@ def live_worker(
         threshold_time = None
 
     next_page_token = None
-    last_quota_check_time = 0
     last_stream_check_time = time.time()
 
+    quota_monitor = QuotaMonitor(
+        app=app,
+        creds=creds,
+        project_id=project_id,
+        quota_talk=quota_talk,
+        interval=quota_interval,
+    ) if quota_check else None
+
     while not app.stop_event.is_set():
-        # 設定ファイルの変更を反映したうえで、次のポーリング周期へ進む。
         app.config.reload_if_changed()
 
         app.logger.debug(
             f"チャットメッセージを取得しています (pageToken: {next_page_token})"
         )
 
+        error_occurred = None
         try:
             res = live_client.fetch_chat_messages(
                 live_chat_id, page_token=next_page_token
             )
             items, next_page_token, polling_interval = res
         except Exception as e:  # noqa: BLE001
-            # クォータ超過時のみ、音声読み上げ用の案内メッセージをキューへ流す。
-            is_quota_exceeded = is_quota_exceeded_error(e)
+            # 例外ブロック内での複雑な処理を避け、状態を記録するにとどめます。
+            error_occurred = e
+            polling_interval = chat_interval * 1000
 
-            if is_quota_exceeded and quota_talk:
-                try:
-                    reset_time = get_next_quota_reset_time()
-                    reset_str = format_reset_time_for_speech(reset_time)
-                    quota_message = (
-                        f"ぴんぽーん！残念！"
-                        f"クォータを超過しました。"
-                        f"{reset_str}頃までお待ち下さい。"
-                    )
-                except Exception as ex:  # noqa: BLE001
-                    app.logger.warning(
-                        f"リセット予定時刻の取得に失敗しました: {ex}"
-                    )
-                    quota_message = "ぴんぽーん！残念！クォータを超過しました。"
+        # チャット取得でエラーが発生した場合の対応処理
+        if error_occurred:
+            handled = False
+            if quota_monitor:
+                handled = quota_monitor.handle_exceeded_error(error_occurred)
 
-                # 画面表示用のメッセージをログに残し、再生キューへ優先して積む。
-                app.logger.info(f"[QUOTA] {quota_message}")
-                enqueue_quota_message(app, quota_message)
-
-                # 再生キューに入れた案内メッセージが処理されるまで少し待つ。
-                timeout = time.time() + 5.0
-                while not app.comment_queue.empty() and time.time() < timeout:
-                    time.sleep(0.1)
-
-            app.logger.error("チャットの取得に失敗しました。")
-            app.logger.debug(f"(エラー詳細: {format_error_details(e)})")
+            if not handled:
+                app.logger.error("チャットの取得に失敗しました。")
+                app.logger.debug(f"(エラー詳細: {format_error_details(error_occurred)})")
+            
             app.stop_event.set()
             return
 
@@ -286,16 +172,14 @@ def live_worker(
             proc = app.text_processor
             author, msg_text = proc.normalize_comment(author, msg_text)
 
-            if app.comment_queue.full():
+            if app.speech_queue.full():
                 app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
                 continue
 
             speech_item = SpeechItem.from_youtube_message(
                 message, author, msg_text
             )
-            with app.queue_lock:
-                app.queued_char_count += speech_item.char_count
-            app.comment_queue.put(speech_item)
+            app.speech_queue.put(speech_item)
 
         now = time.time()
 
@@ -310,40 +194,7 @@ def live_worker(
             last_stream_check_time = now
 
         # クォータの使用量を確認します。
-        if (
-            quota_check
-            and creds
-            and project_id
-            and (now - last_quota_check_time >= quota_interval)
-        ):
-            app.logger.debug("クォータ情報を取得しています...")
-            try:
-                quota_info = get_quota_info(creds, project_id)
-                if isinstance(quota_info, tuple):
-                    quota_info = QuotaInfo(
-                        used=quota_info[0], limit=quota_info[1]
-                    )
-                app.logger.info(
-                    f"[QUOTA] 使用量: {quota_info.used:,} / "
-                    f"{quota_info.limit:,} "
-                    f"({quota_info.usage_percent:.2f}%), "
-                    f"残量: {quota_info.remaining:,}"
-                )
-
-                is_diff = quota_info.used != app.last_spoken_used
-                if quota_talk and is_diff and not app.comment_queue.full():
-                    quota_author = ""
-                    quota_message = quota_info.speech_text
-                    speech_item = SpeechItem(
-                        quota_author, quota_message, len(quota_message)
-                    )
-                    with app.queue_lock:
-                        app.queued_char_count += speech_item.char_count
-                    app.comment_queue.put(speech_item)
-                    app.last_spoken_used = quota_info.used
-            except Exception as e:  # noqa: BLE001
-                app.logger.warning("クォータ情報の取得に失敗しました。")
-                app.logger.debug(f"(エラー詳細: {e})")
-            last_quota_check_time = now
+        if quota_monitor:
+            quota_monitor.check_and_talk()
 
         time.sleep(max(polling_interval / 1000, chat_interval))

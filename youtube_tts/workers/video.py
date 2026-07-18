@@ -17,44 +17,58 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ..models import SpeechItem, YouTubeMessage
 from ..video import YouTubeVideoClient
+from .quota_monitor import QuotaMonitor
 
 if TYPE_CHECKING:
     from youtube_tts.app import YouTubeTtsApp
+
+
+def format_error_details(error: Exception) -> str:
+    """ログに出力するために例外の詳細を安全に整形します。"""
+    try:
+        return str(error)
+    except Exception:
+        pass
+    try:
+        return repr(error)
+    except Exception:
+        return f"{type(error).__name__}(details unavailable)"
 
 
 def video_worker(
     app: YouTubeTtsApp,
     video_client: YouTubeVideoClient,
     video_id: str,
+    creds: Any | None = None,
+    quota_check: bool = False,
+    quota_talk: bool = False,
+    quota_interval: float = 180.0,
+    project_id: str | None = None,
     chat_interval: float = 20.0,
     verbose: bool = False,
     backlog_counts: int = 100,
 ) -> None:
-    """YouTube 動画コメントの定期取得を行い、キューへ送るワーカーです。
+    """YouTube 動画コメントの定期取得を行い、キューへ送るワーカーです。"""
+    quota_monitor = QuotaMonitor(
+        app=app,
+        creds=creds,
+        project_id=project_id,
+        quota_talk=quota_talk,
+        interval=quota_interval,
+    ) if quota_check else None
 
-    Args:
-        app (YouTubeTtsApp): YouTubeTtsApp インスタンスです。
-        video_client (YouTubeVideoClient): YouTubeVideoClient
-            インスタンスです。
-        video_id (str): 動画のIDです。
-        chat_interval (float): コメント取得インターバル（秒）です。
-        verbose (bool): 詳細ログを出力するかどうかです。
-        backlog_counts (int): 読み込む初期バックログの件数です。
-    """
     app.logger.info(
         "初期コメントのバックログをロードしています "
         f"(制限: {backlog_counts})..."
     )
     backlog_items = []
     page_token = None
-    # 読み込む初期バックログの制限数（負数の場合は制限なし）を設定します。
     remaining_to_fetch = backlog_counts if backlog_counts >= 0 else None
 
-    # 初期コメントのバックログ取得ループです。
     while not app.stop_event.is_set():
         if remaining_to_fetch is not None and remaining_to_fetch <= 0:
             break
@@ -64,14 +78,23 @@ def video_worker(
             else 100
         )
 
+        error_occurred = None
         try:
-            # YouTube API から動画のコメントスレッドを取得します。
             items, page_token, _ = video_client.fetch_comment_threads(
                 video_id, page_token=page_token, max_results=max_results
             )
         except Exception as e:  # noqa: BLE001
-            app.logger.error("初期コメントスレッドの取得に失敗しました。")
-            app.logger.debug(f"(エラー詳細: {e})")
+            error_occurred = e
+
+        if error_occurred:
+            handled = False
+            if quota_monitor:
+                handled = quota_monitor.handle_exceeded_error(error_occurred)
+            if not handled:
+                app.logger.error("初期コメントスレッドの取得に失敗しました。")
+                app.logger.debug(
+                    f"(エラー詳細: {format_error_details(error_occurred)})"
+                )
             break
 
         if not items:
@@ -84,7 +107,6 @@ def video_worker(
         if not page_token:
             break
 
-    # 取得したコメントを古い順に処理するために並べ替えます。
     backlog_items.reverse()
     for message in backlog_items:
         if isinstance(message, dict):
@@ -95,7 +117,6 @@ def video_worker(
         author = message.author_name
         msg_text = message.message
 
-        # NGワードが含まれるコメントはスキップします。
         if app.text_processor.contains_ng_word(msg_text):
             if verbose:
                 app.logger.info(f"[SKIP(NG)] {author}: {msg_text}")
@@ -106,32 +127,36 @@ def video_worker(
             author, msg_text
         )
 
-        # 読み上げキューが満杯の場合はスキップします。
-        if app.comment_queue.full():
+        if app.speech_queue.full():
             app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
             continue
 
-        # 文字数カウントを更新し、読み上げキューへ追加します。
         speech_item = SpeechItem.from_youtube_message(message, author, msg_text)
-        with app.queue_lock:
-            app.queued_char_count += speech_item.char_count
-        app.comment_queue.put(speech_item)
+        app.speech_queue.put(speech_item)
 
-    # コメントのリアルタイム監視ポーリングループです。
     while not app.stop_event.is_set():
         app.config.reload_if_changed()
-
         app.logger.debug("最新の動画コメントを取得しています...")
 
+        error_occurred = None
         try:
-            # 最新のコメントを最大100件取得します。
             res = video_client.fetch_comment_threads(
                 video_id, page_token=None, max_results=100
             )
             items, _, polling_interval = res
         except Exception as e:  # noqa: BLE001
-            app.logger.error("コメントスレッドの取得に失敗しました。")
-            app.logger.debug(f"(エラー詳細: {e})")
+            error_occurred = e
+            polling_interval = chat_interval * 1000
+
+        if error_occurred:
+            handled = False
+            if quota_monitor:
+                handled = quota_monitor.handle_exceeded_error(error_occurred)
+            if not handled:
+                app.logger.error("コメントスレッドの取得に失敗しました。")
+                app.logger.debug(
+                    f"(エラー詳細: {format_error_details(error_occurred)})"
+                )
             app.stop_event.set()
             return
 
@@ -140,13 +165,10 @@ def video_worker(
             f"(polling_interval: {polling_interval}ms)"
         )
 
-        # 取得したコメントを古い順に処理します。
         items.reverse()
-
         for message in items:
             if isinstance(message, dict):
                 message = YouTubeMessage.from_dict(message)
-            # 既に処理済みのコメントはスキップします。
             if app.is_and_mark_processed(message.id):
                 continue
 
@@ -155,7 +177,6 @@ def video_worker(
             author = message.author_name
             msg_text = message.message
 
-            # NGワードが含まれるコメントはスキップします。
             if app.text_processor.contains_ng_word(msg_text):
                 if verbose:
                     app.logger.info(f"[SKIP(NG)] {author}: {msg_text}")
@@ -166,19 +187,16 @@ def video_worker(
                 author, msg_text
             )
 
-            # 読み上げキューが満杯の場合はスキップします。
-            if app.comment_queue.full():
+            if app.speech_queue.full():
                 app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
                 continue
 
-            # 文字数カウントを更新し、読み上げキューへ追加します。
             speech_item = SpeechItem.from_youtube_message(
                 message, author, msg_text
             )
-            with app.queue_lock:
-                app.queued_char_count += speech_item.char_count
-            app.comment_queue.put(speech_item)
+            app.speech_queue.put(speech_item)
 
-        # APIで指定されたポーリング間隔または設定値の
-        # いずれか大きい時間待機します。
+        if quota_monitor:
+            quota_monitor.check_and_talk()
+
         time.sleep(max(polling_interval / 1000, chat_interval))

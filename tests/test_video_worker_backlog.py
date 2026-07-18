@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from youtube_tts.workers.video import video_worker
+
 
 @pytest.mark.parametrize(
     "backlog_counts, side_effect, verbose, expect_debug, expect_qsize",
@@ -77,7 +79,8 @@ def test_video_worker_backlog_cases(
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
     with patch.object(app.logger, "debug") as mock_debug:
-        app.video_worker(
+        video_worker(
+            app=app,
             video_client=mock_video_client,
             video_id="video_123",
             chat_interval=0.01,
@@ -87,7 +90,7 @@ def test_video_worker_backlog_cases(
 
     if expect_debug:
         mock_debug.assert_called()
-    assert app.comment_queue.qsize() == expect_qsize
+    assert app.speech_queue.qsize() == expect_qsize
 
 
 @pytest.mark.parametrize(
@@ -135,7 +138,8 @@ def test_video_worker_backlog_ng_words(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -143,7 +147,7 @@ def test_video_worker_backlog_ng_words(
         backlog_counts=10,
     )
 
-    assert app.comment_queue.qsize() == 0
+    assert app.speech_queue.qsize() == 0
 
 
 @pytest.mark.parametrize("pre_set_stop", [True, False])
@@ -155,8 +159,10 @@ def test_video_worker_backlog_queue_full(
     pre_set_stop: bool,
 ) -> None:
     """キューが満杯の際にコメント追加がスキップされることを検証します。"""
-    app.comment_queue = queue.Queue(maxsize=1)
-    app.comment_queue.put(("Existing", "Comment"))
+    from youtube_tts.queue import SpeechQueue
+    from youtube_tts.models import SpeechItem
+    app.speech_queue = SpeechQueue(maxsize=1)
+    app.speech_queue.put(SpeechItem("Existing", "Comment", 15))
 
     if pre_set_stop:
         app.stop_event.set()
@@ -184,7 +190,8 @@ def test_video_worker_backlog_queue_full(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -192,7 +199,7 @@ def test_video_worker_backlog_queue_full(
         backlog_counts=10,
     )
 
-    assert app.comment_queue.qsize() == 1
+    assert app.speech_queue.qsize() == 1
 
 
 @patch("time.sleep")
@@ -223,7 +230,8 @@ def test_video_worker_backlog_item_limit(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -231,7 +239,7 @@ def test_video_worker_backlog_item_limit(
         backlog_counts=1,
     )
 
-    assert app.comment_queue.qsize() == 1
+    assert app.speech_queue.qsize() == 1
 
 
 @patch("time.sleep")
@@ -264,7 +272,8 @@ def test_video_worker_backlog_unlimited(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -272,4 +281,4 @@ def test_video_worker_backlog_unlimited(
         backlog_counts=-1,
     )
 
-    assert app.comment_queue.qsize() == 1
+    assert app.speech_queue.qsize() == 1

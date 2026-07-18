@@ -32,7 +32,7 @@ def clean_environ() -> Generator[None, None, None]:
 def mock_voicevox_client_get_speakers() -> Generator[MagicMock, None, None]:
     """VOICEVOX スピーカー取得をモック化するフィクスチャです。"""
     with patch(
-        "youtube_live_voicevox.VoicevoxClient.get_speakers"
+        "youtube_tts.cli.context.VoicevoxClient.get_speakers"
     ) as mock_get_speakers:
         yield mock_get_speakers
 
@@ -41,14 +41,13 @@ def mock_voicevox_client_get_speakers() -> Generator[MagicMock, None, None]:
 def mock_cli_components() -> Generator[dict[str, Any], None, None]:
     """主要コンポーネントを一括でモック化し、標準的な初期値を設定します。"""
     with (
-        patch("youtube_live_voicevox.YouTubeAuthenticator") as mock_auth,
-        patch(
-            "youtube_live_voicevox.YouTubeLiveChatClient"
-        ) as mock_live_client,
-        patch("youtube_live_voicevox.YouTubeTtsApp") as mock_app_class,
-        patch("youtube_live_voicevox.AudioPlayer") as mock_audio_player_class,
+        patch("youtube_tts.cli.context.YouTubeAuthenticator") as mock_auth,
+        patch("youtube_live_voicevox.YouTubeLiveChatClient") as mock_live_client,
+        patch("youtube_tts.cli.context.YouTubeTtsApp") as mock_app_class,
+        patch("youtube_tts.cli.context.AudioPlayer") as mock_audio_player_class,
         patch("sounddevice.query_devices") as mock_query,
         patch("youtube_live_voicevox.extract_video_id") as mock_extract,
+        patch("youtube_live_voicevox.LiveRunner") as mock_runner_class,
     ):
         mock_query.return_value = {"name": "test_device", "index": 6}
 
@@ -67,6 +66,9 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
 
         mock_app_instance = MagicMock()
         mock_app_class.return_value = mock_app_instance
+        
+        mock_runner_instance = MagicMock()
+        mock_runner_class.return_value = mock_runner_instance
 
         yield {
             "auth": mock_auth,
@@ -78,6 +80,8 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
             "app_instance": mock_app_instance,
             "audio_player_class": mock_audio_player_class,
             "query_devices": mock_query,
+            "runner_class": mock_runner_class,
+            "runner_instance": mock_runner_instance,
         }
 
 
@@ -150,7 +154,7 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
         ),
     ],
 )
-@patch("youtube_live_voicevox.get_project_id")
+@patch("youtube_tts.cli.context.get_project_id")
 def test_live_cli_options(
     mock_get_project_id: MagicMock,
     mock_cli_components: dict[str, Any],
@@ -185,8 +189,8 @@ def test_live_cli_options(
     assert config.auto_speed_boost is expected_boost
     assert config.chat_log_path == expected_log_path
 
-    # run_live 引数の検証
-    _, kwargs_run = components["app_instance"].run_live.call_args
+    # LiveRunner 引数の検証
+    _, kwargs_run = components["runner_class"].call_args
     assert kwargs_run["quota_check"] is expected_quota_check
     assert kwargs_run["quota_talk"] is expected_quota_talk
     assert kwargs_run["quota_interval"] == expected_quota_interval
@@ -292,7 +296,7 @@ def test_live_cli_device_string_and_query_failure(
     components["audio_player_class"].assert_called_with(
         default_device="test_device_name"
     )
-    components["app_instance"].run_live.assert_called_once()
+    components["runner_instance"].run.assert_called_once()
 
 
 def test_live_cli_get_speakers_failure(
@@ -311,17 +315,17 @@ def test_live_cli_get_speakers_failure(
     with patch("sys.argv", ["youtube_live_voicevox.py", "-v", "video123"]):
         main()
 
-    components["app_instance"].run_live.assert_called_once()
-    components["app_instance"].run_live.reset_mock()
+    components["runner_instance"].run.assert_called_once()
+    components["runner_instance"].run.reset_mock()
 
     # verboseなしのケースもテストしてBrPartを解消
     with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
         main()
 
-    components["app_instance"].run_live.assert_called_once()
+    components["runner_instance"].run.assert_called_once()
 
 
-@patch("youtube_live_voicevox.get_project_id")
+@patch("youtube_tts.cli.context.get_project_id")
 def test_live_cli_quota_check_project_id_failure(
     mock_get_project_id: MagicMock,
     mock_cli_components: dict[str, Any],
@@ -336,8 +340,8 @@ def test_live_cli_quota_check_project_id_failure(
         main()
 
     # run_live が quota_check=False で呼ばれることを検証
-    components["app_instance"].run_live.assert_called_once()
-    _, kwargs = components["app_instance"].run_live.call_args
+    components["runner_instance"].run.assert_called_once()
+    _, kwargs = components["runner_class"].call_args
     assert kwargs["quota_check"] is False
     assert kwargs["quota_talk"] is False
 
@@ -345,11 +349,11 @@ def test_live_cli_quota_check_project_id_failure(
 def test_live_cli_run_live_unexpected_error(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """run_live で予期しない例外が発生した場合に例外がキャッチされ、
+    """run で予期しない例外が発生した場合に例外がキャッチされ、
     ログ出力されることを検証します。
     """
     components = mock_cli_components
-    components["app_instance"].run_live.side_effect = RuntimeError(
+    components["runner_instance"].run.side_effect = RuntimeError(
         "Unexpected loop crash"
     )
 
@@ -357,7 +361,7 @@ def test_live_cli_run_live_unexpected_error(
     with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
         main()
 
-    components["app_instance"].run_live.assert_called_once()
+    components["runner_instance"].run.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -385,7 +389,7 @@ def test_live_cli_run_live_unexpected_error(
         ),
     ],
 )
-@patch("youtube_live_voicevox.get_project_id")
+@patch("youtube_tts.cli.context.get_project_id")
 def test_live_cli_env_vars(
     mock_get_project_id: MagicMock,
     mock_cli_components: dict[str, Any],
@@ -407,4 +411,3 @@ def test_live_cli_env_vars(
     assert config.speed_scale == expected_speed
     assert config.max_speed == expected_max_speed
     assert config.volume_scale == expected_volume
-

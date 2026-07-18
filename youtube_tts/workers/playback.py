@@ -33,16 +33,10 @@ def playback_worker(app: YouTubeTtsApp) -> None:
     """
     while not app.stop_event.is_set():
         try:
-            item: SpeechItem = app.comment_queue.get(timeout=1)
+            item: SpeechItem = app.speech_queue.get(timeout=1)
             author = item.author
             message = item.message
-            char_count = item.char_count
-
-            with app.queue_lock:
-                app.queued_char_count = max(
-                    0, app.queued_char_count - char_count
-                )
-                remaining_chars = app.queued_char_count
+            remaining_chars = app.speech_queue.queued_char_count
         except queue.Empty:
             continue
 
@@ -72,4 +66,4 @@ def playback_worker(app: YouTubeTtsApp) -> None:
             app.logger.info(f"[TALK] {text}")
 
         app.speak(text, speed_scale=speed)
-        app.comment_queue.task_done()
+        app.speech_queue.task_done()
