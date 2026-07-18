@@ -72,22 +72,149 @@ def test_video_worker_backlog_cases(
 
 
 @pytest.mark.parametrize(
-    "backlog_counts, comments_list, next_tokens, ng_words, maxsize, fill_queue, pre_set_stop, verbose, expected_qsize",
+    "backlog_counts, comments_list, next_tokens, ng_words, maxsize, "
+    "fill_queue, pre_set_stop, verbose, expected_qsize",
     [
-        # NGワード (verbose=True, False) (事前に stop_event.set() されるケース)
-        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1", "channelId": "ch1"}, "snippet": {"displayMessage": "badword message", "publishedAt": "2026-07-03T10:00:00Z"}}]], [None], ["badword"], None, False, True, True, 0),
-        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1", "channelId": "ch1"}, "snippet": {"displayMessage": "badword message", "publishedAt": "2026-07-03T10:00:00Z"}}]], [None], ["badword"], None, False, True, False, 0),
-        # NGワード (verbose=True, False) (2回目のフェッチが発生し、その中で stop_event.set() されるケース)
-        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1"}, "snippet": {"displayMessage": "badword message"}}], []], [None, None], ["badword"], None, False, False, True, 0),
-        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1"}, "snippet": {"displayMessage": "badword message"}}], []], [None, None], ["badword"], None, False, False, False, 0),
+        # NGワード (verbose=True, False)
+        # (事前に stop_event.set() されるケース)
+        (
+            10,
+            [[{
+                "id": "c1",
+                "authorDetails": {
+                    "displayName": "User1",
+                    "channelId": "ch1",
+                },
+                "snippet": {
+                    "displayMessage": "badword message",
+                    "publishedAt": "2026-07-03T10:00:00Z",
+                },
+            }]],
+            [None],
+            ["badword"],
+            None,
+            False,
+            True,
+            True,
+            0,
+        ),
+        (
+            10,
+            [[{
+                "id": "c1",
+                "authorDetails": {
+                    "displayName": "User1",
+                    "channelId": "ch1",
+                },
+                "snippet": {
+                    "displayMessage": "badword message",
+                    "publishedAt": "2026-07-03T10:00:00Z",
+                },
+            }]],
+            [None],
+            ["badword"],
+            None,
+            False,
+            True,
+            False,
+            0,
+        ),
+        # NGワード (verbose=True, False)
+        # (2回目のフェッチが発生し、その中で stop_event.set() されるケース)
+        (
+            10,
+            [[{
+                "id": "c1",
+                "authorDetails": {"displayName": "User1"},
+                "snippet": {"displayMessage": "badword message"},
+            }], []],
+            [None, None],
+            ["badword"],
+            None,
+            False,
+            False,
+            True,
+            0,
+        ),
+        (
+            10,
+            [[{
+                "id": "c1",
+                "authorDetails": {"displayName": "User1"},
+                "snippet": {"displayMessage": "badword message"},
+            }], []],
+            [None, None],
+            ["badword"],
+            None,
+            False,
+            False,
+            False,
+            0,
+        ),
         # キュー満杯ケース
-        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1"}, "snippet": {"displayMessage": "Hello"}}], []], [None, None], [], 1, True, True, False, 1),
-        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1"}, "snippet": {"displayMessage": "Hello"}}], []], [None, None], [], 1, True, False, False, 1),
+        (
+            10,
+            [[{
+                "id": "c1",
+                "authorDetails": {"displayName": "User1"},
+                "snippet": {"displayMessage": "Hello"},
+            }], []],
+            [None, None],
+            [],
+            1,
+            True,
+            True,
+            False,
+            1,
+        ),
+        (
+            10,
+            [[{
+                "id": "c1",
+                "authorDetails": {"displayName": "User1"},
+                "snippet": {"displayMessage": "Hello"},
+            }], []],
+            [None, None],
+            [],
+            1,
+            True,
+            False,
+            False,
+            1,
+        ),
         # 件数制限によるブレイク (backlog_counts=1)
-        (1, [[{"id": "c1", "authorDetails": {"displayName": "U1"}, "snippet": {"displayMessage": "Hello"}}], []], ["next_token", None], [], None, False, False, False, 1),
+        (
+            1,
+            [[{
+                "id": "c1",
+                "authorDetails": {"displayName": "U1"},
+                "snippet": {"displayMessage": "Hello"},
+            }], []],
+            ["next_token", None],
+            [],
+            None,
+            False,
+            False,
+            False,
+            1,
+        ),
         # 無制限バックログ (backlog_counts=-1)
-        (-1, [[{"id": "c1", "authorDetails": {"displayName": "U1"}, "snippet": {"displayMessage": "Hello"}}], []], [None, None], [], None, False, False, False, 1),
-    ]
+        (
+            -1,
+            [[{
+                "id": "c1",
+                "authorDetails": {"displayName": "U1"},
+                "snippet": {"displayMessage": "Hello"},
+            }], []],
+            [None, None],
+            [],
+            None,
+            False,
+            False,
+            False,
+            1,
+        ),
+    ],
 )
 @patch("time.sleep")
 def test_video_worker_backlog_various_cases(
@@ -127,8 +254,9 @@ def test_video_worker_backlog_various_cases(
             app.stop_event.set()
             return [], None, 3000
 
-        # 最後のフェッチまたは次のトークンがない場合、stop_eventをセットして無限ループを防ぐ
-        # (ただし事前にstop_eventがセットされていれば呼ばれない)
+        # 最後のフェッチまたは次のトークンがない場合、
+        # stop_eventをセットして無限ループを防ぎます
+        # (ただし事前にstop_eventがセットされていれば呼ばれません)
         if idx == len(comments_list) - 1:
             app.stop_event.set()
 
