@@ -161,16 +161,13 @@ def test_video_cli_env_variables_and_failures(
     mock_cli_components: dict[str, Any],
 ) -> None:
     """環境変数や各エラーハンドリングのフローを検証します。"""
-    import os
 
     components = mock_cli_components
     # デバイス情報取得エラーをシミュレート
     components["query_devices"].side_effect = Exception("Device query error")
 
     # アプリ起動時の例外をシミュレート
-    components["runner_instance"].run.side_effect = Exception(
-        "App run error"
-    )
+    components["runner_instance"].run.side_effect = Exception("App run error")
 
     argv = ["youtube_video_voicevox.py", "-d", "device_str", "video123"]
     env = {

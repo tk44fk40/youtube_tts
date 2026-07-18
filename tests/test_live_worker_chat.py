@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import queue
 from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -147,9 +146,11 @@ def test_live_worker_filters(
     app.config.ng_words = ng_words
     if queue_maxsize is not None:
         from youtube_tts.queue import SpeechQueue
+
         app.speech_queue = SpeechQueue(maxsize=queue_maxsize)
         if queue_maxsize == 1:
             from youtube_tts.models import SpeechItem
+
             app.speech_queue.put(SpeechItem("Existing", "Comment", 15))
 
     def fetch_side_effect(

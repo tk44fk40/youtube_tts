@@ -56,7 +56,8 @@ def live_worker(
     verbose: bool = False,
     backlog_seconds: int = 10,
 ) -> None:
-    """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカーです。"""
+    """YouTube Live チャットコメントの定期取得を行い、
+    キューへ送るワーカーです。"""
     try:
         video_details = live_client.get_video_details(video_id)
         if isinstance(video_details, dict):
@@ -98,13 +99,17 @@ def live_worker(
     next_page_token = None
     last_stream_check_time = time.time()
 
-    quota_monitor = QuotaMonitor(
-        app=app,
-        creds=creds,
-        project_id=project_id,
-        quota_talk=quota_talk,
-        interval=quota_interval,
-    ) if quota_check else None
+    quota_monitor = (
+        QuotaMonitor(
+            app=app,
+            creds=creds,
+            project_id=project_id,
+            quota_talk=quota_talk,
+            interval=quota_interval,
+        )
+        if quota_check
+        else None
+    )
 
     while not app.stop_event.is_set():
         app.config.reload_if_changed()
@@ -132,8 +137,9 @@ def live_worker(
 
             if not handled:
                 app.logger.error("チャットの取得に失敗しました。")
-                app.logger.debug(f"(エラー詳細: {format_error_details(error_occurred)})")
-            
+                err_det = format_error_details(error_occurred)
+                app.logger.debug(f"(エラー詳細: {err_det})")
+
             app.stop_event.set()
             return
 

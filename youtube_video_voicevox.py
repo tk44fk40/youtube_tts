@@ -56,7 +56,7 @@ def main() -> None:
         verbose=args.verbose,
         backlog_counts=args.backlog_counts,
     )
-    
+
     try:
         runner.run()
     except Exception:

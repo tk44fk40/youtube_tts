@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import queue
 from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock
@@ -95,8 +94,7 @@ def test_video_worker_success(app: Any, mock_video_client: MagicMock) -> None:
 
 
 @pytest.mark.parametrize(
-    "ng_words, queue_maxsize, verbose, raise_error, "
-    "expect_stop, expect_qsize",
+    "ng_words, queue_maxsize, verbose, raise_error, expect_stop, expect_qsize",
     [
         ([], None, True, True, True, 0),
         ([], None, False, True, True, 0),
@@ -119,8 +117,9 @@ def test_video_worker_polling_cases(
     """メインポーリング時の各種ケースを検証します。"""
     app.config.ng_words = ng_words
     if queue_maxsize is not None:
-        from youtube_tts.queue import SpeechQueue
         from youtube_tts.models import SpeechItem
+        from youtube_tts.queue import SpeechQueue
+
         app.speech_queue = SpeechQueue(maxsize=queue_maxsize)
         if queue_maxsize == 1:
             app.speech_queue.put(SpeechItem("Existing", "Comment", 15))

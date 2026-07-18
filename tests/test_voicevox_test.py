@@ -160,4 +160,3 @@ def test_voicevox_test_main_list_devices_player_none(
     ):
         main()
         mock_print.assert_not_called()
-

@@ -36,7 +36,9 @@ class BaseRunner(ABC):
 
     def _handle_signal(self, signum: int, frame: any) -> None:
         """シグナル受信時のハンドラです。"""
-        self.app.logger.info("シグナルを受信しました。シャットダウンしています...")
+        self.app.logger.info(
+            "シグナルを受信しました。シャットダウンしています..."
+        )
         self.app.stop_event.set()
 
     @abstractmethod
@@ -53,7 +55,10 @@ class BaseRunner(ABC):
             pass  # メインスレッド以外での実行時は無視します。
 
         from youtube_tts.workers.playback import playback_worker
-        playback_thread = threading.Thread(target=lambda: playback_worker(self.app))
+
+        playback_thread = threading.Thread(
+            target=lambda: playback_worker(self.app)
+        )
         playback_thread.start()
 
         try:

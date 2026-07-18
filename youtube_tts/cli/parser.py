@@ -95,7 +95,8 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
     parser.add_argument(
         "--chat-log",
         default="chat_log.jsonl",
-        help="チャットログの保存先パスを指定します（デフォルト: chat_log.jsonl）。",
+        help="チャットログの保存先パスを指定します\n"
+        "（デフォルト: chat_log.jsonl）。",
     )
     parser.add_argument(
         "--quota-interval",

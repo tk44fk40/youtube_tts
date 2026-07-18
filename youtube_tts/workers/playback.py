@@ -24,6 +24,42 @@ if TYPE_CHECKING:
     from youtube_tts.models import SpeechItem
 
 
+def calculate_playback_speed(
+    base_speed: float,
+    remaining_chars: int,
+    max_speed_limit: float = 2.2,
+) -> float:
+    """キューに溜まっている文字数に基づいて再生速度を動的に計算します。
+
+    Args:
+        base_speed: 基本の再生速度。
+        remaining_chars: キューに溜まっている文字数。
+        max_speed_limit: 設定上の最大再生速度。
+
+    Returns:
+        計算された再生速度。
+    """
+    if remaining_chars <= 0:
+        return base_speed
+
+    rate_at_base = 6.0 * base_speed
+    estimated_duration = (
+        remaining_chars / rate_at_base if rate_at_base > 0 else 0.0
+    )
+    max_speed = min(max_speed_limit, 2.2)
+
+    if base_speed >= max_speed:
+        return base_speed
+
+    if estimated_duration <= 10.0:
+        return base_speed
+    if estimated_duration >= 40.0:
+        return max_speed
+
+    ratio = (estimated_duration - 10.0) / (40.0 - 10.0)
+    return base_speed + (max_speed - base_speed) * ratio
+
+
 def playback_worker(app: YouTubeTtsApp) -> None:
     """コメント再生キューを監視し、順次再生するスレッドワーカーです。
 
@@ -46,21 +82,12 @@ def playback_worker(app: YouTubeTtsApp) -> None:
         speed = base_speed
 
         if app.config.auto_speed_boost and remaining_chars > 0:
-            rate_at_base = 6.0 * base_speed
-            estimated_duration = (
-                remaining_chars / rate_at_base if rate_at_base > 0 else 0
+            max_speed_limit = getattr(app.config, "max_speed", 2.2)
+            speed = calculate_playback_speed(
+                base_speed=base_speed,
+                remaining_chars=remaining_chars,
+                max_speed_limit=max_speed_limit,
             )
-            max_speed = min(getattr(app.config, "max_speed", 2.2), 2.2)
-
-            if base_speed < max_speed:
-                if estimated_duration <= 10.0:
-                    speed = base_speed
-                elif estimated_duration >= 40.0:
-                    speed = max_speed
-                else:
-                    ratio = (estimated_duration - 10.0) / (40.0 - 10.0)
-                    speed = base_speed + (max_speed - base_speed) * ratio
-
             app.logger.info(f"[TALK] {text} (Speed: {speed:.2f}x)")
         else:
             app.logger.info(f"[TALK] {text}")

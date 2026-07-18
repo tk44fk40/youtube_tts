@@ -53,13 +53,17 @@ def video_worker(
     backlog_counts: int = 100,
 ) -> None:
     """YouTube 動画コメントの定期取得を行い、キューへ送るワーカーです。"""
-    quota_monitor = QuotaMonitor(
-        app=app,
-        creds=creds,
-        project_id=project_id,
-        quota_talk=quota_talk,
-        interval=quota_interval,
-    ) if quota_check else None
+    quota_monitor = (
+        QuotaMonitor(
+            app=app,
+            creds=creds,
+            project_id=project_id,
+            quota_talk=quota_talk,
+            interval=quota_interval,
+        )
+        if quota_check
+        else None
+    )
 
     app.logger.info(
         "初期コメントのバックログをロードしています "

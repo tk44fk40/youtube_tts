@@ -38,7 +38,8 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
         args: argparse で解析済みの引数オブジェクト。
 
     Returns:
-        tuple: (YouTubeTtsAppインスタンス, YouTubeAPIの認証情報, GCPプロジェクトID)
+        tuple: (YouTubeTtsAppインスタンス,
+            YouTubeAPIの認証情報, GCPプロジェクトID)
     """
     if getattr(args, "quota_talk", False):
         args.quota_check = True

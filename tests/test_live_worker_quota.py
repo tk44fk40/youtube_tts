@@ -203,13 +203,15 @@ def test_live_worker_quota_info_success(
     """クォータ情報が正常に取得でき、キューに追加されることを検証します。"""
     mock_live_client.fetch_chat_messages.return_value = ([], "next_token", 1000)
     mock_quota_info.return_value = (1000, 10000)
-    
+
     sleep_call_count = 0
+
     def sleep_side_effect(*args: Any) -> None:
         nonlocal sleep_call_count
         sleep_call_count += 1
         if sleep_call_count >= 2:
             app.stop_event.set()
+
     mock_sleep.side_effect = sleep_side_effect
 
     live_worker(
@@ -243,13 +245,15 @@ def test_live_worker_quota_info_error(
     """クォータ情報取得エラー時にキューに追加されないことを検証します。"""
     mock_live_client.fetch_chat_messages.return_value = ([], "next_token", 1000)
     mock_quota_info.side_effect = Exception("Quota check failure")
-    
+
     sleep_call_count = 0
+
     def sleep_side_effect(*args: Any) -> None:
         nonlocal sleep_call_count
         sleep_call_count += 1
         if sleep_call_count >= 2:
             app.stop_event.set()
+
     mock_sleep.side_effect = sleep_side_effect
 
     live_worker(
@@ -281,13 +285,15 @@ def test_live_worker_quota_info_same_value_skip(
     """使用量が変わらない場合、アナウンスがスキップされることを検証します。"""
     mock_live_client.fetch_chat_messages.return_value = ([], "next_token", 1000)
     mock_quota_info.return_value = (1000, 10000)
-    
+
     sleep_call_count = 0
+
     def sleep_side_effect(*args: Any) -> None:
         nonlocal sleep_call_count
         sleep_call_count += 1
         if sleep_call_count >= 2:
             app.stop_event.set()
+
     mock_sleep.side_effect = sleep_side_effect
 
     with patch("youtube_tts.workers.live.QuotaMonitor") as mock_qm_class:
@@ -305,5 +311,6 @@ def test_live_worker_quota_info_same_value_skip(
             project_id="proj123",
         )
 
-    # _get_quota_info 自体は呼ばれないが、QuotaMonitor をモックしているので、check_and_talk が呼ばれたかを検証する
+    # _get_quota_info 自体は呼ばれないが、QuotaMonitor をモックしているので、
+    # check_and_talk が呼ばれたかを検証する
     assert mock_qm_instance.check_and_talk.call_count >= 1

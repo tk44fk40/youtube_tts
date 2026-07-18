@@ -53,15 +53,14 @@ def test_live_worker_generic_exception(
 
 @pytest.mark.parametrize("verbose", [True, False])
 def test_live_worker_get_video_details_failure(
-    app: Any, verbose: bool,
+    app: Any,
+    verbose: bool,
 ) -> None:
     """動画情報取得に失敗した際に
     早期リターンするかを検証します。
     """
     mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
-    mock_live_client.get_video_details.side_effect = (
-        Exception("API error")
-    )
+    mock_live_client.get_video_details.side_effect = Exception("API error")
 
     live_worker(
         app=app,
@@ -82,9 +81,7 @@ def test_live_worker_get_live_chat_id_failure(
     """liveChatId 取得に失敗した際に
     早期リターンするかを検証します。
     """
-    mock_live_client.get_live_chat_id.side_effect = (
-        Exception("API error")
-    )
+    mock_live_client.get_live_chat_id.side_effect = Exception("API error")
 
     live_worker(
         app=app,

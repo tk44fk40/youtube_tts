@@ -64,7 +64,8 @@ class VideoRunner(BaseRunner):
             app=self.app,
             video_client=self.video_client,
             video_id=self.video_id,
-            # 将来的に workers/video.py を修正して creds, quota_check 等を受け取るようにするが、
+            # 将来的に workers/video.py を修正して creds,
+            # quota_check 等を受け取るようにするが、
             # 現在のインターフェースに合わせて呼び出す
             chat_interval=self.chat_interval,
             verbose=self.app.verbose,

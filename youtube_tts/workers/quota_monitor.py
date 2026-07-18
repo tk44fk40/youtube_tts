@@ -99,8 +99,10 @@ class QuotaMonitor:
         return "quotaExceeded" in str(error) or "quotaExceeded" in content
 
     def enqueue_quota_message(self, message: str) -> None:
-        """キューを空にして、クォータ超過メッセージを再生キューへ積みます。"""
-        # 直前のコメントが残っている場合に備えて、通知メッセージを優先して再生する。
+        """キューを空にして、
+        クォータ超過メッセージを再生キューへ積みます。"""
+        # 直前のコメントが残っている場合に備えて、
+        # 通知メッセージを優先して再生する。
         while not self.app.speech_queue.empty():
             try:
                 self.app.speech_queue.get_nowait()
@@ -113,7 +115,8 @@ class QuotaMonitor:
         self.app.speech_queue.put(speech_item)
 
     def handle_exceeded_error(self, error: Exception) -> bool:
-        """例外がクォータ超過エラーであれば案内メッセージをキューに追加し True を返します。"""
+        """例外がクォータ超過エラーであれば
+        案内メッセージをキューに追加し True を返します。"""
         if not self.is_quota_exceeded_error(error):
             return False
 
@@ -155,9 +158,7 @@ class QuotaMonitor:
         try:
             quota_info = get_quota_info(self.creds, self.project_id)
             if isinstance(quota_info, tuple):
-                quota_info = QuotaInfo(
-                    used=quota_info[0], limit=quota_info[1]
-                )
+                quota_info = QuotaInfo(used=quota_info[0], limit=quota_info[1])
             self.app.logger.info(
                 f"[QUOTA] 使用量: {quota_info.used:,} / "
                 f"{quota_info.limit:,} "

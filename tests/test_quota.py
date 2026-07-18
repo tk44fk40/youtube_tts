@@ -186,10 +186,10 @@ def test_get_quota_info_midnight_boundary(
             return midnight
 
     creds = MagicMock()
-    
+
     with _patch("youtube_tts.quota.datetime", MockDatetime):
         get_quota_info(creds, "my-project")
-        
+
     # エラーが発生せずに get_quota_info が完了すれば成功です。
 
 
@@ -235,4 +235,3 @@ def test_get_quota_info_limit_no_points(
     creds = MagicMock()
     quota_info = get_quota_info(creds, "my-project")
     assert quota_info.limit == 10000
-

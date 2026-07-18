@@ -42,7 +42,9 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
     """主要コンポーネントを一括でモック化し、標準的な初期値を設定します。"""
     with (
         patch("youtube_tts.cli.context.YouTubeAuthenticator") as mock_auth,
-        patch("youtube_live_voicevox.YouTubeLiveChatClient") as mock_live_client,
+        patch(
+            "youtube_live_voicevox.YouTubeLiveChatClient"
+        ) as mock_live_client,
         patch("youtube_tts.cli.context.YouTubeTtsApp") as mock_app_class,
         patch("youtube_tts.cli.context.AudioPlayer") as mock_audio_player_class,
         patch("sounddevice.query_devices") as mock_query,
@@ -66,7 +68,7 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
 
         mock_app_instance = MagicMock()
         mock_app_class.return_value = mock_app_instance
-        
+
         mock_runner_instance = MagicMock()
         mock_runner_class.return_value = mock_runner_instance
 

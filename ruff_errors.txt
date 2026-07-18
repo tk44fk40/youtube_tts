@@ -1,0 +1,568 @@
+W505 Doc line too long (90 > 80)
+   --> tests/test_app_playback.py:103:81
+    |
+101 |     app.speech_queue.put(SpeechItem("User1", "Hello", 11))
+102 |     app.speech_queue.put(SpeechItem("User2", "A" * 175, 180))
+103 |     # SpeechQueue.put internally updates queued_char_count, so no need to manually set it.
+    |                                                                                 ^^^^^^^^^^
+104 |     # The count should be 191 naturally.
+    |
+
+E501 Line too long (90 > 80)
+   --> tests/test_app_playback.py:103:81
+    |
+101 |     app.speech_queue.put(SpeechItem("User1", "Hello", 11))
+102 |     app.speech_queue.put(SpeechItem("User2", "A" * 175, 180))
+103 |     # SpeechQueue.put internally updates queued_char_count, so no need to manually set it.
+    |                                                                                 ^^^^^^^^^^
+104 |     # The count should be 191 naturally.
+    |
+
+E501 Line too long (81 > 80)
+  --> tests/test_live_cli.py:45:81
+   |
+43 |     with (
+44 |         patch("youtube_tts.cli.context.YouTubeAuthenticator") as mock_auth,
+45 |         patch("youtube_live_voicevox.YouTubeLiveChatClient") as mock_live_client,
+   |                                                                                 ^
+46 |         patch("youtube_tts.cli.context.YouTubeTtsApp") as mock_app_class,
+47 |         patch("youtube_tts.cli.context.AudioPlayer") as mock_audio_player_class,
+   |
+
+W505 Doc line too long (114 > 80)
+   --> tests/test_live_worker_quota.py:308:60
+    |
+306 |         )
+307 |
+308 |     # _get_quota_info 自体は呼ばれないが、QuotaMonitor をモックしているので、check_and_talk が呼ばれたかを検証する
+    |                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+309 |     assert mock_qm_instance.check_and_talk.call_count >= 1
+    |
+
+E501 Line too long (114 > 80)
+   --> tests/test_live_worker_quota.py:308:60
+    |
+306 |         )
+307 |
+308 |     # _get_quota_info 自体は呼ばれないが、QuotaMonitor をモックしているので、check_and_talk が呼ばれたかを検証する
+    |                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+309 |     assert mock_qm_instance.check_and_talk.call_count >= 1
+    |
+
+W505 Doc line too long (92 > 80)
+  --> tests/test_playback.py:22:65
+   |
+21 | def test_calculate_playback_speed_base_exceeds_max():
+22 |     """base_speed が max_speed_limit 以上の場合は base_speed がそのまま返るか検証します。"""
+   |                                                                                  ^^^^^^^^^^^
+23 |     assert calculate_playback_speed(2.5, 100, 2.2) == 2.5
+24 |     assert calculate_playback_speed(2.2, 100, 2.2) == 2.2
+   |
+
+E501 Line too long (92 > 80)
+  --> tests/test_playback.py:22:65
+   |
+21 | def test_calculate_playback_speed_base_exceeds_max():
+22 |     """base_speed が max_speed_limit 以上の場合は base_speed がそのまま返るか検証します。"""
+   |                                                                                  ^^^^^^^^^^^
+23 |     assert calculate_playback_speed(2.5, 100, 2.2) == 2.5
+24 |     assert calculate_playback_speed(2.2, 100, 2.2) == 2.2
+   |
+
+W505 Doc line too long (82 > 80)
+  --> tests/test_playback.py:28:53
+   |
+27 | def test_calculate_playback_speed_short_duration():
+28 |     """推定再生時間が 10 秒以下の場合は base_speed がそのまま返るか検証します。"""
+   |                                                                                 ^^
+29 |     # base_speed=1.0 -> rate=6.0
+30 |     # remaining_chars=30 -> duration=5.0s (<= 10.0)
+   |
+
+E501 Line too long (82 > 80)
+  --> tests/test_playback.py:28:53
+   |
+27 | def test_calculate_playback_speed_short_duration():
+28 |     """推定再生時間が 10 秒以下の場合は base_speed がそのまま返るか検証します。"""
+   |                                                                                 ^^
+29 |     # base_speed=1.0 -> rate=6.0
+30 |     # remaining_chars=30 -> duration=5.0s (<= 10.0)
+   |
+
+W505 Doc line too long (86 > 80)
+  --> tests/test_playback.py:42:48
+   |
+41 | def test_calculate_playback_speed_medium_duration():
+42 |     """推定再生時間が 10〜40 秒の間の場合は、線形補間された速度が返るか検証します。"""
+   |                                                                                  ^^^^^
+43 |     # base_speed=1.0 -> rate=6.0
+44 |     # remaining_chars=150 -> duration=25.0s
+   |
+
+E501 Line too long (86 > 80)
+  --> tests/test_playback.py:42:48
+   |
+41 | def test_calculate_playback_speed_medium_duration():
+42 |     """推定再生時間が 10〜40 秒の間の場合は、線形補間された速度が返るか検証します。"""
+   |                                                                                  ^^^^^
+43 |     # base_speed=1.0 -> rate=6.0
+44 |     # remaining_chars=150 -> duration=25.0s
+   |
+
+W505 Doc line too long (84 > 80)
+  --> tests/test_playback.py:68:57
+   |
+67 | def test_playback_worker_process_item_no_boost():
+68 |     """auto_speed_boost が False の場合に通常の速度で再生されることを検証します。"""
+   |                                                                                  ^^^
+69 |     app = MagicMock()
+70 |     app.stop_event.is_set.side_effect = [False, True]
+   |
+
+E501 Line too long (84 > 80)
+  --> tests/test_playback.py:68:57
+   |
+67 | def test_playback_worker_process_item_no_boost():
+68 |     """auto_speed_boost が False の場合に通常の速度で再生されることを検証します。"""
+   |                                                                                  ^^^
+69 |     app = MagicMock()
+70 |     app.stop_event.is_set.side_effect = [False, True]
+   |
+
+W505 Doc line too long (93 > 80)
+  --> tests/test_playback.py:87:56
+   |
+86 | def test_playback_worker_process_item_with_boost():
+87 |     """auto_speed_boost が True で残り文字数がある場合に速度が調整されることを検証します。"""
+   |                                                                                 ^^^^^^^^^^^^^
+88 |     app = MagicMock()
+89 |     app.stop_event.is_set.side_effect = [False, True]
+   |
+
+E501 Line too long (93 > 80)
+  --> tests/test_playback.py:87:56
+   |
+86 | def test_playback_worker_process_item_with_boost():
+87 |     """auto_speed_boost が True で残り文字数がある場合に速度が調整されることを検証します。"""
+   |                                                                                 ^^^^^^^^^^^^^
+88 |     app = MagicMock()
+89 |     app.stop_event.is_set.side_effect = [False, True]
+   |
+
+W505 Doc line too long (90 > 80)
+  --> tests/test_quota_monitor.py:15:54
+   |
+14 | def test_format_reset_time_delta_days():
+15 |     """format_reset_time で明日やそれ以降の日付が正しくフォーマットされるか検証します。"""
+   |                                                                                  ^^^^^^^^^
+16 |     monitor = QuotaMonitor(app=MagicMock(), creds=None, project_id=None)
+   |
+
+E501 Line too long (90 > 80)
+  --> tests/test_quota_monitor.py:15:54
+   |
+14 | def test_format_reset_time_delta_days():
+15 |     """format_reset_time で明日やそれ以降の日付が正しくフォーマットされるか検証します。"""
+   |                                                                                  ^^^^^^^^^
+16 |     monitor = QuotaMonitor(app=MagicMock(), creds=None, project_id=None)
+   |
+
+E501 Line too long (81 > 80)
+  --> tests/test_quota_monitor.py:33:76
+   |
+31 |         # それ以降 (delta_days > 1)
+32 |         reset_time_future = datetime(2026, 7, 3, 17, 15).astimezone()
+33 |         assert monitor.format_reset_time(reset_time_future) == "7月3日の17時15分"
+   |                                                                                 ^
+   |
+
+E501 Line too long (89 > 80)
+  --> tests/test_quota_monitor.py:68:81
+   |
+66 |     error3.content = None
+67 |     # 例外の文字列表現に quotaExceeded が含まれる場合
+68 |     with patch("googleapiclient.errors.HttpError.__str__", return_value="quotaExceeded"):
+   |                                                                                 ^^^^^^^^^
+69 |         assert monitor.is_quota_exceeded_error(error3) is True
+   |
+
+E501 Line too long (81 > 80)
+  --> tests/test_quota_monitor.py:85:81
+   |
+83 |     app.speech_queue.empty.return_value = True
+84 |
+85 |     monitor = QuotaMonitor(app=app, creds=None, project_id=None, quota_talk=True)
+   |                                                                                 ^
+86 |
+87 |     # is_quota_exceeded_error は True を返す
+   |
+
+E501 Line too long (81 > 80)
+   --> tests/test_quota_monitor.py:111:81
+    |
+109 |     # empty() は False となり続ける。time.time() 側で抜ける必要がある。
+110 |
+111 |     monitor = QuotaMonitor(app=app, creds=None, project_id=None, quota_talk=True)
+    |                                                                                 ^
+112 |     monitor.is_quota_exceeded_error = MagicMock(return_value=True)
+113 |     monitor.get_next_reset_time = MagicMock(return_value=datetime(2026, 7, 1, 15, 30))
+    |
+
+E501 Line too long (86 > 80)
+   --> tests/test_quota_monitor.py:113:81
+    |
+111 |     monitor = QuotaMonitor(app=app, creds=None, project_id=None, quota_talk=True)
+112 |     monitor.is_quota_exceeded_error = MagicMock(return_value=True)
+113 |     monitor.get_next_reset_time = MagicMock(return_value=datetime(2026, 7, 1, 15, 30))
+    |                                                                                 ^^^^^^
+114 |     monitor.format_reset_time = MagicMock(return_value="今日の15時30分")
+    |
+
+E501 Line too long (100 > 80)
+   --> tests/test_quota_monitor.py:135:81
+    |
+133 |     app.speech_queue.full.return_value = True
+134 |
+135 |     monitor = QuotaMonitor(app=app, creds="creds", project_id="proj", quota_talk=True, interval=0.0)
+    |                                                                                 ^^^^^^^^^^^^^^^^^^^^
+136 |     monitor.last_spoken_used = 100
+137 |     mock_get_quota.return_value = (500, 1000) # (used, limit)
+    |
+
+E501 Line too long (100 > 80)
+   --> tests/test_quota_monitor.py:150:81
+    |
+148 |     app = MagicMock()
+149 |
+150 |     monitor = QuotaMonitor(app=app, creds="creds", project_id="proj", quota_talk=True, interval=0.0)
+    |                                                                                 ^^^^^^^^^^^^^^^^^^^^
+151 |     mock_get_quota.side_effect = Exception("API error")
+    |
+
+E501 Line too long (90 > 80)
+   --> tests/test_video_worker_backlog.py:127:81
+    |
+126 |     call_count = 0
+127 |     def fetch_side_effect(*args: Any, **kwargs: Any) -> tuple[list[Any], str | None, int]:
+    |                                                                                 ^^^^^^^^^^
+128 |         nonlocal call_count
+129 |         idx = call_count
+    |
+
+E501 Line too long (90 > 80)
+   --> tests/test_video_worker_backlog.py:179:81
+    |
+178 |     call_count = 0
+179 |     def fetch_side_effect(*args: Any, **kwargs: Any) -> tuple[list[Any], str | None, int]:
+    |                                                                                 ^^^^^^^^^^
+180 |         nonlocal call_count
+181 |         idx = call_count
+    |
+
+E501 Line too long (90 > 80)
+   --> tests/test_video_worker_backlog.py:221:81
+    |
+220 |     call_count = 0
+221 |     def fetch_side_effect(*args: Any, **kwargs: Any) -> tuple[list[Any], str | None, int]:
+    |                                                                                 ^^^^^^^^^^
+222 |         nonlocal call_count
+223 |         idx = call_count
+    |
+
+W505 Doc line too long (100 > 80)
+   --> tests/test_video_worker_backlog.py:250:54
+    |
+248 |     mock_video_client: MagicMock,
+249 | ) -> None:
+250 |     """backlog_counts=-1 の場合に無制限に取得し、トークンがなくなるまで動作することを検証します。"""
+    |                                                                                  ^^^^^^^^^^^^^^^^^^^
+251 |     comments_list = [
+252 |         [{
+    |
+
+E501 Line too long (100 > 80)
+   --> tests/test_video_worker_backlog.py:250:54
+    |
+248 |     mock_video_client: MagicMock,
+249 | ) -> None:
+250 |     """backlog_counts=-1 の場合に無制限に取得し、トークンがなくなるまで動作することを検証します。"""
+    |                                                                                  ^^^^^^^^^^^^^^^^^^^
+251 |     comments_list = [
+252 |         [{
+    |
+
+E501 Line too long (90 > 80)
+   --> tests/test_video_worker_backlog.py:261:81
+    |
+260 |     call_count = 0
+261 |     def fetch_side_effect(*args: Any, **kwargs: Any) -> tuple[list[Any], str | None, int]:
+    |                                                                                 ^^^^^^^^^^
+262 |         nonlocal call_count
+263 |         idx = call_count
+    |
+
+W505 Doc line too long (98 > 80)
+  --> tests/test_video_worker_coverage.py:14:63
+   |
+13 | def test_format_error_details_exceptions():
+14 |     """format_error_details で str() や repr() が失敗するオブジェクトを処理できるか検証します。"""
+   |                                                                                  ^^^^^^^^^^^^^^^^^
+15 |     class BadException1(Exception):
+16 |         def __str__(self):
+   |
+
+E501 Line too long (98 > 80)
+  --> tests/test_video_worker_coverage.py:14:63
+   |
+13 | def test_format_error_details_exceptions():
+14 |     """format_error_details で str() や repr() が失敗するオブジェクトを処理できるか検証します。"""
+   |                                                                                  ^^^^^^^^^^^^^^^^^
+15 |     class BadException1(Exception):
+16 |         def __str__(self):
+   |
+
+W505 Doc line too long (92 > 80)
+  --> tests/test_video_worker_coverage.py:38:60
+   |
+36 |     """初期バックログ取得でクォータエラーが handle された場合を検証します。"""
+37 |     app = MagicMock()
+38 |     # 初期状態で stop_event は False だが、ループを1回で抜けるように backlog_counts=1 にして
+   |                                                                                 ^^^^^^^^^^^^
+39 |     # そこでエラーを発生させ、handled=True になるようにする。
+40 |     # すると app.logger.error("初期...") が呼ばれない。
+   |
+
+E501 Line too long (92 > 80)
+  --> tests/test_video_worker_coverage.py:38:60
+   |
+36 |     """初期バックログ取得でクォータエラーが handle された場合を検証します。"""
+37 |     app = MagicMock()
+38 |     # 初期状態で stop_event は False だが、ループを1回で抜けるように backlog_counts=1 にして
+   |                                                                                 ^^^^^^^^^^^^
+39 |     # そこでエラーを発生させ、handled=True になるようにする。
+40 |     # すると app.logger.error("初期...") が呼ばれない。
+   |
+
+E501 Line too long (83 > 80)
+  --> tests/test_video_worker_coverage.py:47:75
+   |
+45 |     video_client.fetch_comment_threads.side_effect = error
+46 |
+47 |     app.stop_event.is_set.side_effect = [False, True]  # 2回目の while 条件で False
+   |                                                                                 ^^^
+48 |
+49 |     with patch("youtube_tts.workers.video.QuotaMonitor") as mock_qm_class:
+   |
+
+W505 Doc line too long (86 > 80)
+  --> tests/test_video_worker_coverage.py:68:49
+   |
+67 | def test_video_worker_polling_handled_error():
+68 |     """リアルタイムポーリング取得でクォータエラーが handle された場合を検証します。"""
+   |                                                                                  ^^^^^
+69 |     app = MagicMock()
+70 |     app.stop_event.is_set.return_value = False  # polling loop
+   |
+
+E501 Line too long (86 > 80)
+  --> tests/test_video_worker_coverage.py:68:49
+   |
+67 | def test_video_worker_polling_handled_error():
+68 |     """リアルタイムポーリング取得でクォータエラーが handle された場合を検証します。"""
+   |                                                                                  ^^^^^
+69 |     app = MagicMock()
+70 |     app.stop_event.is_set.return_value = False  # polling loop
+   |
+
+E501 Line too long (89 > 80)
+  --> tests/test_video_worker_coverage.py:87:70
+   |
+85 |             return [], None, 3000  # backlog 完了
+86 |         else:
+87 |             app.stop_event.is_set.return_value = True  # 一度エラーが起きたら抜けるように
+   |                                                                                  ^^^^^^^^
+88 |             raise error
+   |
+
+W505 Doc line too long (83 > 80)
+  --> youtube_live_voicevox.py:17:54
+   |
+15 | # limitations under the License.
+16 | #
+17 | """VOICEVOX を使用して YouTube Live チャットコメントを読み上げるスクリプトです。"""
+   |                                                                                 ^^^
+18 |
+19 | from __future__ import annotations
+   |
+
+E501 Line too long (83 > 80)
+  --> youtube_live_voicevox.py:17:54
+   |
+15 | # limitations under the License.
+16 | #
+17 | """VOICEVOX を使用して YouTube Live チャットコメントを読み上げるスクリプトです。"""
+   |                                                                                 ^^^
+18 |
+19 | from __future__ import annotations
+   |
+
+W505 Doc line too long (83 > 80)
+  --> youtube_tts/cli/context.py:41:64
+   |
+40 |     Returns:
+41 |         tuple: (YouTubeTtsAppインスタンス, YouTubeAPIの認証情報, GCPプロジェクトID)
+   |                                                                                 ^^^
+42 |     """
+43 |     if getattr(args, "quota_talk", False):
+   |
+
+E501 Line too long (83 > 80)
+  --> youtube_tts/cli/context.py:41:64
+   |
+40 |     Returns:
+41 |         tuple: (YouTubeTtsAppインスタンス, YouTubeAPIの認証情報, GCPプロジェクトID)
+   |                                                                                 ^^^
+42 |     """
+43 |     if getattr(args, "quota_talk", False):
+   |
+
+E501 Line too long (84 > 80)
+   --> youtube_tts/cli/parser.py:98:56
+    |
+ 96 |         "--chat-log",
+ 97 |         default="chat_log.jsonl",
+ 98 |         help="チャットログの保存先パスを指定します（デフォルト: chat_log.jsonl）。",
+    |                                                                                 ^^^^
+ 99 |     )
+100 |     parser.add_argument(
+    |
+
+E501 Line too long (94 > 80)
+  --> youtube_tts/queue.py:36:81
+   |
+34 |         self._lock = threading.Lock()
+35 |
+36 |     def put(self, item: SpeechItem, block: bool = True, timeout: float | None = None) -> None:
+   |                                                                                 ^^^^^^^^^^^^^^
+37 |         """キューにアイテムを追加し、滞留文字数を加算します。"""
+38 |         self._queue.put(item, block=block, timeout=timeout)
+   |
+
+E501 Line too long (82 > 80)
+  --> youtube_tts/queue.py:42:81
+   |
+40 |             self._char_count += item.char_count
+41 |
+42 |     def get(self, block: bool = True, timeout: float | None = None) -> SpeechItem:
+   |                                                                                 ^^
+43 |         """キューからアイテムを取得し、滞留文字数を減算します。"""
+44 |         item = self._queue.get(block=block, timeout=timeout)
+   |
+
+E501 Line too long (84 > 80)
+  --> youtube_tts/runners/base.py:56:81
+   |
+55 |         from youtube_tts.workers.playback import playback_worker
+56 |         playback_thread = threading.Thread(target=lambda: playback_worker(self.app))
+   |                                                                                 ^^^^
+57 |         playback_thread.start()
+   |
+
+W505 Doc line too long (96 > 80)
+  --> youtube_tts/runners/video.py:67:67
+   |
+65 |             video_client=self.video_client,
+66 |             video_id=self.video_id,
+67 |             # 将来的に workers/video.py を修正して creds, quota_check 等を受け取るようにするが、
+   |                                                                                 ^^^^^^^^^^^^^^^^
+68 |             # 現在のインターフェースに合わせて呼び出す
+69 |             chat_interval=self.chat_interval,
+   |
+
+E501 Line too long (96 > 80)
+  --> youtube_tts/runners/video.py:67:67
+   |
+65 |             video_client=self.video_client,
+66 |             video_id=self.video_id,
+67 |             # 将来的に workers/video.py を修正して creds, quota_check 等を受け取るようにするが、
+   |                                                                                 ^^^^^^^^^^^^^^^^
+68 |             # 現在のインターフェースに合わせて呼び出す
+69 |             chat_interval=self.chat_interval,
+   |
+
+W505 Doc line too long (83 > 80)
+  --> youtube_tts/workers/live.py:59:51
+   |
+57 |     backlog_seconds: int = 10,
+58 | ) -> None:
+59 |     """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカーです。"""
+   |                                                                                 ^^^
+60 |     try:
+61 |         video_details = live_client.get_video_details(video_id)
+   |
+
+E501 Line too long (83 > 80)
+  --> youtube_tts/workers/live.py:59:51
+   |
+57 |     backlog_seconds: int = 10,
+58 | ) -> None:
+59 |     """YouTube Live チャットコメントの定期取得を行い、キューへ送るワーカーです。"""
+   |                                                                                 ^^^
+60 |     try:
+61 |         video_details = live_client.get_video_details(video_id)
+   |
+
+E501 Line too long (89 > 80)
+   --> youtube_tts/workers/live.py:135:76
+    |
+133 |             if not handled:
+134 |                 app.logger.error("チャットの取得に失敗しました。")
+135 |                 app.logger.debug(f"(エラー詳細: {format_error_details(error_occurred)})")
+    |                                                                                 ^^^^^^^^^
+136 |
+137 |             app.stop_event.set()
+    |
+
+W505 Doc line too long (84 > 80)
+   --> youtube_tts/workers/quota_monitor.py:103:46
+    |
+101 |     def enqueue_quota_message(self, message: str) -> None:
+102 |         """キューを空にして、クォータ超過メッセージを再生キューへ積みます。"""
+103 |         # 直前のコメントが残っている場合に備えて、通知メッセージを優先して再生する。
+    |                                                                                 ^^^^
+104 |         while not self.app.speech_queue.empty():
+105 |             try:
+    |
+
+E501 Line too long (84 > 80)
+   --> youtube_tts/workers/quota_monitor.py:103:46
+    |
+101 |     def enqueue_quota_message(self, message: str) -> None:
+102 |         """キューを空にして、クォータ超過メッセージを再生キューへ積みます。"""
+103 |         # 直前のコメントが残っている場合に備えて、通知メッセージを優先して再生する。
+    |                                                                                 ^^^^
+104 |         while not self.app.speech_queue.empty():
+105 |             try:
+    |
+
+W505 Doc line too long (94 > 80)
+   --> youtube_tts/workers/quota_monitor.py:116:50
+    |
+115 |     def handle_exceeded_error(self, error: Exception) -> bool:
+116 |         """例外がクォータ超過エラーであれば案内メッセージをキューに追加し True を返します。"""
+    |                                                                                  ^^^^^^^^^^^^^
+117 |         if not self.is_quota_exceeded_error(error):
+118 |             return False
+    |
+
+E501 Line too long (94 > 80)
+   --> youtube_tts/workers/quota_monitor.py:116:50
+    |
+115 |     def handle_exceeded_error(self, error: Exception) -> bool:
+116 |         """例外がクォータ超過エラーであれば案内メッセージをキューに追加し True を返します。"""
+    |                                                                                  ^^^^^^^^^^^^^
+117 |         if not self.is_quota_exceeded_error(error):
+118 |             return False
+    |
+
+Found 55 errors.

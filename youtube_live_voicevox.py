@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""VOICEVOX を使用して YouTube Live チャットコメントを読み上げるスクリプトです。"""
+"""VOICEVOX を使用して YouTube Live チャットコメントを
+読み上げるスクリプトです。"""
 
 from __future__ import annotations
 
@@ -40,9 +41,7 @@ def main() -> None:
 
     if args.video_url_or_id:
         video_id = extract_video_id(args.video_url_or_id)
-        chat_url = (
-            f"https://www.youtube.com/live_chat?v={video_id}&is_popout=1"
-        )
+        chat_url = f"https://www.youtube.com/live_chat?v={video_id}&is_popout=1"
     else:
         try:
             video_id, chat_url = live_client.get_current_live_video_id()
@@ -73,7 +72,7 @@ def main() -> None:
         verbose=args.verbose,
         backlog_seconds=args.backlog_seconds,
     )
-    
+
     try:
         runner.run()
     except Exception:

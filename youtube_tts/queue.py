@@ -16,7 +16,6 @@
 
 import queue
 import threading
-from typing import Any
 
 from .models import SpeechItem
 
@@ -34,13 +33,17 @@ class SpeechQueue:
         self._char_count: int = 0
         self._lock = threading.Lock()
 
-    def put(self, item: SpeechItem, block: bool = True, timeout: float | None = None) -> None:
+    def put(
+        self, item: SpeechItem, block: bool = True, timeout: float | None = None
+    ) -> None:
         """キューにアイテムを追加し、滞留文字数を加算します。"""
         self._queue.put(item, block=block, timeout=timeout)
         with self._lock:
             self._char_count += item.char_count
 
-    def get(self, block: bool = True, timeout: float | None = None) -> SpeechItem:
+    def get(
+        self, block: bool = True, timeout: float | None = None
+    ) -> SpeechItem:
         """キューからアイテムを取得し、滞留文字数を減算します。"""
         item = self._queue.get(block=block, timeout=timeout)
         with self._lock:
