@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import queue
 from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock
@@ -12,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from youtube_tts.models import YouTubeMessage
+from youtube_tts.workers.video import video_worker
 
 
 def test_video_worker_success(app: Any, mock_video_client: MagicMock) -> None:
@@ -79,8 +79,8 @@ def test_video_worker_success(app: Any, mock_video_client: MagicMock) -> None:
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    # 対象のワーカー関数を実行します。
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -89,13 +89,12 @@ def test_video_worker_success(app: Any, mock_video_client: MagicMock) -> None:
     )
 
     # 取得したコメント数および文字数が想定通りか検証します。
-    assert app.comment_queue.qsize() == 2
-    assert app.queued_char_count == 32
+    assert app.speech_queue.qsize() == 2
+    assert app.speech_queue.queued_char_count == 32
 
 
 @pytest.mark.parametrize(
-    "ng_words, queue_maxsize, verbose, raise_error, "
-    "expect_stop, expect_qsize",
+    "ng_words, queue_maxsize, verbose, raise_error, expect_stop, expect_qsize",
     [
         ([], None, True, True, True, 0),
         ([], None, False, True, True, 0),
@@ -118,9 +117,12 @@ def test_video_worker_polling_cases(
     """メインポーリング時の各種ケースを検証します。"""
     app.config.ng_words = ng_words
     if queue_maxsize is not None:
-        app.comment_queue = queue.Queue(maxsize=queue_maxsize)
+        from youtube_tts.models import SpeechItem
+        from youtube_tts.queue import SpeechQueue
+
+        app.speech_queue = SpeechQueue(maxsize=queue_maxsize)
         if queue_maxsize == 1:
-            app.comment_queue.put(("Existing", "Comment"))
+            app.speech_queue.put(SpeechItem("Existing", "Comment", 15))
 
     call_count = 0
 
@@ -159,7 +161,8 @@ def test_video_worker_polling_cases(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -169,7 +172,7 @@ def test_video_worker_polling_cases(
 
     if expect_stop:
         assert app.stop_event.is_set() is True
-    assert app.comment_queue.qsize() == expect_qsize
+    assert app.speech_queue.qsize() == expect_qsize
 
 
 def test_video_worker_success_with_dataclasses(
@@ -216,7 +219,8 @@ def test_video_worker_success_with_dataclasses(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -224,4 +228,4 @@ def test_video_worker_success_with_dataclasses(
         backlog_counts=10,
     )
 
-    assert app.comment_queue.qsize() == 2
+    assert app.speech_queue.qsize() == 2

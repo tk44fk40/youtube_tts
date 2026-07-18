@@ -10,6 +10,7 @@ from googleapiclient.errors import HttpError
 from httplib2 import Response
 
 from youtube_tts import YouTubeLiveChatClient
+from youtube_tts.workers.live import live_worker
 
 
 def _create_http_403_error(
@@ -37,7 +38,8 @@ def test_live_worker_generic_exception(
         "Generic Network Error"
     )
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         tts_test=None,
@@ -51,17 +53,17 @@ def test_live_worker_generic_exception(
 
 @pytest.mark.parametrize("verbose", [True, False])
 def test_live_worker_get_video_details_failure(
-    app: Any, verbose: bool,
+    app: Any,
+    verbose: bool,
 ) -> None:
     """動画情報取得に失敗した際に
     早期リターンするかを検証します。
     """
     mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
-    mock_live_client.get_video_details.side_effect = (
-        Exception("API error")
-    )
+    mock_live_client.get_video_details.side_effect = Exception("API error")
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         verbose=verbose,
@@ -79,11 +81,10 @@ def test_live_worker_get_live_chat_id_failure(
     """liveChatId 取得に失敗した際に
     早期リターンするかを検証します。
     """
-    mock_live_client.get_live_chat_id.side_effect = (
-        Exception("API error")
-    )
+    mock_live_client.get_live_chat_id.side_effect = Exception("API error")
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         verbose=verbose,
@@ -102,7 +103,8 @@ def test_live_worker_fetch_error_no_content(
     ex.content = None
     mock_live_client.fetch_chat_messages.side_effect = ex
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -127,7 +129,8 @@ def test_live_worker_fetch_error_decode_error(
     ex.content = mock_content
     mock_live_client.fetch_chat_messages.side_effect = ex
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -154,7 +157,8 @@ def test_live_worker_fetch_error_quota_check_exception(
     ex.resp = MagicMock(spec=[])
     mock_live_client.fetch_chat_messages.side_effect = ex
 
-    app.live_worker(
+    live_worker(
+        app=app,
         live_client=mock_live_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -174,7 +178,8 @@ def test_live_worker_fetch_error_emits_debug_log(
     mock_live_client.fetch_chat_messages.side_effect = Exception("error")
 
     with patch.object(app.logger, "debug") as mock_debug:
-        app.live_worker(
+        live_worker(
+            app=app,
             live_client=mock_live_client,
             video_id="video_123",
             verbose=False,

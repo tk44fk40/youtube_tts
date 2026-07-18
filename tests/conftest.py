@@ -154,4 +154,3 @@ def stop_on_speak(
         app.stop_event.set()
 
     return _side_effect
-

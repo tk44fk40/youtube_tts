@@ -2,39 +2,63 @@
 
 from __future__ import annotations
 
-import queue
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from youtube_tts.workers.video import video_worker
 
 
 @pytest.mark.parametrize(
     "backlog_counts, side_effect, verbose, expect_debug, expect_qsize",
     [
         pytest.param(
-            0, ([], None, 3000), True, False, 0,
+            0,
+            ([], None, 3000),
+            True,
+            False,
+            0,
             id="zero_counts",
         ),
         pytest.param(
-            -1, ([], None, 3000), True, False, 0,
+            -1,
+            ([], None, 3000),
+            True,
+            False,
+            0,
             id="negative_counts",
         ),
         pytest.param(
-            10, ([], None, 3000), True, False, 0,
+            10,
+            ([], None, 3000),
+            True,
+            False,
+            0,
             id="empty_response",
         ),
         pytest.param(
-            10, Exception("API error"), True, False, 0,
+            10,
+            Exception("API error"),
+            True,
+            False,
+            0,
             id="api_error_verbose",
         ),
         pytest.param(
-            10, Exception("バックログ取得エラー"),
-            False, True, 0,
+            10,
+            Exception("バックログ取得エラー"),
+            False,
+            True,
+            0,
             id="api_error_non_verbose",
         ),
         pytest.param(
-            10, "error_then_success", False, False, 0,
+            10,
+            "error_then_success",
+            False,
+            False,
+            0,
             id="error_then_success",
         ),
     ],
@@ -77,7 +101,8 @@ def test_video_worker_backlog_cases(
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
     with patch.object(app.logger, "debug") as mock_debug:
-        app.video_worker(
+        video_worker(
+            app=app,
             video_client=mock_video_client,
             video_id="video_123",
             chat_interval=0.01,
@@ -87,7 +112,7 @@ def test_video_worker_backlog_cases(
 
     if expect_debug:
         mock_debug.assert_called()
-    assert app.comment_queue.qsize() == expect_qsize
+    assert app.speech_queue.qsize() == expect_qsize
 
 
 @pytest.mark.parametrize(
@@ -113,16 +138,21 @@ def test_video_worker_backlog_ng_words(
         app.stop_event.set()
 
     comments_list = [
-        [{
-            "id": "c1",
-            "authorDetails": {"displayName": "User1"},
-            "snippet": {"displayMessage": "badword message"},
-        }],
+        [
+            {
+                "id": "c1",
+                "authorDetails": {"displayName": "User1"},
+                "snippet": {"displayMessage": "badword message"},
+            }
+        ],
         [],
     ]
 
     call_count = 0
-    def fetch_side_effect(*args: Any, **kwargs: Any) -> tuple[list[Any], str | None, int]:
+
+    def fetch_side_effect(
+        *args: Any, **kwargs: Any
+    ) -> tuple[list[Any], str | None, int]:
         nonlocal call_count
         idx = call_count
         call_count += 1
@@ -135,7 +165,8 @@ def test_video_worker_backlog_ng_words(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -143,7 +174,7 @@ def test_video_worker_backlog_ng_words(
         backlog_counts=10,
     )
 
-    assert app.comment_queue.qsize() == 0
+    assert app.speech_queue.qsize() == 0
 
 
 @pytest.mark.parametrize("pre_set_stop", [True, False])
@@ -155,23 +186,31 @@ def test_video_worker_backlog_queue_full(
     pre_set_stop: bool,
 ) -> None:
     """キューが満杯の際にコメント追加がスキップされることを検証します。"""
-    app.comment_queue = queue.Queue(maxsize=1)
-    app.comment_queue.put(("Existing", "Comment"))
+    from youtube_tts.models import SpeechItem
+    from youtube_tts.queue import SpeechQueue
+
+    app.speech_queue = SpeechQueue(maxsize=1)
+    app.speech_queue.put(SpeechItem("Existing", "Comment", 15))
 
     if pre_set_stop:
         app.stop_event.set()
 
     comments_list = [
-        [{
-            "id": "c1",
-            "authorDetails": {"displayName": "User1"},
-            "snippet": {"displayMessage": "Hello"},
-        }],
+        [
+            {
+                "id": "c1",
+                "authorDetails": {"displayName": "User1"},
+                "snippet": {"displayMessage": "Hello"},
+            }
+        ],
         [],
     ]
 
     call_count = 0
-    def fetch_side_effect(*args: Any, **kwargs: Any) -> tuple[list[Any], str | None, int]:
+
+    def fetch_side_effect(
+        *args: Any, **kwargs: Any
+    ) -> tuple[list[Any], str | None, int]:
         nonlocal call_count
         idx = call_count
         call_count += 1
@@ -184,7 +223,8 @@ def test_video_worker_backlog_queue_full(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -192,7 +232,7 @@ def test_video_worker_backlog_queue_full(
         backlog_counts=10,
     )
 
-    assert app.comment_queue.qsize() == 1
+    assert app.speech_queue.qsize() == 1
 
 
 @patch("time.sleep")
@@ -203,16 +243,21 @@ def test_video_worker_backlog_item_limit(
 ) -> None:
     """指定した backlog_counts 件数で取得が停止することを検証します。"""
     comments_list = [
-        [{
-            "id": "c1",
-            "authorDetails": {"displayName": "U1"},
-            "snippet": {"displayMessage": "Hello"},
-        }],
+        [
+            {
+                "id": "c1",
+                "authorDetails": {"displayName": "U1"},
+                "snippet": {"displayMessage": "Hello"},
+            }
+        ],
         [],
     ]
 
     call_count = 0
-    def fetch_side_effect(*args: Any, **kwargs: Any) -> tuple[list[Any], str | None, int]:
+
+    def fetch_side_effect(
+        *args: Any, **kwargs: Any
+    ) -> tuple[list[Any], str | None, int]:
         nonlocal call_count
         idx = call_count
         call_count += 1
@@ -223,7 +268,8 @@ def test_video_worker_backlog_item_limit(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -231,7 +277,7 @@ def test_video_worker_backlog_item_limit(
         backlog_counts=1,
     )
 
-    assert app.comment_queue.qsize() == 1
+    assert app.speech_queue.qsize() == 1
 
 
 @patch("time.sleep")
@@ -240,18 +286,24 @@ def test_video_worker_backlog_unlimited(
     app: Any,
     mock_video_client: MagicMock,
 ) -> None:
-    """backlog_counts=-1 の場合に無制限に取得し、トークンがなくなるまで動作することを検証します。"""
+    """backlog_counts=-1 の場合に無制限に取得し、
+    トークンがなくなるまで動作することを検証します。"""
     comments_list = [
-        [{
-            "id": "c1",
-            "authorDetails": {"displayName": "U1"},
-            "snippet": {"displayMessage": "Hello"},
-        }],
+        [
+            {
+                "id": "c1",
+                "authorDetails": {"displayName": "U1"},
+                "snippet": {"displayMessage": "Hello"},
+            }
+        ],
         [],
     ]
 
     call_count = 0
-    def fetch_side_effect(*args: Any, **kwargs: Any) -> tuple[list[Any], str | None, int]:
+
+    def fetch_side_effect(
+        *args: Any, **kwargs: Any
+    ) -> tuple[list[Any], str | None, int]:
         nonlocal call_count
         idx = call_count
         call_count += 1
@@ -264,7 +316,8 @@ def test_video_worker_backlog_unlimited(
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
-    app.video_worker(
+    video_worker(
+        app=app,
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
@@ -272,4 +325,4 @@ def test_video_worker_backlog_unlimited(
         backlog_counts=-1,
     )
 
-    assert app.comment_queue.qsize() == 1
+    assert app.speech_queue.qsize() == 1

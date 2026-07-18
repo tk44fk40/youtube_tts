@@ -70,7 +70,7 @@ def test_playback_worker(app: YouTubeTtsApp) -> None:
     Args:
         app: YouTubeTtsApp インスタンス。
     """
-    app.comment_queue.put(SpeechItem("User1", "こんにちは", 11))
+    app.speech_queue.put(SpeechItem("User1", "こんにちは", 11))
 
     with patch.object(app, "speak") as mock_speak:
 
@@ -78,7 +78,9 @@ def test_playback_worker(app: YouTubeTtsApp) -> None:
             app.stop_event.set()
 
         mock_speak.side_effect = side_effect
-        app.playback_worker()
+        from youtube_tts.workers.playback import playback_worker
+
+        playback_worker(app)
 
         mock_speak.assert_called_once_with("User1 こんにちは", speed_scale=1.0)
 
@@ -97,15 +99,19 @@ def test_playback_worker_dynamic_speed_boost(
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.2
 
-    app.comment_queue.put(SpeechItem("User1", "Hello", 11))
-    app.comment_queue.put(SpeechItem("User2", "A" * 175, 180))
-    app.queued_char_count = 191
+    app.speech_queue.put(SpeechItem("User1", "Hello", 11))
+    app.speech_queue.put(SpeechItem("User2", "A" * 175, 180))
+    # SpeechQueue.put internally updates queued_char_count,
+    # so no need to manually set it.
+    # The count should be 191 naturally.
 
     with patch.object(app, "speak") as mock_speak:
         mock_speak.side_effect = stop_on_speak
-        app.playback_worker()
+        from youtube_tts.workers.playback import playback_worker
 
-        assert app.queued_char_count == 180
+        playback_worker(app)
+
+        assert app.speech_queue.queued_char_count == 180
         mock_speak.assert_called_once_with("User1 Hello", speed_scale=1.8)
 
 
@@ -123,13 +129,14 @@ def test_playback_worker_speed_boost_lower_limit(
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.2
 
-    app.comment_queue.put(SpeechItem("User", "Hello", 11))
-    app.comment_queue.put(SpeechItem("User2", "A" * 25, 30))
-    app.queued_char_count = 41
+    app.speech_queue.put(SpeechItem("User", "Hello", 11))
+    app.speech_queue.put(SpeechItem("User2", "A" * 25, 30))
 
     with patch.object(app, "speak") as mock_speak:
         mock_speak.side_effect = stop_on_speak
-        app.playback_worker()
+        from youtube_tts.workers.playback import playback_worker
+
+        playback_worker(app)
         mock_speak.assert_called_once_with("User Hello", speed_scale=1.0)
 
 
@@ -147,13 +154,14 @@ def test_playback_worker_speed_boost_upper_limit(
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.0
 
-    app.comment_queue.put(SpeechItem("User", "Hello", 11))
-    app.comment_queue.put(SpeechItem("User2", "A" * 295, 300))
-    app.queued_char_count = 311
+    app.speech_queue.put(SpeechItem("User", "Hello", 11))
+    app.speech_queue.put(SpeechItem("User2", "A" * 295, 300))
 
     with patch.object(app, "speak") as mock_speak:
         mock_speak.side_effect = stop_on_speak
-        app.playback_worker()
+        from youtube_tts.workers.playback import playback_worker
+
+        playback_worker(app)
         mock_speak.assert_called_once_with("User Hello", speed_scale=2.0)
 
 
@@ -170,20 +178,22 @@ def test_playback_worker_empty_queue(app: YouTubeTtsApp) -> None:
     # スレッドやモック側で制御するか、一定回数で stop_event をセットします。
     # ここでは queue.get をパッチして、1回目に queue.Empty を発生させ、
     # 2回目に stop_event をセットして終了させます。
-    original_get = app.comment_queue.get
+    original_get = app.speech_queue.get
 
     call_count = 0
 
-    def mock_get(timeout: float | None = None) -> Any:
+    def mock_get(timeout: float | None = None, block: bool = True) -> Any:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
             raise queue.Empty()
         app.stop_event.set()
-        return original_get(timeout=timeout)
+        return original_get(timeout=timeout, block=block)
 
-    with patch.object(app.comment_queue, "get", side_effect=mock_get):
-        app.playback_worker()
+    with patch.object(app.speech_queue, "get", side_effect=mock_get):
+        from youtube_tts.workers.playback import playback_worker
+
+        playback_worker(app)
         assert call_count == 2
 
 
@@ -196,9 +206,8 @@ def test_playback_worker_auto_speed_boost_info_log(app: YouTubeTtsApp) -> None:
     app.config.auto_speed_boost = True
     app.config.speed_scale = 1.0
     app.config.max_speed = 2.2
-    app.comment_queue.put(SpeechItem("User", "Hello", 11))
-    app.comment_queue.put(SpeechItem("User2", "A" * 175, 180))
-    app.queued_char_count = 191
+    app.speech_queue.put(SpeechItem("User", "Hello", 11))
+    app.speech_queue.put(SpeechItem("User2", "A" * 175, 180))
 
     with (
         patch.object(app, "speak") as mock_speak,
@@ -209,7 +218,9 @@ def test_playback_worker_auto_speed_boost_info_log(app: YouTubeTtsApp) -> None:
             app.stop_event.set()
 
         mock_speak.side_effect = side_effect
-        app.playback_worker()
+        from youtube_tts.workers.playback import playback_worker
+
+        playback_worker(app)
 
         # [TALK] ログに (Speed: 1.80x) が含まれることを確認します。
         mock_info.assert_any_call("[TALK] User Hello (Speed: 1.80x)")
@@ -228,13 +239,14 @@ def test_playback_worker_speed_boost_no_boost_needed(
     app.config.auto_speed_boost = True
     app.config.speed_scale = 2.5
     app.config.max_speed = 2.2
-    app.comment_queue.put(SpeechItem("User", "Hello", 11))
-    app.comment_queue.put(SpeechItem("User2", "A" * 175, 180))
-    app.queued_char_count = 191
+    app.speech_queue.put(SpeechItem("User", "Hello", 11))
+    app.speech_queue.put(SpeechItem("User2", "A" * 175, 180))
 
     with patch.object(app, "speak") as mock_speak:
         mock_speak.side_effect = stop_on_speak
-        app.playback_worker()
+        from youtube_tts.workers.playback import playback_worker
+
+        playback_worker(app)
         mock_speak.assert_called_once_with("User Hello", speed_scale=2.5)
 
 
@@ -252,10 +264,11 @@ def test_playback_worker_rate_at_base_zero(
     app.config.auto_speed_boost = True
     app.config.speed_scale = 0.0
     app.config.max_speed = 2.2
-    app.comment_queue.put(SpeechItem("User", "Hello", 11))
-    app.queued_char_count = 11
+    app.speech_queue.put(SpeechItem("User", "Hello", 11))
 
     with patch.object(app, "speak") as mock_speak:
         mock_speak.side_effect = stop_on_speak
-        app.playback_worker()
+        from youtube_tts.workers.playback import playback_worker
+
+        playback_worker(app)
         mock_speak.assert_called_once_with("User Hello", speed_scale=0.0)
