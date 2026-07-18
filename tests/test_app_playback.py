@@ -61,7 +61,7 @@ def test_speak_failure(app: YouTubeTtsApp, verbose: bool) -> None:
 
         assert mock_error.call_count == 3
         mock_error.assert_any_call("音声の合成または再生に失敗しました。")
-        mock_debug.assert_called_once_with("  (エラー詳細: VOICEVOX Error)")
+        mock_debug.assert_called_once_with("(エラー詳細: VOICEVOX Error)")
 
 
 def test_playback_worker(app: YouTubeTtsApp) -> None:

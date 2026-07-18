@@ -44,7 +44,7 @@ class BaseRunner(ABC):
     @abstractmethod
     def run_worker(self) -> None:
         """サブクラスで実装されるメインのワーカー処理です。"""
-        pass
+        raise NotImplementedError
 
     def run(self) -> None:
         """シグナルハンドラを設定し、再生スレッドとワーカーを起動します。"""

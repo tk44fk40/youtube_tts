@@ -130,6 +130,20 @@ def test_handle_exceeded_error_wait_drain(mock_sleep):
     assert mock_sleep.call_count >= 1
 
 
+def test_handle_exceeded_error_no_talk():
+    """quota_talk が False の場合に
+    読み上げメッセージを追加せずに True を返すか検証します。"""
+    app = MagicMock()
+    monitor = QuotaMonitor(
+        app=app, creds=None, project_id=None, quota_talk=False
+    )
+    monitor.is_quota_exceeded_error = MagicMock(return_value=True)
+
+    assert monitor.handle_exceeded_error(Exception("test")) is True
+    app.speech_queue.put.assert_not_called()
+
+
+
 def test_check_and_talk_no_creds():
     """creds または project_id がない場合に即リターンするか検証します。"""
     monitor = QuotaMonitor(app=MagicMock(), creds=None, project_id=None)
