@@ -96,10 +96,10 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
     except Exception as e:
         logger.warning("VOICEVOX サーバーへの接続確認に失敗しました。")
         logger.warning(
-            "      ※VOICEVOXが起動しているか、"
+            "※VOICEVOXが起動しているか、"
             "ホストURLおよびポート番号が正しいか確認してください。"
         )
-        logger.debug(f"  (エラー詳細: {e})")
+        logger.debug(f"(エラー詳細: {e})")
 
     quota_check = getattr(args, "quota_check", False)
     scopes = QUOTA_SCOPES if quota_check else None
@@ -112,7 +112,7 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
         creds = authenticator.get_credentials()
     except Exception as e:
         logger.error("認証に失敗しました。")
-        logger.debug(f"  (エラー詳細: {e})")
+        logger.debug(f"(エラー詳細: {e})")
         sys.exit(1)
 
     obs_password = os.getenv("OBS_WEBSOCKET_PASSWORD")
