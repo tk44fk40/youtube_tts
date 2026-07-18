@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
 from googleapiclient.errors import HttpError
 from httplib2 import Response
 
@@ -48,71 +49,44 @@ def test_live_worker_generic_exception(
     assert app.stop_event.is_set() is True
 
 
+@pytest.mark.parametrize("verbose", [True, False])
 def test_live_worker_get_video_details_failure(
-    app: Any,
+    app: Any, verbose: bool,
 ) -> None:
     """動画情報取得に失敗した際に
     早期リターンするかを検証します。
     """
     mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
-    mock_live_client.get_video_details.side_effect = Exception("API error")
+    mock_live_client.get_video_details.side_effect = (
+        Exception("API error")
+    )
 
     app.live_worker(
         live_client=mock_live_client,
         video_id="video_123",
-        verbose=True,
+        verbose=verbose,
     )
 
     assert app.stop_event.is_set() is True
 
 
-def test_live_worker_get_video_details_failure_verbose_false(
-    app: Any,
-) -> None:
-    """動画情報取得失敗時に、verbose=False でも
-    早期リターンするかを検証します。
-    """
-    mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
-    mock_live_client.get_video_details.side_effect = Exception("error")
-
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        verbose=False,
-    )
-
-    assert app.stop_event.is_set() is True
-
-
+@pytest.mark.parametrize("verbose", [True, False])
 def test_live_worker_get_live_chat_id_failure(
-    app: Any, mock_live_client: MagicMock
+    app: Any,
+    mock_live_client: MagicMock,
+    verbose: bool,
 ) -> None:
     """liveChatId 取得に失敗した際に
     早期リターンするかを検証します。
     """
-    mock_live_client.get_live_chat_id.side_effect = Exception("API error")
-
-    app.live_worker(
-        live_client=mock_live_client,
-        video_id="video_123",
-        verbose=True,
+    mock_live_client.get_live_chat_id.side_effect = (
+        Exception("API error")
     )
 
-    assert app.stop_event.is_set() is True
-
-
-def test_live_worker_get_live_chat_id_failure_verbose_false(
-    app: Any, mock_live_client: MagicMock
-) -> None:
-    """liveChatId 取得失敗時に、verbose=False でも
-    早期リターンするかを検証します。
-    """
-    mock_live_client.get_live_chat_id.side_effect = Exception("error")
-
     app.live_worker(
         live_client=mock_live_client,
         video_id="video_123",
-        verbose=False,
+        verbose=verbose,
     )
 
     assert app.stop_event.is_set() is True

@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import io
 import wave
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -131,3 +132,26 @@ def app(
         audio_player=audio_player,
         logger=logger,
     )
+
+
+@pytest.fixture
+def stop_on_speak(
+    app: YouTubeTtsApp,
+) -> Callable[..., None]:
+    """speak 呼び出し時に stop_event をセットするコールバックです。
+
+    playback_worker テスト用に、1回の speak 呼び出しで
+    ループを終了させるために使用します。
+
+    Args:
+        app: YouTubeTtsApp インスタンスです。
+
+    Returns:
+        speak の side_effect 用コールバック関数です。
+    """
+
+    def _side_effect(*args: Any, **kwargs: Any) -> None:
+        app.stop_event.set()
+
+    return _side_effect
+

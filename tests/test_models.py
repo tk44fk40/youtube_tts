@@ -40,9 +40,8 @@ def test_quota_info() -> None:
 
 
 def test_super_chat_details() -> None:
-    """SuperChatDetails のプロパティが正しく計算・変換されることを
-
-    検証します。
+    """SuperChatDetails のプロパティが正しく
+    計算・変換されることを検証します。
     """
     details = SuperChatDetails(
         amount_micros=10000000,
@@ -61,9 +60,8 @@ def test_super_chat_details() -> None:
 
 
 def test_youtube_message_from_dict() -> None:
-    """YouTubeMessage.from_dict が正しくインスタンスを生成することを
-
-    検証します。
+    """YouTubeMessage.from_dict が正しく
+    インスタンスを生成することを検証します。
     """
     item = {
         "id": "msg-123",
@@ -96,9 +94,8 @@ def test_youtube_message_from_dict() -> None:
 
 
 def test_youtube_message_with_super_chat() -> None:
-    """スーパーチャットを含む YouTubeMessage が正しく生成されることを
-
-    検証します。
+    """スーパーチャットを含む YouTubeMessage が
+    正しく生成されることを検証します。
     """
     item = {
         "id": "msg-456",
