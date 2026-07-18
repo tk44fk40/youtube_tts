@@ -370,7 +370,7 @@ Modules and classes inside `youtube_tts` package:
 ```text
 youtube_tts/
 ├── __init__.py           # Package entry point
-├── app.py                # Application execution control
+├── app.py                # Application execution context and state
 ├── audio.py              # Audio data decoding, resampling, and playback
 ├── auth.py               # Google API authentication management
 ├── client.py             # Common base client for YouTube API
@@ -380,19 +380,28 @@ youtube_tts/
 ├── logger.py             # Package-wide logger configuration
 ├── models.py             # Data model definitions
 ├── obs.py                # OBS WebSocket integration
+├── queue.py              # Thread-safe speech queue management
 ├── quota.py              # YouTube API quota information retrieval
 ├── utils.py              # Common utility functions
 ├── video.py              # YouTube video comment acquisition
 ├── voicevox.py           # VOICEVOX API integration
+├── cli/                  # CLI argument parsing and context initialization
+│   ├── context.py        # Application initialization and credentials setup
+│   └── parser.py         # Shared CLI argument parser
+├── runners/              # Application runtime control
+│   ├── base.py           # Base runner handling signal and threads
+│   ├── live.py           # Live stream mode runner
+│   └── video.py          # Video/Archive mode runner
 └── workers/              # Background processing threads
-    ├── live.py           # Live chat monitoring worker
-    ├── playback.py       # Audio playback processing worker
-    └── video.py          # Video comment monitoring worker
+    ├── live.py           # Live chat polling worker
+    ├── playback.py       # Audio playback worker
+    ├── quota_monitor.py  # Quota monitoring and notification worker
+    └── video.py          # Video comment polling worker
 ```
 
 ### Key Classes and Functions
 - **`YouTubeTtsApp`** (Module: `youtube_tts/app.py`):
-  Manages the comment receive/playback queue, and the overall program lifecycle and execution state.
+  Holds the application context including configuration, logger, and core services like `SpeechQueue`.
 - **`AudioPlayer`** (Module: `youtube_tts/audio.py`):
   Decodes synthesized WAV data, manages audio devices, performs resampling for different sample rates, and controls audio playback.
 - **`YouTubeAuthenticator`** (Module: `youtube_tts/auth.py`):
@@ -409,12 +418,16 @@ youtube_tts/
   A data model class that holds YouTube comments and metadata.
 - **`ObsClient`** (Module: `youtube_tts/obs.py`):
   Communicates with OBS via OBS WebSocket (port 4455) to automatically update browser source URLs.
+- **`SpeechQueue`** (Module: `youtube_tts/queue.py`):
+  Thread-safe queue for managing SpeechItem buffering and character backlog calculation.
 - **`YouTubeVideoClient`** (Module: `youtube_tts/video.py`):
   Retrieves comment threads for past stream archives and regular video uploads.
 - **`VoicevoxClient`** (Module: `youtube_tts/voicevox.py`):
   Calls VOICEVOX API (`/audio_query`, `/synthesis`) to synthesize audio for a specified speaker style.
-- **`live_worker` / `video_worker` / `playback_worker`** (Module: `youtube_tts/workers/` subpackage):
-  Background workers for processing stream monitoring, video comment monitoring, and audio playback asynchronously in separate threads.
+- **`LiveRunner` / `VideoRunner`** (Module: `youtube_tts/runners/` subpackage):
+  Execution runtime environments that orchestrate the application lifecycle and thread management.
+- **`live_worker` / `video_worker` / `playback_worker` / `QuotaMonitor`** (Module: `youtube_tts/workers/` subpackage):
+  Background workers processing stream/video polling, API quota monitoring, and audio playback asynchronously.
 
 ---
 

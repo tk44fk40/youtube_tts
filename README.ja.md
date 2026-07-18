@@ -383,7 +383,7 @@ uv run python3 youtube_voicevox.py -d 6
 ```text
 youtube_tts/
 ├── __init__.py           # パッケージのエントリポイント
-├── app.py                # アプリケーション全体の実行制御
+├── app.py                # アプリケーションコンテキスト・状態の保持
 ├── audio.py              # 音声データのデコード・リサンプリング・再生
 ├── auth.py               # Google API 認証管理
 ├── client.py             # YouTube API クライアント共通基盤
@@ -393,19 +393,28 @@ youtube_tts/
 ├── logger.py             # パッケージ共通ロガー設定
 ├── models.py             # データモデルの定義
 ├── obs.py                # OBS WebSocket連携
+├── queue.py              # スレッドセーフな音声再生キュー管理
 ├── quota.py              # YouTube API クォータ情報取得
 ├── utils.py              # 共通ユーティリティ関数
 ├── video.py              # YouTube 動画コメント取得
 ├── voicevox.py           # VOICEVOX API連携
+├── cli/                  # CLI引数のパースと初期化
+│   ├── context.py        # 初期化処理と認証ボイラープレート
+│   └── parser.py         # 共通のコマンドライン引数定義
+├── runners/              # ランタイム実行環境とライフサイクル管理
+│   ├── base.py           # シグナルハンドリング・基底ランナー
+│   ├── live.py           # Live配信モード用ランナー
+│   └── video.py          # 動画(アーカイブ)モード用ランナー
 └── workers/              # バックグラウンド処理スレッド群
     ├── live.py           # ライブチャット監視ワーカー
     ├── playback.py       # 音声再生処理ワーカー
+    ├── quota_monitor.py  # クォータ消費監視・通知ワーカー
     └── video.py          # 動画コメント監視ワーカー
 ```
 
 ### 主要なクラス・関数の説明
 - **`YouTubeTtsApp`** (モジュール: `youtube_tts/app.py`):
-  コメントの受信・再生キュー、およびプログラム全体のライフサイクルと実行状態を管理します。
+  ロガーや設定、`SpeechQueue` などのアプリケーション状態（コンテキスト）を保持します。
 - **`AudioPlayer`** (モジュール: `youtube_tts/audio.py`):
   合成されたWAVのデコード、オーディオデバイスの管理、サンプリングレートが異なる場合のリサンプリング処理、および音声の再生を制御します。
 - **`YouTubeAuthenticator`** (モジュール: `youtube_tts/auth.py`):
@@ -422,12 +431,16 @@ youtube_tts/
   YouTubeのコメントやメタデータを保持するデータモデルクラスです。
 - **`ObsClient`** (モジュール: `youtube_tts/obs.py`):
   OBS WebSocket（ポート4455）経由でOBSと通信し、チャット表示用のブラウザソースのURLを自動で同期更新します。
+- **`SpeechQueue`** (モジュール: `youtube_tts/queue.py`):
+  スレッドセーフな音声キュー状態管理およびキュー滞留文字数のトラッキングを行います。
 - **`YouTubeVideoClient`** (モジュール: `youtube_tts/video.py`):
   過去の配信アーカイブや投稿動画のコメントスレッドを取得します。
 - **`VoicevoxClient`** (モジュール: `youtube_tts/voicevox.py`):
   VOICEVOX API（`/audio_query`、`/synthesis`）を呼び出し、指定された話者スタイルによる音声合成を行います。
-- **`live_worker` / `video_worker` / `playback_worker`** (モジュール: `youtube_tts/workers/` 配下):
-  ライブ配信監視、動画コメント監視、および音声再生をそれぞれ別スレッドで非同期に処理するためのバックグラウンドワーカーです。
+- **`LiveRunner` / `VideoRunner`** (モジュール: `youtube_tts/runners/` 配下):
+  アプリケーションのライフサイクルやスレッドを管理し、モードに応じた実行環境を提供します。
+- **`live_worker` / `video_worker` / `playback_worker` / `QuotaMonitor`** (モジュール: `youtube_tts/workers/` 配下):
+  ライブ配信監視、動画コメント監視、APIクォータ監視、および音声再生を別スレッドで非同期に処理するためのバックグラウンドワーカーです。
 
 ---
 
