@@ -186,3 +186,45 @@ def test_video_cli_env_variables_and_failures(
     )
     # 例外時にもプロセスが正常終了（キャッチログ出力）していることを検証
     components["runner_instance"].run.assert_called_once()
+
+
+def test_video_cli_keyboard_interrupt_during_context(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """コンテキスト生成中に KeyboardInterrupt が発生した場合に
+
+    ステータスコード130で終了することを検証します。
+    """
+    components = mock_cli_components
+    components["auth_instance"].get_credentials.side_effect = (
+        KeyboardInterrupt()
+    )
+
+    with patch("sys.exit", side_effect=SystemExit(130)) as mock_exit:
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["youtube_video_voicevox.py", "video123"]):
+                main()
+        assert exc_info.value.code == 130
+        mock_exit.assert_called_once_with(130)
+
+
+
+def test_video_cli_keyboard_interrupt_during_run(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """runner.run中に KeyboardInterrupt が発生した場合に
+
+    正常終了（トレース出さずログのみ）することを検証します。
+    """
+    components = mock_cli_components
+    components["runner_instance"].run.side_effect = KeyboardInterrupt()
+
+    with patch("sys.argv", ["youtube_video_voicevox.py", "video123"]):
+        main()
+
+    components["runner_instance"].run.assert_called_once()
+    components["app_instance"].logger.info.assert_any_call(
+        "ユーザーによって処理が中断されました。"
+    )
+
+

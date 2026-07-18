@@ -35,7 +35,10 @@ def main() -> None:
     parser = create_live_parser()
     args = parser.parse_args()
 
-    app, creds, project_id = create_app_context(args)
+    try:
+        app, creds, project_id = create_app_context(args)
+    except KeyboardInterrupt:
+        sys.exit(130)
 
     live_client = YouTubeLiveChatClient(creds, verbose=args.verbose)
 
@@ -48,6 +51,8 @@ def main() -> None:
         except RuntimeError as e:
             app.logger.error(f"ライブ動画IDの自動検出に失敗しました: {e}")
             sys.exit(1)
+        except KeyboardInterrupt:
+            sys.exit(130)
 
         app.logger.info(f"現在のライブ配信動画IDを自動検出しました: {video_id}")
         app.logger.info(f"チャットURL: {chat_url}")
@@ -75,9 +80,14 @@ def main() -> None:
 
     try:
         runner.run()
+    except KeyboardInterrupt:
+        app.logger.info("ユーザーによって処理が中断されました。")
     except Exception:
         app.logger.exception("予期しないエラーが発生しました。")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(130)

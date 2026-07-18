@@ -38,7 +38,10 @@ def main() -> None:
         sys.exit(1)
     video_id = extract_video_id(args.video_url_or_id)
 
-    app, creds, project_id = create_app_context(args)
+    try:
+        app, creds, project_id = create_app_context(args)
+    except KeyboardInterrupt:
+        sys.exit(130)
 
     video_client = YouTubeVideoClient(creds)
     app.logger.info(f"video_id: {video_id}")
@@ -59,9 +62,14 @@ def main() -> None:
 
     try:
         runner.run()
+    except KeyboardInterrupt:
+        app.logger.info("ユーザーによって処理が中断されました。")
     except Exception:
         app.logger.exception("予期しないエラーが発生しました。")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(130)
