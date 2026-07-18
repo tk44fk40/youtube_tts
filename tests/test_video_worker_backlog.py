@@ -71,187 +71,68 @@ def test_video_worker_backlog_cases(
     assert app.comment_queue.qsize() == expect_qsize
 
 
-@pytest.mark.parametrize("verbose", [True, False])
-def test_video_worker_backlog_ng_word(
-    app: Any,
-    mock_video_client: MagicMock,
-    verbose: bool,
-) -> None:
-    """初期バックログ内の NG ワード
-    スキップ処理を検証します。
-    """
-    mock_video_client.fetch_comment_threads.return_value = (
-        [
-            {
-                "id": "c1",
-                "authorDetails": {
-                    "displayName": "User1",
-                    "channelId": "ch1",
-                },
-                "snippet": {
-                    "displayMessage": ("badword message"),
-                    "publishedAt": ("2026-07-03T10:00:00Z"),
-                },
-            }
-        ],
-        None,
-        3000,
-    )
-    app.config.ng_words = ["badword"]
-    app.stop_event.set()
-
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        verbose=verbose,
-        backlog_counts=10,
-    )
-
-    assert app.comment_queue.qsize() == 0
-
-
-@pytest.mark.parametrize("verbose", [True, False])
+@pytest.mark.parametrize(
+    "backlog_counts, comments_list, next_tokens, ng_words, maxsize, fill_queue, pre_set_stop, verbose, expected_qsize",
+    [
+        # NGワード (verbose=True, False) (事前に stop_event.set() されるケース)
+        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1", "channelId": "ch1"}, "snippet": {"displayMessage": "badword message", "publishedAt": "2026-07-03T10:00:00Z"}}]], [None], ["badword"], None, False, True, True, 0),
+        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1", "channelId": "ch1"}, "snippet": {"displayMessage": "badword message", "publishedAt": "2026-07-03T10:00:00Z"}}]], [None], ["badword"], None, False, True, False, 0),
+        # NGワード (verbose=True, False) (2回目のフェッチが発生し、その中で stop_event.set() されるケース)
+        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1"}, "snippet": {"displayMessage": "badword message"}}], []], [None, None], ["badword"], None, False, False, True, 0),
+        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1"}, "snippet": {"displayMessage": "badword message"}}], []], [None, None], ["badword"], None, False, False, False, 0),
+        # キュー満杯ケース
+        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1"}, "snippet": {"displayMessage": "Hello"}}], []], [None, None], [], 1, True, True, False, 1),
+        (10, [[{"id": "c1", "authorDetails": {"displayName": "User1"}, "snippet": {"displayMessage": "Hello"}}], []], [None, None], [], 1, True, False, False, 1),
+        # 件数制限によるブレイク (backlog_counts=1)
+        (1, [[{"id": "c1", "authorDetails": {"displayName": "U1"}, "snippet": {"displayMessage": "Hello"}}], []], ["next_token", None], [], None, False, False, False, 1),
+        # 無制限バックログ (backlog_counts=-1)
+        (-1, [[{"id": "c1", "authorDetails": {"displayName": "U1"}, "snippet": {"displayMessage": "Hello"}}], []], [None, None], [], None, False, False, False, 1),
+    ]
+)
 @patch("time.sleep")
-def test_video_worker_backlog_ng_word_actual(
+def test_video_worker_backlog_various_cases(
     mock_sleep: Any,
     app: Any,
     mock_video_client: MagicMock,
-    verbose: bool,
-) -> None:
-    """バックログ取得時に NG ワード分岐を
-    実際に通過させて検証します。
-    """
-    app.config.ng_words = ["badword"]
-    call_count = 0
-
-    def fetch_side_effect(video_id, page_token=None, max_results=100):
-        """フェッチのサイドエフェクトです。"""
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            return (
-                [
-                    {
-                        "id": "c1",
-                        "authorDetails": {
-                            "displayName": "User1",
-                        },
-                        "snippet": {
-                            "displayMessage": ("badword message"),
-                        },
-                    }
-                ],
-                None,
-                3000,
-            )
-        else:
-            app.stop_event.set()
-            return [], None, 3000
-
-    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
-
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        verbose=verbose,
-        backlog_counts=10,
-    )
-
-    assert app.comment_queue.qsize() == 0
-
-
-@pytest.mark.parametrize("pre_set_stop", [True, False])
-def test_video_worker_backlog_queue_full(
-    app: Any,
-    mock_video_client: MagicMock,
+    backlog_counts: int,
+    comments_list: list[list[Any]],
+    next_tokens: list[str | None],
+    ng_words: list[str],
+    maxsize: int | None,
+    fill_queue: bool,
     pre_set_stop: bool,
+    verbose: bool,
+    expected_qsize: int,
 ) -> None:
-    """初期バックログ取得時にキューがいっぱいの場合
-    スキップされるかを検証します。
-    """
+    """NGワード、キュー満杯、件数制限などによるバックログ処理の終了・スキップ挙動をまとめて検証します。"""
     call_count = 0
+    app.config.ng_words = ng_words
 
-    def fetch_side_effect(video_id, page_token=None, max_results=100):
-        """フェッチのサイドエフェクトです。"""
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            return (
-                [
-                    {
-                        "id": "c1",
-                        "authorDetails": {
-                            "displayName": "User1",
-                        },
-                        "snippet": {
-                            "displayMessage": ("Hello"),
-                        },
-                    }
-                ],
-                None,
-                3000,
-            )
-        else:
-            app.stop_event.set()
-            return [], None, 3000
-
-    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
-
-    app.comment_queue = queue.Queue(maxsize=1)
-    app.comment_queue.put(("Existing", "Comment"))
+    if maxsize is not None:
+        app.comment_queue = queue.Queue(maxsize=maxsize)
+    if fill_queue:
+        app.comment_queue.put(("Existing", "Comment"))
     if pre_set_stop:
         app.stop_event.set()
 
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        backlog_counts=10,
-    )
-
-    assert app.comment_queue.qsize() == 1
-
-
-def test_video_worker_backlog_remaining_exhausted(
-    app: Any, mock_video_client: MagicMock
-) -> None:
-    """バックログ取得の remaining_to_fetch が
-    0 になって break するかを検証します。
-
-    backlog_counts=1 のとき、1 件取得後に
-    remaining_to_fetch が 0 になり、
-    次のループ先頭で break が実行されることを
-    検証します。
-    """
-    call_count = 0
-
-    def fetch_side_effect(video_id, page_token=None, max_results=100):
-        """フェッチのサイドエフェクトです。"""
+    def fetch_side_effect(
+        video_id: str,
+        page_token: str | None = None,
+        max_results: int = 100,
+    ) -> tuple[list[Any], str | None, int]:
         nonlocal call_count
+        idx = call_count
         call_count += 1
-        if call_count == 1:
-            # ページトークンを持たせてループ途中での
-            # break を防ぎます。
-            return (
-                [
-                    {
-                        "id": "c1",
-                        "authorDetails": {
-                            "displayName": "U1",
-                        },
-                        "snippet": {
-                            "displayMessage": ("Hello"),
-                        },
-                    }
-                ],
-                "next_token",
-                3000,
-            )
-        else:
+        if idx >= len(comments_list):
             app.stop_event.set()
             return [], None, 3000
+
+        # 最後のフェッチまたは次のトークンがない場合、stop_eventをセットして無限ループを防ぐ
+        # (ただし事前にstop_eventがセットされていれば呼ばれない)
+        if idx == len(comments_list) - 1:
+            app.stop_event.set()
+
+        return comments_list[idx], next_tokens[idx], 3000
 
     mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
 
@@ -259,55 +140,8 @@ def test_video_worker_backlog_remaining_exhausted(
         video_client=mock_video_client,
         video_id="video_123",
         chat_interval=0.01,
-        backlog_counts=1,
+        verbose=verbose,
+        backlog_counts=backlog_counts,
     )
 
-    assert app.comment_queue.qsize() == 1
-
-
-@patch("time.sleep")
-def test_video_worker_backlog_unlimited_remaining(
-    mock_sleep: Any,
-    app: Any,
-    mock_video_client: MagicMock,
-) -> None:
-    """backlog_counts=-1 のとき、remaining_to_fetch
-    が None になることを検証します。
-    """
-    call_count = 0
-
-    def fetch_side_effect(video_id, page_token=None, max_results=100):
-        """フェッチのサイドエフェクトです。"""
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            # ページトークンなし → break
-            return (
-                [
-                    {
-                        "id": "c1",
-                        "authorDetails": {
-                            "displayName": "U1",
-                        },
-                        "snippet": {
-                            "displayMessage": ("Hello"),
-                        },
-                    }
-                ],
-                None,
-                3000,
-            )
-        else:
-            app.stop_event.set()
-            return [], None, 3000
-
-    mock_video_client.fetch_comment_threads.side_effect = fetch_side_effect
-
-    app.video_worker(
-        video_client=mock_video_client,
-        video_id="video_123",
-        chat_interval=0.01,
-        backlog_counts=-1,
-    )
-
-    assert app.comment_queue.qsize() == 1
+    assert app.comment_queue.qsize() == expected_qsize

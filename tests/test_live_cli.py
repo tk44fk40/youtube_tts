@@ -191,47 +191,59 @@ def test_live_cli_options(
     assert kwargs_run["chat_interval"] == expected_chat_interval
 
 
+@pytest.mark.parametrize(
+    "verbose, argv_extra",
+    [
+        (False, []),
+        (True, ["-v"]),
+    ],
+)
 def test_live_cli_auth_failure(
     mock_cli_components: dict[str, Any],
+    verbose: bool,
+    argv_extra: list[str],
 ) -> None:
-    """認証に失敗した場合、ステータスコード1でシステム終了することを検証します。"""
+    """認証に失敗した場合、ステータスコード1で終了することを検証します。"""
     components = mock_cli_components
     components["auth_instance"].get_credentials.side_effect = Exception(
         "Auth Failure"
     )
 
+    argv = ["youtube_live_voicevox.py"] + argv_extra + ["video123"]
     with pytest.raises(SystemExit) as exc_info:
-        with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
+        with patch("sys.argv", argv):
             main()
     assert exc_info.value.code == 1
 
 
-def test_live_cli_video_id_auto_detection_success(
+@pytest.mark.parametrize(
+    "side_effect, expected_exit, expected_code",
+    [
+        (None, False, None),
+        (RuntimeError("No live stream found"), True, 1),
+    ],
+)
+def test_live_cli_video_id_auto_detection(
     mock_cli_components: dict[str, Any],
+    side_effect: Exception | None,
+    expected_exit: bool,
+    expected_code: int | None,
 ) -> None:
     """引数なしの場合に配信IDの自動検出が試みられることを検証します。"""
     components = mock_cli_components
     mock_live_inst = components["live_client_instance"]
+    if side_effect:
+        mock_live_inst.get_current_live_video_id.side_effect = side_effect
 
-    with patch("sys.argv", ["youtube_live_voicevox.py"]):
-        main()
-    mock_live_inst.get_current_live_video_id.assert_called_once()
-
-
-def test_live_cli_video_id_auto_detection_failure(
-    mock_cli_components: dict[str, Any],
-) -> None:
-    """自動検出に失敗した場合、ステータスコード1で終了することを検証します。"""
-    components = mock_cli_components
-    mock_live_inst = components["live_client_instance"]
-    mock_live_inst.get_current_live_video_id.side_effect = RuntimeError(
-        "No live stream found"
-    )
-
-    with pytest.raises(SystemExit) as exc_info:
+    if expected_exit:
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["youtube_live_voicevox.py"]):
+                main()
+        assert exc_info.value.code == expected_code
+    else:
         with patch("sys.argv", ["youtube_live_voicevox.py"]):
             main()
-    assert exc_info.value.code == 1
+        mock_live_inst.get_current_live_video_id.assert_called_once()
 
 
 def test_live_cli_env_parse_failures(
@@ -307,21 +319,7 @@ def test_live_cli_get_speakers_failure(
     components["app_instance"].run_live.assert_called_once()
 
 
-def test_live_cli_auth_failure_verbose(
-    mock_cli_components: dict[str, Any],
-) -> None:
-    """verbose有効時に認証に失敗した場合、例外詳細ログが出力され
-    ステータス1で終了することを検証します。
-    """
-    components = mock_cli_components
-    components["auth_instance"].get_credentials.side_effect = Exception(
-        "Auth Failure"
-    )
 
-    with pytest.raises(SystemExit) as exc_info:
-        with patch("sys.argv", ["youtube_live_voicevox.py", "-v", "video123"]):
-            main()
-    assert exc_info.value.code == 1
 
 
 @patch("youtube_live_voicevox.get_project_id")
