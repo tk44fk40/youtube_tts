@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 
 from youtube_tts import YouTubeAuthenticator, get_logger
@@ -26,8 +27,13 @@ TOKEN_FILE = "token.json"
 CLIENT_SECRET_FILE = "client_secret.json"
 
 
-def main() -> None:
+def main(args: list[str] | None = None) -> None:
     """OAuth 認証を実行し、アクセストークンを取得および保存します。"""
+    parser = argparse.ArgumentParser(
+        description="OAuth 認証を行い、トークンを保存するスクリプトです。"
+    )
+    parser.parse_args(args)
+
     logger = get_logger()
     try:
         authenticator = YouTubeAuthenticator(

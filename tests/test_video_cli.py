@@ -21,7 +21,7 @@ def mock_voicevox_client_get_speakers() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def mock_cli_components() -> Generator[dict[str, Any], None, None]:
-    """主要コンポーネントを一括でモック化し、標準的な初期値を設定するフィクスチャです。"""
+    """コンポーネントをモック化するフィクスチャです。"""
     with (
         patch("youtube_tts.cli.context.YouTubeAuthenticator") as mock_auth,
         patch("youtube_video_voicevox.YouTubeVideoClient") as mock_video_client,
@@ -78,7 +78,7 @@ def test_video_cli_device_option(mock_cli_components: dict[str, Any]) -> None:
 
 
 def test_video_cli_speed_option(mock_cli_components: dict[str, Any]) -> None:
-    """--speed オプションが config.speed_scale に反映されることを検証します。"""
+    """--speed オプションが config に反映されることを検証します。"""
     components = mock_cli_components
 
     argv = ["youtube_video_voicevox.py", "--speed", "1.5", "video123"]
@@ -128,7 +128,7 @@ def test_video_cli_chat_log_option(mock_cli_components: dict[str, Any]) -> None:
 
 
 def test_video_cli_auth_failure(mock_cli_components: dict[str, Any]) -> None:
-    """認証に失敗した場合にステータスコード1でシステム終了することを検証します。"""
+    """認証失敗時に終了コード1で終了することを検証します。"""
     components = mock_cli_components
     components["auth_instance"].get_credentials.side_effect = Exception(
         "Auth Failure"
@@ -161,7 +161,6 @@ def test_video_cli_env_variables_and_failures(
     mock_cli_components: dict[str, Any],
 ) -> None:
     """環境変数や各エラーハンドリングのフローを検証します。"""
-
     components = mock_cli_components
     # デバイス情報取得エラーをシミュレート
     components["query_devices"].side_effect = Exception("Device query error")
@@ -191,14 +190,14 @@ def test_video_cli_env_variables_and_failures(
 def test_video_cli_keyboard_interrupt_during_context(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """コンテキスト生成中に KeyboardInterrupt が発生した場合に
+    """コンテキスト生成中に KeyboardInterrupt が発生した場合に.
 
     ステータスコード130で終了することを検証します。
     """
     components = mock_cli_components
-    components["auth_instance"].get_credentials.side_effect = (
-        KeyboardInterrupt()
-    )
+    components[
+        "auth_instance"
+    ].get_credentials.side_effect = KeyboardInterrupt()
 
     with patch("sys.exit", side_effect=SystemExit(130)) as mock_exit:
         with pytest.raises(SystemExit) as exc_info:
@@ -208,11 +207,10 @@ def test_video_cli_keyboard_interrupt_during_context(
         mock_exit.assert_called_once_with(130)
 
 
-
 def test_video_cli_keyboard_interrupt_during_run(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """runner.run中に KeyboardInterrupt が発生した場合に
+    """runner.run中に KeyboardInterrupt が発生した場合に.
 
     正常終了（トレース出さずログのみ）することを検証します。
     """
@@ -226,5 +224,3 @@ def test_video_cli_keyboard_interrupt_during_run(
     components["app_instance"].logger.info.assert_any_call(
         "ユーザーによって処理が中断されました。"
     )
-
-

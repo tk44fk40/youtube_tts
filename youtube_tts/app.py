@@ -25,6 +25,7 @@ from typing import Any
 
 from .audio import AudioPlayer
 from .config import AppConfig
+from .container import VoicevoxContainerManager
 from .dictionary import TextProcessor
 from .logger import get_logger
 from .models import YouTubeMessage
@@ -38,8 +39,9 @@ MAX_PROCESSED_MESSAGE_IDS = 1000
 
 
 class YouTubeTtsApp:
-    """YouTube Live のチャット読み上げツール全体の実行状態とコンテキストを
-    保持するクラスです。
+    """YouTube Live のチャット読み上げツールのコンテキストクラスです。
+
+    全体の実行状態とコンテキストを保持します。
     """
 
     def __init__(
@@ -49,12 +51,24 @@ class YouTubeTtsApp:
         audio_player: AudioPlayer,
         obs_client: ObsClient | None = None,
         logger: logging.Logger | None = None,
+        container_manager: VoicevoxContainerManager | None = None,
     ) -> None:
+        """YouTubeTtsApp を初期化します。
+
+        Args:
+            config: アプリケーション設定オブジェクトです。
+            voicevox_client: VOICEVOX API クライアントです。
+            audio_player: 音声再生プレーヤーです。
+            obs_client: OBS 連携クライアントです。
+            logger: ロガーオブジェクトです。
+            container_manager: VOICEVOX コンテナマネージャーです。
+        """
         self.config = config
         self.text_processor = TextProcessor(config)
         self.voicevox_client = voicevox_client
         self.audio_player = audio_player
         self.obs_client = obs_client
+        self.container_manager = container_manager
 
         if logger is None:
             self.logger = get_logger()
@@ -168,5 +182,13 @@ class YouTubeTtsApp:
                 playback_thread.join(timeout=wait_seconds)
             except Exception:
                 pass
+
+        if self.container_manager is not None:
+            try:
+                self.container_manager.stop_if_last(self.logger)
+            except Exception as e:
+                self.logger.warning(
+                    f"コンテナ停止処理中にエラーが発生しました: {e}"
+                )
 
         self.logger.info("クリーンアップが完了しました。")

@@ -75,7 +75,7 @@ def test_run_video(app: Any) -> None:
 
 
 def test_app_cleanup(app: Any) -> None:
-    """cleanup メソッドがキュー内の残コメントを消化するかを検証します。"""
+    """Cleanup メソッドがキュー内の残コメントを消化するかを検証します。"""
     from youtube_tts.models import SpeechItem
 
     app.speech_queue.put(SpeechItem("User", "Hello", 5))
@@ -88,7 +88,7 @@ def test_app_cleanup(app: Any) -> None:
 
 
 def test_app_cleanup_no_thread(app: Any) -> None:
-    """cleanup 内で playback_thread が None の場合の挙動を検証します。"""
+    """Cleanup 内で playback_thread が None の場合の挙動を検証します。"""
     from youtube_tts.models import SpeechItem
 
     app.speech_queue.put(SpeechItem("User", "Hello", 5))
@@ -129,14 +129,25 @@ def test_write_chat_log_exception(app: Any) -> None:
 
 
 def test_app_cleanup_join_exception(app: Any) -> None:
-    """cleanup 内の thread.join 失敗時の挙動を検証します。"""
+    """Cleanup 内の thread.join 失敗時の挙動を検証します。"""
     mock_thread = MagicMock()
     mock_thread.join.side_effect = RuntimeError("Join failed")
     app.cleanup(playback_thread=mock_thread, wait_seconds=0.1)
 
 
+def test_app_cleanup_container_manager_exception(app: Any) -> None:
+    """Cleanup 内で container_manager 停止例外発生時の挙動を検証します。"""
+    mock_container_manager = MagicMock()
+    mock_container_manager.stop_if_last.side_effect = RuntimeError("Err")
+    app.container_manager = mock_container_manager
+
+    app.cleanup(playback_thread=None, wait_seconds=0.1)
+
+    mock_container_manager.stop_if_last.assert_called_once_with(app.logger)
+
+
 def test_run_live_signal_value_error(app: Any) -> None:
-    """run 内のシグナル登録エラー時の挙動を検証します。"""
+    """Run 内のシグナル登録エラー時の挙動を検証します。"""
     mock_live_client = MagicMock()
     app.stop_event.set()
     runner = LiveRunner(app=app, live_client=mock_live_client, video_id="vid")
@@ -165,7 +176,7 @@ def test_run_live_worker_exception(app: Any) -> None:
 
 
 def test_run_video_signal_handling(app: Any) -> None:
-    """run 内のシグナルハンドラの動作を検証します。"""
+    """Run 内のシグナルハンドラの動作を検証します。"""
     mock_video_client = MagicMock()
     app.stop_event.set()
     runner = VideoRunner(
@@ -186,7 +197,7 @@ def test_run_video_signal_handling(app: Any) -> None:
 
 
 def test_run_video_signal_value_error(app: Any) -> None:
-    """run 内のシグナル登録エラー時の挙動を検証します。"""
+    """Run 内のシグナル登録エラー時の挙動を検証します。"""
     mock_video_client = MagicMock()
     app.stop_event.set()
     runner = VideoRunner(

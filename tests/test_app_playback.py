@@ -254,8 +254,7 @@ def test_playback_worker_rate_at_base_zero(
     app: YouTubeTtsApp,
     stop_on_speak: Callable[..., None],
 ) -> None:
-    """基本速度が0の場合に、推定所要時間が0となり、
-    ブースト速度が基本速度のままとなることを検証します。
+    """基本速度が0の場合にブースト速度が基本速度のままとなることを検証します。
 
     Args:
         app: YouTubeTtsApp インスタンス。

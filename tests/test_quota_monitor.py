@@ -12,8 +12,7 @@ from youtube_tts.workers.quota_monitor import QuotaMonitor
 
 
 def test_format_reset_time_delta_days():
-    """format_reset_time で明日やそれ以降の日付が
-    正しくフォーマットされるか検証します。"""
+    """format_reset_time で日付が正しくフォーマットされるか検証します。"""
     monitor = QuotaMonitor(app=MagicMock(), creds=None, project_id=None)
 
     with patch("youtube_tts.workers.quota_monitor.datetime") as mock_datetime:
@@ -50,7 +49,7 @@ def test_is_quota_exceeded_error_not_403():
 
 
 def test_is_quota_exceeded_error_content_str_or_bytes():
-    """content が bytes 以外の場合でも処理できるか検証します。"""
+    """Content が bytes 以外の場合でも処理できるか検証します。"""
     monitor = QuotaMonitor(app=MagicMock(), creds=None, project_id=None)
     resp = Response({"status": 403})
 
@@ -131,8 +130,7 @@ def test_handle_exceeded_error_wait_drain(mock_sleep):
 
 
 def test_handle_exceeded_error_no_talk():
-    """quota_talk が False の場合に
-    読み上げメッセージを追加せずに True を返すか検証します。"""
+    """quota_talk が False 時にメッセージ非追加で True 返却を検証します。"""
     app = MagicMock()
     monitor = QuotaMonitor(
         app=app, creds=None, project_id=None, quota_talk=False
@@ -143,9 +141,8 @@ def test_handle_exceeded_error_no_talk():
     app.speech_queue.put.assert_not_called()
 
 
-
 def test_check_and_talk_no_creds():
-    """creds または project_id がない場合に即リターンするか検証します。"""
+    """Creds または project_id がない場合に即リターンするか検証します。"""
     monitor = QuotaMonitor(app=MagicMock(), creds=None, project_id=None)
     monitor.check_and_talk()
     # nothing happens

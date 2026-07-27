@@ -27,9 +27,7 @@ def _create_quota_exceeded_error() -> HttpError:
 def test_live_worker_quota_exceeded(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """クォータ超過エラー（403）発生時に、
-    適切に待機状態へ遷移するかを検証します。
-    """
+    """クォータ超過エラー（403）発生時の待機状態遷移を検証します。"""
     ex = _create_quota_exceeded_error()
     mock_live_client.fetch_chat_messages.side_effect = ex
 
@@ -53,9 +51,7 @@ def test_live_worker_quota_exceeded(
 def test_live_worker_quota_exceeded_no_quota_talk(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """クォータ超過でも quota_talk=False の場合に
-    即終了するかを検証します。
-    """
+    """クォータ超過かつ quota_talk=False 時の即終了を検証します。"""
     ex = _create_quota_exceeded_error()
     mock_live_client.fetch_chat_messages.side_effect = ex
 
@@ -76,9 +72,7 @@ def test_live_worker_quota_exceeded_no_quota_talk(
 def test_live_worker_quota_exceeded_drain_empty(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """キュードレイン中に queue.Empty が
-    発生した場合の処理を検証します。
-    """
+    """キュードレイン中の queue.Empty 発生時処理を検証します。"""
     ex = _create_quota_exceeded_error()
     mock_live_client.fetch_chat_messages.side_effect = ex
 
@@ -141,9 +135,7 @@ def test_live_worker_quota_exceeded_reset_time_failure(
     app: Any,
     mock_live_client: MagicMock,
 ) -> None:
-    """リセット時刻取得に失敗した場合の
-    フォールバックメッセージを検証します。
-    """
+    """リセット時刻取得失敗時のフォールバックメッセージを検証します。"""
     ex = _create_quota_exceeded_error()
     mock_live_client.fetch_chat_messages.side_effect = ex
 
@@ -165,9 +157,7 @@ def test_live_worker_quota_exceeded_reset_time_failure(
 def test_live_worker_quota_exceeded_content_str(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """HttpError の content が str の場合でも
-    正しく判定されることを検証します。
-    """
+    """HttpError の content が str の場合の正常判定を検証します。"""
     resp = Response({"status": 403, "reason": "Forbidden"})
     ex = HttpError(resp, b"")
     ex.content = '{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
@@ -200,7 +190,7 @@ def test_live_worker_quota_info_success(
     mock_live_client: MagicMock,
     verbose: bool,
 ) -> None:
-    """クォータ情報が正常に取得でき、キューに追加されることを検証します。"""
+    """クォータ情報が正常取得されキューに追加されることを検証します。"""
     mock_live_client.fetch_chat_messages.return_value = ([], "next_token", 1000)
     mock_quota_info.return_value = (1000, 10000)
 
@@ -242,7 +232,7 @@ def test_live_worker_quota_info_error(
     mock_live_client: MagicMock,
     verbose: bool,
 ) -> None:
-    """クォータ情報取得エラー時にキューに追加されないことを検証します。"""
+    """クォータ情報取得エラー時にキューへ追加されないことを検証します。"""
     mock_live_client.fetch_chat_messages.return_value = ([], "next_token", 1000)
     mock_quota_info.side_effect = Exception("Quota check failure")
 
@@ -282,7 +272,7 @@ def test_live_worker_quota_info_same_value_skip(
     app: Any,
     mock_live_client: MagicMock,
 ) -> None:
-    """使用量が変わらない場合、アナウンスがスキップされることを検証します。"""
+    """使用量不変時にアナウンスがスキップされることを検証します。"""
     mock_live_client.fetch_chat_messages.return_value = ([], "next_token", 1000)
     mock_quota_info.return_value = (1000, 10000)
 

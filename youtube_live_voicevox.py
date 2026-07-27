@@ -14,8 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""VOICEVOX を使用して YouTube Live チャットコメントを
-読み上げるスクリプトです。"""
+"""YouTube Live チャットコメントの読み上げモジュールです。
+
+VOICEVOX を使用してコメントを読み上げます。
+"""
 
 from __future__ import annotations
 
@@ -29,9 +31,7 @@ from youtube_tts.runners.live import LiveRunner
 
 
 def main() -> None:
-    """VOICEVOX を使用した YouTube Live チャット読み上げの
-    メイン処理を実行します。
-    """
+    """YouTube Live チャット読み上げのメイン処理を実行します。"""
     parser = create_live_parser()
     args = parser.parse_args()
 

@@ -125,7 +125,7 @@ def test_play_wav_no_commands_raise_error(
 def test_play_wav_kills_existing_process(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """再生中に新しい再生要求があった際、古いプロセスを終了させることを検証します。"""
+    """再生要求時に古いプロセスを終了させるかを検証します。"""
     monkeypatch.setattr(
         shutil,
         "which",

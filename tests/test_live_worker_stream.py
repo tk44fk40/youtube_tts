@@ -17,9 +17,7 @@ from youtube_tts.workers.live import live_worker
 def test_live_worker_stream_inactive(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """配信がアクティブではない（終了した）場合に
-    ループが終了するかを検証します。
-    """
+    """配信非アクティブ時のループ終了を検証します。"""
     mock_live_client.fetch_chat_messages.return_value = (
         [],
         "next_token",
@@ -46,10 +44,7 @@ def test_live_worker_stream_active_then_stop(
     app: Any,
     mock_live_client: MagicMock,
 ) -> None:
-    """ストリームがアクティブな場合に
-    last_stream_check_time が
-    更新されるかを検証します。
-    """
+    """ストリームアクティブ時の時刻更新を検証します。"""
     mock_live_client.check_stream_active.return_value = True
 
     fetch_call_count = 0
@@ -83,9 +78,7 @@ def test_live_worker_success_with_dataclasses(
     app: Any,
     mock_live_client: MagicMock,
 ) -> None:
-    """本番用のデータクラスオブジェクトをモックとして
-    返し、キャストがバイパスされることを検証します。
-    """
+    """データクラスオブジェクト返却時のキャストバイパスを検証します。"""
     mock_live_client.get_video_details.return_value = VideoDetails(
         video_id="video_123",
         channel_id="my_channel_123",

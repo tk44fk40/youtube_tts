@@ -66,7 +66,10 @@ To use this tool, the following environment and services must be prepared:
      installed on your system (falls back to `aplay` for a simplified list
      if `pactl` is not available; see [Checking and Specifying Audio Devices](#checking-and-specifying-audio-devices) for details).
 2. **VOICEVOX**
-   - VOICEVOX (Desktop or Docker version) must be running beforehand, with its API accessible on the default port `50021`.
+   - When running this tool, a `voicevox-engine` container is automatically created, started, and managed via Podman or Docker (safely managed across parallel processes and automatically stopped when the last process exits).
+   - **No manual pre-launch is required.**
+   - *Note: If you wish to use a manually started VOICEVOX Desktop app or external server, use the `--no-manage-container` option or set the environment variable `VOICEVOX_MANAGE_CONTAINER=false`.*
+   - *Note: On environments where Podman/Docker is unavailable, auto-management is turned OFF, and VOICEVOX must be running manually on default port `50021`.*
 3. **OBS (Open Broadcaster Software) & Browser Source** *(Required only for OBS integration)*
    - To display chat on the streaming screen, a browser source must be set up in OBS.
    - Add a "Browser Source" in your OBS scene.

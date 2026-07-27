@@ -12,7 +12,7 @@ from youtube_tts.models import QuotaInfo
 
 @pytest.fixture
 def mock_deps() -> Generator[dict[str, MagicMock], None, None]:
-    """main 関数のテストに必要なモックをセットアップします。"""
+    """Main 関数のテストに必要なモックをセットアップします。"""
     with (
         patch("get_quota_info.get_logger") as mock_logger_class,
         patch("get_quota_info.get_project_id") as mock_project_id,
@@ -127,7 +127,7 @@ def test_main_generic_error(
     mock_deps: dict[str, MagicMock],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """汎用エラー時に Cloud Monitoring API 確認メッセージの出力を検証します。"""
+    """汎用エラー時に Cloud Monitoring API 確認メッセージ出力を検証します。"""
     mock_deps["project_id"].side_effect = Exception("some generic error")
 
     import get_quota_info as gqi

@@ -19,7 +19,14 @@ import os
 
 
 def create_base_parser(description: str) -> argparse.ArgumentParser:
-    """Live/Video 共通の引数を持つパーサーを作成します。"""
+    """Live/Video 共通の引数を持つパーサーを作成します。
+
+    Args:
+        description: パーサーの説明テキストです。
+
+    Returns:
+        argparse.ArgumentParser: 構築されたベースパーサーオブジェクトです。
+    """
     env_speed = 1.0
     if "VOICEVOX_SPEED_SCALE" in os.environ:
         try:
@@ -102,7 +109,9 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         "--quota-interval",
         type=float,
         default=180.0,
-        help="使用量の取得の最短時間（秒）を指定します。デフォルトは180秒です。",
+        help=(
+            "使用量の取得の最短時間（秒）を指定します。デフォルトは180秒です。"
+        ),
     )
     parser.add_argument(
         "-v",
@@ -110,11 +119,20 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         action="store_true",
         help="詳細ログ（DEBUGタグ）を出力します。",
     )
+    parser.add_argument(
+        "--no-manage-container",
+        action="store_true",
+        help="VOICEVOX Engine コンテナの自動起動・管理機能を無効化します。",
+    )
     return parser
 
 
 def create_live_parser() -> argparse.ArgumentParser:
-    """Live用のパーサーを作成します。"""
+    """Live用のパーサーを作成します。
+
+    Returns:
+        argparse.ArgumentParser: Live配信チャット用のパーサーオブジェクトです。
+    """
     parser = create_base_parser("YouTube Live Chat TTS with VOICEVOX")
     _TTS_TEST_DEFAULT = "ぴんぽーん！チャット読上げのテストです"
     parser.add_argument(
@@ -152,7 +170,11 @@ def create_live_parser() -> argparse.ArgumentParser:
 
 
 def create_video_parser() -> argparse.ArgumentParser:
-    """Video用のパーサーを作成します。"""
+    """Video用のパーサーを作成します。
+
+    Returns:
+        argparse.ArgumentParser: 動画コメント用パーサーです。
+    """
     parser = create_base_parser("YouTube Video/Archive Chat TTS with VOICEVOX")
     parser.add_argument(
         "--backlog-counts",

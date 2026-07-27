@@ -43,6 +43,7 @@ max-doc-length = 80
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "D"]
 extend-select = ["W505"]
+ignore = ["D415"]
 # E (pycodestyle - Errors) : Pythonの標準スタイルガイド（PEP 8）に基づくエラーをチェックします。
 # F (Pyflakes) : コードのスタイルではなく、論理的なバグやエラーをチェックします。
 # I (isort) : インポート文（import ...）の並び順やグループ分けをチェック・整理します。
@@ -52,6 +53,8 @@ extend-select = ["W505"]
 # 全角2桁換算で80桁を超えていても警告は出ない。
 # → 途中に空白を挟むと検出される
 # D (pydocstyle) : Docstring関連ルール
+# D415 : Docstring 末尾に半角ピリオドがない場合の警告を無効化
+# 補足: 日本語のDocstringでは不要な警告です。
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

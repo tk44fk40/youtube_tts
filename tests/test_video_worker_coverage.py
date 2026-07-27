@@ -11,8 +11,7 @@ from youtube_tts.workers.video import format_error_details, video_worker
 
 
 def test_format_error_details_exceptions():
-    """format_error_details で str() や repr() が
-    失敗するオブジェクトを処理できるか検証します。"""
+    """format_error_details で不完全な例外オブジェクト処理を検証します。"""
 
     class BadException1(Exception):
         def __str__(self):
@@ -36,8 +35,7 @@ def test_format_error_details_exceptions():
 
 
 def test_video_worker_backlog_handled_error():
-    """初期バックログ取得でクォータエラーが
-    handle された場合を検証します。"""
+    """初期バックログ取得でクォータエラー処理時の検証を行います。"""
     app = MagicMock()
     # 初期状態で stop_event は False だが、
     # ループを1回で抜けるように backlog_counts=1 にして
@@ -70,8 +68,7 @@ def test_video_worker_backlog_handled_error():
 
 
 def test_video_worker_polling_handled_error():
-    """リアルタイムポーリング取得でクォータエラーが
-    handle された場合を検証します。"""
+    """リアルタイムポーリング取得でクォータエラー処理時の検証を行います。"""
     app = MagicMock()
     app.stop_event.is_set.return_value = False  # polling loop
 

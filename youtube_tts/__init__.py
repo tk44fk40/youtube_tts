@@ -21,6 +21,7 @@ from .app import YouTubeTtsApp
 from .audio import AudioPlayer
 from .auth import YOUTUBE_SCOPE, YouTubeAuthenticator
 from .config import AppConfig
+from .container import VoicevoxContainerManager
 from .dictionary import TextProcessor
 from .live import YouTubeLiveChatClient
 from .logger import get_logger, setup_logger
@@ -42,6 +43,7 @@ __all__ = [
     "YouTubeLiveChatClient",
     "YouTubeVideoClient",
     "VoicevoxClient",
+    "VoicevoxContainerManager",
     "AudioPlayer",
     "AppConfig",
     "TextProcessor",

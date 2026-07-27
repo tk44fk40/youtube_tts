@@ -90,7 +90,7 @@ def test_voicevox_test_main(
     save_fail: bool,
     play_fail: bool,
 ) -> None:
-    """main 関数の様々なパラメータや動作条件を検証します。"""
+    """Main 関数の様々なパラメータや動作条件を検証します。"""
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
     mock_client.synthesize.return_value = b"wav_data"

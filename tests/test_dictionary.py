@@ -23,9 +23,7 @@ def mock_config() -> MagicMock:
 
 
 def test_text_normalize(mock_config: MagicMock) -> None:
-    """全角英数字や半角カナが正しく Unicode 正規化 (NFKC) されるか
-    検証します。
-    """
+    """英数字やカナが Unicode 正規化 (NFKC) されるか検証します。"""
     processor = TextProcessor(mock_config)
     assert processor.normalize_text("ＡＢＣ") == "ABC"
     assert processor.normalize_text("ｱｲｳ") == "アイウ"
