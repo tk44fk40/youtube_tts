@@ -3,6 +3,28 @@
 懸案事項や、将来的にやりたいことのメモ
 
 
+## VOICEBOX コンテナでの運用
+
+```bash
+# VOICEBOX コンテナの作成
+podman pull docker.io/voicevox/voicevox_engine:cpu-latest
+podman run -d \
+  --name voicevox-engine \
+  --restart unless-stopped \
+  -p 127.0.0.1:50021:50021 \
+  docker.io/voicevox/voicevox_engine:cpu-latest
+
+# VOICEBOXの起動
+podman start voicevox-engine
+
+# VOICEBOXの停止
+podman stop voicevox-engine
+
+# VOICEBOXの削除
+podman rm voicevox-engine
+```
+
+
 ## チャットメッセージの種類（Event/snippet.type）による制御
 
 | snippet.type の値           | 意味・内容                         |
