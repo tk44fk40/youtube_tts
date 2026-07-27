@@ -35,4 +35,8 @@ Untitled.vvproj
 *.jsonl
 
 # Agents config and plans
-.agents/
+.agents/*
+!.agents/AGENTS.md
+!.agents/skills/
+!.agents/skills/*/
+!.agents/skills/**/SKILL.md

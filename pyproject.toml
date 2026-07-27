@@ -41,7 +41,7 @@ exclude = [
 max-doc-length = 80
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
+select = ["E", "F", "I", "W", "D"]
 extend-select = ["W505"]
 # E (pycodestyle - Errors) : Pythonの標準スタイルガイド（PEP 8）に基づくエラーをチェックします。
 # F (Pyflakes) : コードのスタイルではなく、論理的なバグやエラーをチェックします。
@@ -51,3 +51,7 @@ extend-select = ["W505"]
 # 補足: W505 を指定しても日本語は Unicode ポイントでカウントされるので、
 # 全角2桁換算で80桁を超えていても警告は出ない。
 # → 途中に空白を挟むと検出される
+# D (pydocstyle) : Docstring関連ルール
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
