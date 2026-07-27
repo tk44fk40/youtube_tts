@@ -286,8 +286,7 @@ def test_video_worker_backlog_unlimited(
     app: Any,
     mock_video_client: MagicMock,
 ) -> None:
-    """backlog_counts=-1 の場合に無制限に取得し、
-    トークンがなくなるまで動作することを検証します。"""
+    """backlog_counts=-1 時の無制限取得動作を検証します。"""
     comments_list = [
         [
             {

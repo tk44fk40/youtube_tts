@@ -27,9 +27,7 @@ from youtube_tts.runners.video import VideoRunner
 
 
 def main() -> None:
-    """VOICEVOX を使用した YouTube 動画コメント読み上げの
-    メイン処理を実行します。
-    """
+    """YouTube 動画コメント読み上げのメイン処理を実行します。"""
     parser = create_video_parser()
     args = parser.parse_args()
 

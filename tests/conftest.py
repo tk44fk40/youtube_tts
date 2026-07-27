@@ -6,10 +6,18 @@
 from __future__ import annotations
 
 import io
+import sys
 import wave
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
+
+if "sounddevice" not in sys.modules:
+    mock_sd = MagicMock()
+    mock_sd.query_devices = MagicMock(
+        return_value={"name": "test_device", "index": 6}
+    )
+    sys.modules["sounddevice"] = mock_sd
 
 import pytest
 
@@ -138,7 +146,7 @@ def app(
 def stop_on_speak(
     app: YouTubeTtsApp,
 ) -> Callable[..., None]:
-    """speak 呼び出し時に stop_event をセットするコールバックです。
+    """Speak 呼び出し時に stop_event をセットするコールバックです。
 
     playback_worker テスト用に、1回の speak 呼び出しで
     ループを終了させるために使用します。

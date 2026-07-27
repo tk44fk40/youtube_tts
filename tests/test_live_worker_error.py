@@ -31,9 +31,7 @@ def _create_http_403_error(
 def test_live_worker_generic_exception(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """一般的な例外が発生した際に、通常の
-    インターバルでリトライされるかを検証します。
-    """
+    """一般例外発生時のリトライと終了動作を検証します。"""
     mock_live_client.fetch_chat_messages.side_effect = Exception(
         "Generic Network Error"
     )
@@ -56,9 +54,7 @@ def test_live_worker_get_video_details_failure(
     app: Any,
     verbose: bool,
 ) -> None:
-    """動画情報取得に失敗した際に
-    早期リターンするかを検証します。
-    """
+    """動画情報取得失敗時の早期リターンを検証します。"""
     mock_live_client = MagicMock(spec=YouTubeLiveChatClient)
     mock_live_client.get_video_details.side_effect = Exception("API error")
 
@@ -78,9 +74,7 @@ def test_live_worker_get_live_chat_id_failure(
     mock_live_client: MagicMock,
     verbose: bool,
 ) -> None:
-    """liveChatId 取得に失敗した際に
-    早期リターンするかを検証します。
-    """
+    """LiveChatId 取得失敗時の早期リターンを検証します。"""
     mock_live_client.get_live_chat_id.side_effect = Exception("API error")
 
     live_worker(
@@ -96,9 +90,7 @@ def test_live_worker_get_live_chat_id_failure(
 def test_live_worker_fetch_error_no_content(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """HttpError 発生時に content が None の場合の
-    クォータ判定を検証します。
-    """
+    """HttpError の content が None 時のクォータ判定を検証します。"""
     ex = _create_http_403_error(b"")
     ex.content = None
     mock_live_client.fetch_chat_messages.side_effect = ex
@@ -118,9 +110,7 @@ def test_live_worker_fetch_error_no_content(
 def test_live_worker_fetch_error_decode_error(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """HttpError の content デコードが
-    失敗した場合の処理を検証します。
-    """
+    """HttpError の content デコード失敗時処理を検証します。"""
     ex = _create_http_403_error(b"not_quota")
     mock_content = MagicMock()
     mock_content.decode.side_effect = UnicodeDecodeError(
@@ -144,8 +134,7 @@ def test_live_worker_fetch_error_decode_error(
 def test_live_worker_fetch_error_quota_check_exception(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """クォータ判定中に予期しない例外が発生した場合の
-    処理を検証します。
+    """クォータ判定中の予期しない例外発生時処理を検証します。
 
     HttpError の resp を空スペック MagicMock に
     差し替えることで、`e.resp.status` アクセス時に
@@ -172,9 +161,7 @@ def test_live_worker_fetch_error_quota_check_exception(
 def test_live_worker_fetch_error_emits_debug_log(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """チャット取得失敗時に DEBUG ログが出ることを
-    検証します。
-    """
+    """チャット取得失敗時の DEBUG ログ出力を検証します。"""
     mock_live_client.fetch_chat_messages.side_effect = Exception("error")
 
     with patch.object(app.logger, "debug") as mock_debug:

@@ -31,9 +31,7 @@ if TYPE_CHECKING:
 
 
 class QuotaMonitor:
-    """YouTube Data API のクォータ使用状況を監視し、
-    超過時や定期的な読み上げを管理するクラスです。
-    """
+    """YouTube Data API のクォータ監視・超過時・定期読み上げ管理クラスです。"""
 
     def __init__(
         self,
@@ -99,8 +97,7 @@ class QuotaMonitor:
         return "quotaExceeded" in str(error) or "quotaExceeded" in content
 
     def enqueue_quota_message(self, message: str) -> None:
-        """キューを空にして、
-        クォータ超過メッセージを再生キューへ積みます。"""
+        """キューを空にして、クォータ超過メッセージを再生キューへ積みます。"""
         # 直前のコメントが残っている場合に備えて、
         # 通知メッセージを優先して再生する。
         while not self.app.speech_queue.empty():
@@ -115,8 +112,7 @@ class QuotaMonitor:
         self.app.speech_queue.put(speech_item)
 
     def handle_exceeded_error(self, error: Exception) -> bool:
-        """例外がクォータ超過エラーであれば
-        案内メッセージをキューに追加し True を返します。"""
+        """クォータ超過時、案内メッセージをキューに追加し True を返します。"""
         if not self.is_quota_exceeded_error(error):
             return False
 

@@ -2,10 +2,13 @@
 
 懸案事項や、将来的にやりたいことのメモ
 
-
 ## VOICEBOX コンテナでの運用
 
+> **対応完了**: 本ツールの起動時に Podman / Docker を使用して `voicevox-engine` コンテナが自動で作成・起動・管理されるようになりました（最後のツール終了時に自動停止）。
+> 手動で管理したい場合や外部サーバーを利用する場合は `--no-manage-container` オプションまたは環境変数 `VOICEVOX_MANAGE_CONTAINER=false` を指定してください。
+
 ```bash
+# 手動操作時のコマンド参考 (Podman)
 # VOICEBOX コンテナの作成
 podman pull docker.io/voicevox/voicevox_engine:cpu-latest
 podman run -d \
@@ -24,7 +27,6 @@ podman stop voicevox-engine
 podman rm voicevox-engine
 ```
 
-
 ## チャットメッセージの種類（Event/snippet.type）による制御
 
 | snippet.type の値           | 意味・内容                         |
@@ -37,6 +39,7 @@ podman rm voicevox-engine
 | membershipGiftingEvent      | メンバーシップギフトの贈与         |
 
 例えば…
+
 - メンバー登録イベントの時は読み上げる声を別のキャラクター（VOICEVOXの別のスタイル）に変えたい
 - メンバー登録のときは「〇〇さん、メンバー登録ありがとう！」のように特別な定型文で読ませたい
 

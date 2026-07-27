@@ -97,9 +97,7 @@ def test_live_worker_success(app: Any, mock_live_client: MagicMock) -> None:
 def test_live_worker_backlog_seconds_negative(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """backlog_secondsが負数の場合に
-    threshold_timeがNoneになるかを検証します。
-    """
+    """backlog_seconds 負数時の threshold_time None 設定を検証します。"""
     mock_live_client.fetch_chat_messages.return_value = (
         [],
         "token",
@@ -195,9 +193,7 @@ def test_live_worker_filters(
 def test_live_worker_tts_test_triggered(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """tts_testが有効かつ自分の配信の際、
-    テスト発声が実行されるかを検証します。
-    """
+    """tts_test 有効かつ自配信時のテスト発声実行を検証します。"""
 
     def fetch_side_effect(*args, **kwargs):
         app.stop_event.set()
@@ -221,9 +217,7 @@ def test_live_worker_tts_test_triggered(
 def test_live_worker_tts_test_not_triggered_on_others_live(
     app: Any, mock_live_client: MagicMock
 ) -> None:
-    """他者の配信である場合、テスト発声が
-    スキップされるかを検証します。
-    """
+    """他者配信時のテスト発声スキップ検証を行います。"""
     mock_live_client.get_my_channel_id.return_value = "my_channel_123"
     mock_live_client.get_video_details.return_value = {
         "snippet": {"channelId": "other_channel_456"},

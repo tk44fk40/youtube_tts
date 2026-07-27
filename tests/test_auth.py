@@ -102,7 +102,7 @@ def test_auth_corrupted_json(
     mock_flow_class: MagicMock,
     tmp_path: Path,
 ) -> None:
-    """キャッシュファイルが破損している場合のフォールバック処理を検証します。"""
+    """破損キャッシュ時のフォールバック処理を検証します。"""
     client_secret = tmp_path / "client_secret.json"
     client_secret.touch()
     token_file = tmp_path / "token.json"

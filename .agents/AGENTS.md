@@ -22,3 +22,7 @@
 
 - 適切なスキル（`planning`, `issue-management`, `git-workflow`, `testing-coverage`, `code-quality-checklist` 等）を使用して作業を進めてください。
 
+## 除外ルールの追加について
+
+- カバレッジやRuffルールの除外設定は基本的に修正禁止です
+- 除外ルールを追加したい場合は**必ず**理由を説明して承認を得てください

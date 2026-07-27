@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 class BaseRunner(ABC):
-    """共通のシグナルハンドリングとライフサイクル管理を提供する基底ランナーです。"""
+    """シグナル処理とライフサイクルを管理する基底クラス。"""
 
     def __init__(self, app: "YouTubeTtsApp") -> None:
         """初期化します。

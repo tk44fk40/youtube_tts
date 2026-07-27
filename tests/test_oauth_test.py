@@ -24,7 +24,7 @@ def test_oauth_test_success() -> None:
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
 
-        main()
+        main([])
 
         mock_logger.info.assert_called_once()
         mock_auth.get_credentials.assert_called_once()
@@ -45,7 +45,7 @@ def test_oauth_test_failure() -> None:
         mock_get_logger.return_value = mock_logger
 
         with pytest.raises(SystemExit) as exc_info:
-            main()
+            main([])
 
         assert exc_info.value.code == 1
         mock_logger.error.assert_called_once()

@@ -257,9 +257,7 @@ def test_live_cli_video_id_auto_detection(
 def test_live_cli_env_parse_failures(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """環境変数の数値パースが失敗した場合に
-    デフォルト値へフォールバックされることを検証します。
-    """
+    """環境変数の数値パース失敗時のデフォルトへの倒しを検証します。"""
     env_mock = {
         "VOICEVOX_SPEED_SCALE": "invalid_speed",
         "VOICEVOX_MAX_SPEED": "invalid_max_speed",
@@ -278,9 +276,7 @@ def test_live_cli_env_parse_failures(
 def test_live_cli_device_string_and_query_failure(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """デバイス名に文字列を指定し、かつ sounddevice が例外を
-    投げた場合でも処理が継続されることを検証します。
-    """
+    """デバイス名指定かつ sounddevice 例外時の処理継続を検証します。"""
     components = mock_cli_components
     components["query_devices"].side_effect = RuntimeError(
         "Device query failed"
@@ -305,9 +301,7 @@ def test_live_cli_get_speakers_failure(
     mock_cli_components: dict[str, Any],
     mock_voicevox_client_get_speakers: MagicMock,
 ) -> None:
-    """VOICEVOX 接続確認(get_speakers)が失敗しても、
-    処理が継続されることを検証します。
-    """
+    """VOICEVOX 接続確認失敗時の処理継続を検証します。"""
     mock_voicevox_client_get_speakers.side_effect = RuntimeError(
         "Connection refused"
     )
@@ -332,9 +326,7 @@ def test_live_cli_quota_check_project_id_failure(
     mock_get_project_id: MagicMock,
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """quota-check有効時に get_project_id が失敗した場合、警告ログを
-    出力してフラグがFalseになり処理が継続することを検証します。
-    """
+    """quota-checkで get_project_id 失敗時の処理継続を検証します。"""
     mock_get_project_id.side_effect = RuntimeError("Metadata error")
     components = mock_cli_components
 
@@ -351,9 +343,7 @@ def test_live_cli_quota_check_project_id_failure(
 def test_live_cli_run_live_unexpected_error(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """run で予期しない例外が発生した場合に例外がキャッチされ、
-    ログ出力されることを検証します。
-    """
+    """Run で予期しない例外発生時のキャッチとログ出力を検証します。"""
     components = mock_cli_components
     components["runner_instance"].run.side_effect = RuntimeError(
         "Unexpected loop crash"
@@ -387,7 +377,7 @@ def test_live_cli_run_live_unexpected_error(
             },
             1.0,
             2.2,
-            0.3,
+            1.0,
         ),
     ],
 )
@@ -399,8 +389,11 @@ def test_live_cli_env_vars(
     expected_speed: float,
     expected_max_speed: float,
     expected_volume: float,
+    tmp_path: Any,
+    monkeypatch: Any,
 ) -> None:
-    """環境変数経由での設定値が正しく伝搬されること、および異常値のハンドリングを検証します。"""
+    """環境変数値の伝搬と異常値ハンドリングを検証します。"""
+    monkeypatch.chdir(tmp_path)
     components = mock_cli_components
     mock_get_project_id.return_value = "test-project-123"
 
@@ -418,14 +411,14 @@ def test_live_cli_env_vars(
 def test_live_cli_keyboard_interrupt_during_context(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """コンテキスト生成中に KeyboardInterrupt が発生した場合に
+    """コンテキスト生成中に KeyboardInterrupt が発生した場合に.
 
     ステータスコード130で終了することを検証します。
     """
     components = mock_cli_components
-    components["auth_instance"].get_credentials.side_effect = (
-        KeyboardInterrupt()
-    )
+    components[
+        "auth_instance"
+    ].get_credentials.side_effect = KeyboardInterrupt()
 
     with patch("sys.exit", side_effect=SystemExit(130)) as mock_exit:
         with pytest.raises(SystemExit) as exc_info:
@@ -435,18 +428,17 @@ def test_live_cli_keyboard_interrupt_during_context(
         mock_exit.assert_called_once_with(130)
 
 
-
 def test_live_cli_keyboard_interrupt_during_live_id(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """ライブID取得中に KeyboardInterrupt が発生した場合に
+    """ライブID取得中に KeyboardInterrupt が発生した場合に.
 
     ステータスコード130で終了することを検証します。
     """
     components = mock_cli_components
-    components["live_client_instance"].get_current_live_video_id.side_effect = (
-        KeyboardInterrupt()
-    )
+    components[
+        "live_client_instance"
+    ].get_current_live_video_id.side_effect = KeyboardInterrupt()
 
     with patch("sys.exit", side_effect=SystemExit(130)) as mock_exit:
         with pytest.raises(SystemExit) as exc_info:
@@ -456,11 +448,10 @@ def test_live_cli_keyboard_interrupt_during_live_id(
         mock_exit.assert_called_once_with(130)
 
 
-
 def test_live_cli_keyboard_interrupt_during_run(
     mock_cli_components: dict[str, Any],
 ) -> None:
-    """runner.run中に KeyboardInterrupt が発生した場合に
+    """runner.run中に KeyboardInterrupt が発生した場合に.
 
     正常終了（トレース出さずログのみ）することを検証します。
     """
@@ -476,3 +467,33 @@ def test_live_cli_keyboard_interrupt_during_run(
     )
 
 
+@patch("youtube_tts.cli.context.VoicevoxContainerManager")
+def test_live_cli_manage_container_toggle(
+    mock_container_manager_cls: MagicMock,
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """コンテナ自動管理の無効化トグルの動作をテストします。"""
+    mock_manager_instance = MagicMock()
+    mock_container_manager_cls.return_value = mock_manager_instance
+
+    # 1. デフォルト: container_manager が初期化され ensure_started が呼ばれる
+    with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
+        main()
+    mock_container_manager_cls.assert_called()
+    mock_manager_instance.ensure_started.assert_called()
+
+    mock_container_manager_cls.reset_mock()
+
+    # 2. --no-manage-container 指定時: container_manager は初期化されない
+    with patch(
+        "sys.argv",
+        ["youtube_live_voicevox.py", "video123", "--no-manage-container"],
+    ):
+        main()
+    mock_container_manager_cls.assert_not_called()
+
+    # 3. VOICEVOX_MANAGE_CONTAINER=false 指定時: 初期化されない
+    with patch.dict(os.environ, {"VOICEVOX_MANAGE_CONTAINER": "false"}):
+        with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
+            main()
+    mock_container_manager_cls.assert_not_called()

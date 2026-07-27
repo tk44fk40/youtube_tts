@@ -24,6 +24,7 @@ from youtube_tts import (
     AudioPlayer,
     ObsClient,
     VoicevoxClient,
+    VoicevoxContainerManager,
     YouTubeAuthenticator,
     YouTubeTtsApp,
     get_project_id,
@@ -85,6 +86,20 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
 
     audio_player = AudioPlayer(default_device=dev_id)
 
+    # VOICEVOX Engine コンテナの自動起動・管理処理
+    no_manage = getattr(args, "no_manage_container", False)
+    env_manage = os.getenv("VOICEVOX_MANAGE_CONTAINER", "true").lower()
+    manage_container = not no_manage and env_manage not in (
+        "false",
+        "0",
+        "no",
+    )
+
+    container_manager = None
+    if manage_container:
+        container_manager = VoicevoxContainerManager()
+        container_manager.ensure_started(logger=logger)
+
     voicevox_url = os.getenv("VOICEVOX_URL", "http://127.0.0.1:50021")
     speaker_id = int(os.getenv("VOICEVOX_SPEAKER_ID", "3"))
     voicevox_client = VoicevoxClient(
@@ -139,6 +154,7 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
         audio_player=audio_player,
         obs_client=obs_client,
         logger=logger,
+        container_manager=container_manager,
     )
 
     return app, creds, project_id

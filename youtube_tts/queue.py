@@ -21,7 +21,7 @@ from .models import SpeechItem
 
 
 class SpeechQueue:
-    """音声再生用アイテムのキューと、滞留している文字数をスレッドセーフに管理するクラスです。"""
+    """音声再生アイテムと滞留文字数を管理するクラスです。"""
 
     def __init__(self, maxsize: int = 50) -> None:
         """初期化します。
@@ -51,7 +51,7 @@ class SpeechQueue:
         return item
 
     def get_nowait(self) -> SpeechItem:
-        """ブロックせずにキューからアイテムを取得し、滞留文字数を減算します。"""
+        """ブロックせずにキューからアイテムを取得し, 滞留文字数を減算します。"""
         return self.get(block=False)
 
     def task_done(self) -> None:

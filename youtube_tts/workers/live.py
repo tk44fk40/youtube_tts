@@ -56,8 +56,7 @@ def live_worker(
     verbose: bool = False,
     backlog_seconds: int = 10,
 ) -> None:
-    """YouTube Live チャットコメントの定期取得を行い、
-    キューへ送るワーカーです。"""
+    """YouTube Live チャットコメントの定期取得とキュー送信を行います。"""
     try:
         video_details = live_client.get_video_details(video_id)
         if isinstance(video_details, dict):

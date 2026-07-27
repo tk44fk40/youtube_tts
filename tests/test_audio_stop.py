@@ -24,7 +24,7 @@ def test_stop_normal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_stop_timeout_and_kill(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Terminate 処理がタイムアウトしたときに kill を試みることを検証します。"""
+    """Terminate タイムアウト時に kill を試みることを検証します。"""
     player = AudioPlayer()
     mock_process = MagicMock()
     mock_process.poll.return_value = None

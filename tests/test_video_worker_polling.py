@@ -1,6 +1,4 @@
-"""video_worker のリアルタイム監視ポーリングフェーズを
-検証するテストモジュールです。
-"""
+"""video_worker のリアルタイム監視ポーリングのテストモジュールです。"""
 
 from __future__ import annotations
 
@@ -15,7 +13,7 @@ from youtube_tts.workers.video import video_worker
 
 
 def test_video_worker_success(app: Any, mock_video_client: MagicMock) -> None:
-    """正常に動画コメントを取得し、コメントキューが更新されるかを検証します。"""
+    """動画コメント取得とキュー更新を検証します。"""
     call_count = 0
 
     # API呼び出しのモック動作を定義します。
@@ -178,7 +176,7 @@ def test_video_worker_polling_cases(
 def test_video_worker_success_with_dataclasses(
     app: Any, mock_video_client: MagicMock
 ) -> None:
-    """本番用のデータクラスオブジェクトをモックとして返し、キャストがバイパスされることを検証します。"""
+    """データクラス返却時のキャスト回避を検証します。"""
     call_count = 0
     now = datetime.now(timezone.utc)
 

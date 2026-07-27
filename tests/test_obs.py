@@ -11,7 +11,7 @@ from youtube_tts import ObsClient
 
 
 def test_obs_update_missing_password() -> None:
-    """OBS の接続パスワードが設定されていない場合に
+    """OBS の接続パスワードが設定されていない場合に.
 
     False を返すことを検証します。
     """
@@ -20,7 +20,7 @@ def test_obs_update_missing_password() -> None:
 
 
 def test_obs_update_success() -> None:
-    """接続成功時に True を返し、connect/disconnect
+    """接続成功時に True を返し、connect/disconnect.
 
     が呼ばれることを検証します。
     """
@@ -43,7 +43,7 @@ def test_obs_update_success() -> None:
 
 
 def test_obs_update_not_available(caplog: pytest.LogCaptureFixture) -> None:
-    """obs-websocket-py が未インストールの場合に
+    """obs-websocket-py が未インストールの場合に.
 
     False を返すことを検証します。
     """
@@ -81,7 +81,7 @@ def test_obs_update_missing_source_name() -> None:
 
 
 def test_obs_client_import_error() -> None:
-    """obswebsocket のインポートでエラーが発生した場合に、初期化処理が
+    """Obswebsocket のインポートでエラーが発生した場合に、初期化処理が.
 
     正常にフォールバックされることを検証します。
     """

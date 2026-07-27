@@ -1,17 +1,3 @@
-# Copyright 2026 tk44fk40
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
 """データモデルの動作を検証するテストモジュールです。"""
 
 from __future__ import annotations
@@ -40,9 +26,7 @@ def test_quota_info() -> None:
 
 
 def test_super_chat_details() -> None:
-    """SuperChatDetails のプロパティが正しく
-    計算・変換されることを検証します。
-    """
+    """SuperChatDetails プロパティの計算・変換を検証します。"""
     details = SuperChatDetails(
         amount_micros=10000000,
         currency="JPY",
@@ -60,9 +44,7 @@ def test_super_chat_details() -> None:
 
 
 def test_youtube_message_from_dict() -> None:
-    """YouTubeMessage.from_dict が正しく
-    インスタンスを生成することを検証します。
-    """
+    """YouTubeMessage.from_dict の生成動作を検証します。"""
     item = {
         "id": "msg-123",
         "authorDetails": {
@@ -94,9 +76,7 @@ def test_youtube_message_from_dict() -> None:
 
 
 def test_youtube_message_with_super_chat() -> None:
-    """スーパーチャットを含む YouTubeMessage が
-    正しく生成されることを検証します。
-    """
+    """スーパーチャットを含む YouTubeMessage 生成を検証します。"""
     item = {
         "id": "msg-456",
         "authorDetails": {
