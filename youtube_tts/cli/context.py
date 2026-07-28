@@ -30,6 +30,25 @@ from youtube_tts import (
     get_project_id,
     setup_logger,
 )
+from youtube_tts.constants import (
+    DEFAULT_CLIENT_SECRET_FILE,
+    DEFAULT_DICTIONARY_PATH,
+    DEFAULT_NG_WORDS_PATH,
+    DEFAULT_OBS_HOST,
+    DEFAULT_OBS_PORT,
+    DEFAULT_SPEAKER_ID,
+    DEFAULT_TOKEN_FILE,
+    DEFAULT_VOICEVOX_URL,
+    DEFAULT_VOLUME_PATH,
+    ENV_OBS_WEBSOCKET_HOST,
+    ENV_OBS_WEBSOCKET_PASSWORD,
+    ENV_OBS_WEBSOCKET_PORT,
+    ENV_VOICEVOX_MANAGE_CONTAINER,
+    ENV_VOICEVOX_SPEAKER_ID,
+    ENV_VOICEVOX_URL,
+    ENV_VOICEVOX_VOLUME_SCALE,
+    MAX_SPEED_SCALE,
+)
 
 
 def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
@@ -48,22 +67,24 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
     logger = setup_logger(verbose=args.verbose)
 
     config = AppConfig(
-        dictionary_path="dictionary.txt",
-        ng_words_path="ng_words.txt",
-        volume_path="volume.txt",
+        dictionary_path=DEFAULT_DICTIONARY_PATH,
+        ng_words_path=DEFAULT_NG_WORDS_PATH,
+        volume_path=DEFAULT_VOLUME_PATH,
         chat_log_path=args.chat_log,
     )
 
-    if "VOICEVOX_VOLUME_SCALE" in os.environ:
+    if ENV_VOICEVOX_VOLUME_SCALE in os.environ:
         try:
-            config.volume_scale = float(os.environ["VOICEVOX_VOLUME_SCALE"])
+            config.volume_scale = float(
+                os.environ[ENV_VOICEVOX_VOLUME_SCALE]
+            )
         except Exception:
             pass
 
     config.reload_if_changed()
     config.speed_scale = args.speed
     config.auto_speed_boost = args.auto_speed_boost
-    config.max_speed = min(args.max_speed, 2.2)
+    config.max_speed = min(args.max_speed, MAX_SPEED_SCALE)
 
     dev_id = None
     device = getattr(args, "device", None)
@@ -88,7 +109,9 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
 
     # VOICEVOX Engine コンテナの自動起動・管理処理
     no_manage = getattr(args, "no_manage_container", False)
-    env_manage = os.getenv("VOICEVOX_MANAGE_CONTAINER", "true").lower()
+    env_manage = os.getenv(
+        ENV_VOICEVOX_MANAGE_CONTAINER, "true"
+    ).lower()
     manage_container = not no_manage and env_manage not in (
         "false",
         "0",
@@ -100,13 +123,15 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
         container_manager = VoicevoxContainerManager()
         container_manager.ensure_started(logger=logger)
 
-    voicevox_url = os.getenv("VOICEVOX_URL", "http://127.0.0.1:50021")
+    voicevox_url = os.getenv(ENV_VOICEVOX_URL, DEFAULT_VOICEVOX_URL)
     speaker_id = getattr(args, "speaker_id", None)
     if speaker_id is None:
         try:
-            speaker_id = int(os.getenv("VOICEVOX_SPEAKER_ID", "3"))
+            speaker_id = int(
+                os.getenv(ENV_VOICEVOX_SPEAKER_ID, str(DEFAULT_SPEAKER_ID))
+            )
         except ValueError:
-            speaker_id = 3
+            speaker_id = DEFAULT_SPEAKER_ID
     voicevox_client = VoicevoxClient(
         base_url=voicevox_url, speaker_id=speaker_id
     )
@@ -124,8 +149,8 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
     quota_check = getattr(args, "quota_check", False)
     scopes = QUOTA_SCOPES if quota_check else None
     authenticator = YouTubeAuthenticator(
-        client_secret_path="client_secret.json",
-        token_path="token.json",
+        client_secret_path=DEFAULT_CLIENT_SECRET_FILE,
+        token_path=DEFAULT_TOKEN_FILE,
         scopes=scopes,
     )
     try:
@@ -135,9 +160,11 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
         logger.debug(f"(エラー詳細: {e})")
         sys.exit(1)
 
-    obs_password = os.getenv("OBS_WEBSOCKET_PASSWORD")
-    obs_host = os.getenv("OBS_WEBSOCKET_HOST", "localhost")
-    obs_port = int(os.getenv("OBS_WEBSOCKET_PORT", "4455"))
+    obs_password = os.getenv(ENV_OBS_WEBSOCKET_PASSWORD)
+    obs_host = os.getenv(ENV_OBS_WEBSOCKET_HOST, DEFAULT_OBS_HOST)
+    obs_port = int(
+        os.getenv(ENV_OBS_WEBSOCKET_PORT, str(DEFAULT_OBS_PORT))
+    )
 
     obs_client = ObsClient(host=obs_host, port=obs_port, password=obs_password)
 

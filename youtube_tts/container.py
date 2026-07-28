@@ -25,6 +25,16 @@ from pathlib import Path
 
 import requests
 
+from youtube_tts.constants import (
+    DEFAULT_CONTAINER_IMAGE,
+    DEFAULT_CONTAINER_LOCK_FILE,
+    DEFAULT_CONTAINER_NAME,
+    DEFAULT_CONTAINER_PORT,
+    DEFAULT_CONTAINER_STATE_FILE,
+    DEFAULT_VOICEVOX_HOST,
+    DEFAULT_VOICEVOX_PORT,
+    ENV_CONTAINER_CMD,
+)
 from youtube_tts.container_state import VoicevoxContainerStateManager
 
 
@@ -33,13 +43,13 @@ class VoicevoxContainerManager:
 
     def __init__(
         self,
-        container_name: str = "voicevox-engine",
-        image_name: str = "docker.io/voicevox/voicevox_engine:cpu-latest",
-        port: int = 50021,
-        host: str = "127.0.0.1",
+        container_name: str = DEFAULT_CONTAINER_NAME,
+        image_name: str = DEFAULT_CONTAINER_IMAGE,
+        port: int = DEFAULT_VOICEVOX_PORT,
+        host: str = DEFAULT_VOICEVOX_HOST,
         container_cmd: str | None = None,
-        lock_file_path: str | Path = "/tmp/youtube_tts_voicevox_runners.lock",
-        state_file_path: str | Path = "/tmp/youtube_tts_voicevox_runners.json",
+        lock_file_path: str | Path = DEFAULT_CONTAINER_LOCK_FILE,
+        state_file_path: str | Path = DEFAULT_CONTAINER_STATE_FILE,
     ) -> None:
         """VoicevoxContainerManager を初期化します。
 
@@ -65,7 +75,7 @@ class VoicevoxContainerManager:
         if container_cmd is not None:
             self.container_cmd = container_cmd
         else:
-            env_cmd = os.getenv("CONTAINER_CMD")
+            env_cmd = os.getenv(ENV_CONTAINER_CMD)
             if env_cmd:
                 self.container_cmd = env_cmd
             elif shutil.which("podman"):
@@ -265,7 +275,7 @@ class VoicevoxContainerManager:
                 "--restart",
                 "unless-stopped",
                 "-p",
-                f"{self.host}:{self.port}:50021",
+                f"{self.host}:{self.port}:{DEFAULT_CONTAINER_PORT}",
                 self.image_name,
             ]
             subprocess.run(cmd, check=False)

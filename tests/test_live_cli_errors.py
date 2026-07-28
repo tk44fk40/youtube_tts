@@ -257,3 +257,31 @@ def test_live_cli_keyboard_interrupt_during_run(
     components["app_instance"].logger.info.assert_any_call(
         "ユーザーによって処理が中断されました。"
     )
+
+
+def test_invalid_speaker_id_env_in_parser() -> None:
+    """パーサーの ENV_VOICEVOX_SPEAKER_ID 不正値例外処理を検証します。"""
+    from youtube_tts.cli.parser import create_live_parser
+
+    with patch.dict(os.environ, {"VOICEVOX_SPEAKER_ID": "invalid"}):
+        parser = create_live_parser()
+        args = parser.parse_args([])
+        assert args.speaker_id == 3
+
+
+def test_invalid_speaker_id_env_in_context(
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """コンテキストの ENV_VOICEVOX_SPEAKER_ID 不正値例外処理を検証します。"""
+    from youtube_tts.cli.context import create_app_context
+    from youtube_tts.cli.parser import create_live_parser
+
+    with patch.dict(os.environ, {"VOICEVOX_SPEAKER_ID": "invalid"}):
+        with patch("youtube_tts.cli.context.VoicevoxClient") as mock_vclient:
+            parser = create_live_parser()
+            args = parser.parse_args([])
+            delattr(args, "speaker_id")
+            create_app_context(args)
+            mock_vclient.assert_called_once()
+            _, kwargs = mock_vclient.call_args
+            assert kwargs.get("speaker_id") == 3

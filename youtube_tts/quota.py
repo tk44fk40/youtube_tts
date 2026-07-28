@@ -29,23 +29,27 @@ from zoneinfo import ZoneInfo
 
 from google.cloud import monitoring_v3
 
-from .auth import YOUTUBE_SCOPE
+from .constants import (
+    DEFAULT_CLIENT_SECRET_FILE,
+    DEFAULT_QUOTA_LIMIT,
+    MONITORING_SCOPE,
+    YOUTUBE_SCOPE,
+)
 from .logger import get_logger
 from .models import QuotaInfo
 
 logger = get_logger()
 
-CLIENT_SECRET_FILE = "client_secret.json"
-
+CLIENT_SECRET_FILE = DEFAULT_CLIENT_SECRET_FILE
 
 QUOTA_SCOPES = [
     YOUTUBE_SCOPE,
-    "https://www.googleapis.com/auth/monitoring.read",
+    MONITORING_SCOPE,
 ]
 
 
 def get_project_id(
-    client_secret_path: str | Path = CLIENT_SECRET_FILE,
+    client_secret_path: str | Path = DEFAULT_CLIENT_SECRET_FILE,
 ) -> str:
     """client_secret.json からプロジェクトIDを自動取得します。
 
@@ -140,8 +144,8 @@ def get_quota_info(creds: Any, project_id: str) -> QuotaInfo:
             total_used += point.value.int64_value
 
     # 上限値 (Limit) を取得します。
-    # 失敗した場合はデフォルト値 10000 とします。
-    quota_limit = 10000
+    # 失敗した場合はデフォルト値を使用します。
+    quota_limit = DEFAULT_QUOTA_LIMIT
     try:
         limit_interval = monitoring_v3.TimeInterval(
             {

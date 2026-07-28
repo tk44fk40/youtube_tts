@@ -21,6 +21,12 @@ WebSocket サーバーに接続し、各種操作を行う ObsClient クラス�
 
 from __future__ import annotations
 
+from .constants import (
+    DEFAULT_OBS_HOST,
+    DEFAULT_OBS_PORT,
+    ENV_OBS_WEBSOCKET_PASSWORD,
+    LOG_PREFIX_OBS,
+)
 from .logger import get_logger
 
 logger = get_logger()
@@ -31,8 +37,8 @@ class ObsClient:
 
     def __init__(
         self,
-        host: str = "localhost",
-        port: int = 4455,
+        host: str = DEFAULT_OBS_HOST,
+        port: int = DEFAULT_OBS_PORT,
         password: str | None = None,
     ) -> None:
         """ObsClient クラスを初期化します。
@@ -77,14 +83,14 @@ class ObsClient:
 
         if not self.password:
             logger.info(
-                "[OBS] OBS_WEBSOCKET_PASSWORD が設定されていません。"
-                "OBSの更新をスキップします。"
+                f"{LOG_PREFIX_OBS} {ENV_OBS_WEBSOCKET_PASSWORD} "
+                "が設定されていません。OBSの更新をスキップします。"
             )
             return False
 
         if not self._available:
             logger.warning(
-                "[OBS] obs-websocket "
+                f"{LOG_PREFIX_OBS} obs-websocket "
                 "ライブラリがインストールされていません。"
                 "OBS連携を有効にするには obs-websocket-py を"
                 "インストールしてください。"
@@ -100,14 +106,16 @@ class ObsClient:
                 )
             )
             ws.disconnect()
-            logger.info("[OBS] チャットURL設定成功")
+            logger.info(f"{LOG_PREFIX_OBS} チャットURL設定成功")
             logger.info(f"URL: {url}")
             return True
         except Exception as e:  # noqa: BLE001
-            logger.error(f"[OBS] チャットURL設定失敗 (エラー詳細: {e})")
             logger.error(
-                "      ※OBS Studioが起動しているか、"
-                "およびWebSocketサーバー(ポート4455)の"
+                f"{LOG_PREFIX_OBS} チャットURL設定失敗 (エラー詳細: {e})"
+            )
+            logger.error(
+                "※OBS Studioが起動しているか、"
+                f"およびWebSocketサーバー(ポート{DEFAULT_OBS_PORT})の"
                 "設定を確認してください。"
             )
             return False

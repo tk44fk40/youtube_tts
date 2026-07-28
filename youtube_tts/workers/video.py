@@ -19,6 +19,12 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
+from youtube_tts.constants import (
+    LOG_PREFIX_COMMENT,
+    LOG_PREFIX_SKIP_NG,
+    LOG_PREFIX_SKIP_QUEUE,
+)
+
 from ..models import SpeechItem, YouTubeMessage
 from ..video import YouTubeVideoClient
 from .quota_monitor import QuotaMonitor
@@ -123,16 +129,16 @@ def video_worker(
 
         if app.text_processor.contains_ng_word(msg_text):
             if verbose:
-                app.logger.info(f"[SKIP(NG)] {author}: {msg_text}")
+                app.logger.info(f"{LOG_PREFIX_SKIP_NG} {author}: {msg_text}")
             continue
 
-        app.logger.info(f"[COMMENT] {author}: {msg_text}")
+        app.logger.info(f"{LOG_PREFIX_COMMENT} {author}: {msg_text}")
         author, msg_text = app.text_processor.normalize_comment(
             author, msg_text
         )
 
         if app.speech_queue.full():
-            app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
+            app.logger.info(f"{LOG_PREFIX_SKIP_QUEUE} {author}: {msg_text}")
             continue
 
         speech_item = SpeechItem.from_youtube_message(message, author, msg_text)
@@ -183,16 +189,20 @@ def video_worker(
 
             if app.text_processor.contains_ng_word(msg_text):
                 if verbose:
-                    app.logger.info(f"[SKIP(NG)] {author}: {msg_text}")
+                    app.logger.info(
+                        f"{LOG_PREFIX_SKIP_NG} {author}: {msg_text}"
+                    )
                 continue
 
-            app.logger.info(f"[COMMENT] {author}: {msg_text}")
+            app.logger.info(f"{LOG_PREFIX_COMMENT} {author}: {msg_text}")
             author, msg_text = app.text_processor.normalize_comment(
                 author, msg_text
             )
 
             if app.speech_queue.full():
-                app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
+                app.logger.info(
+                    f"{LOG_PREFIX_SKIP_QUEUE} {author}: {msg_text}"
+                )
                 continue
 
             speech_item = SpeechItem.from_youtube_message(

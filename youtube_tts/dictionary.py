@@ -25,6 +25,7 @@ import os
 import re
 
 from .config import AppConfig, normalize_nfkc
+from .constants import DEFAULT_AUTHOR_SUFFIX, ENV_VOICEVOX_AUTHOR_SUFFIX
 
 
 class TextProcessor:
@@ -37,7 +38,9 @@ class TextProcessor:
             config: 設定ファイルを管理する AppConfig インスタンス。
         """
         self.config = config
-        self.author_suffix: str = os.getenv("VOICEVOX_AUTHOR_SUFFIX", "さん")
+        self.author_suffix: str = os.getenv(
+            ENV_VOICEVOX_AUTHOR_SUFFIX, DEFAULT_AUTHOR_SUFFIX
+        )
 
         # replace_words で使う正規表現パターンのキャッシュです。
         # config.replacements の同一性 (is) で変更を検知し、
