@@ -6,6 +6,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 from youtube_tts.container import VoicevoxContainerManager
+from youtube_tts.container_state import VoicevoxContainerStateManager
 
 
 def test_container_manager_init(tmp_path) -> None:
@@ -112,7 +113,7 @@ def test_stop_if_last(mock_run, tmp_path) -> None:
 
     with (
         patch.object(
-            VoicevoxContainerManager,
+            VoicevoxContainerStateManager,
             "is_process_alive",
             side_effect=lambda pid: True,
         ),
@@ -128,7 +129,7 @@ def test_stop_if_last(mock_run, tmp_path) -> None:
 
     with (
         patch.object(
-            VoicevoxContainerManager,
+            VoicevoxContainerStateManager,
             "is_process_alive",
             side_effect=lambda pid: pid == os.getpid(),
         ),
@@ -147,7 +148,7 @@ def test_stop_if_last(mock_run, tmp_path) -> None:
     manager._write_active_pids([os.getpid()])
     with (
         patch.object(
-            VoicevoxContainerManager,
+            VoicevoxContainerStateManager,
             "is_process_alive",
             side_effect=lambda pid: pid == os.getpid(),
         ),
