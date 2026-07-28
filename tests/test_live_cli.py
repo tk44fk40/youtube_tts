@@ -21,6 +21,7 @@ def clean_environ() -> Generator[None, None, None]:
         "VOICEVOX_SPEED_SCALE",
         "VOICEVOX_MAX_SPEED",
         "VOICEVOX_VOLUME_SCALE",
+        "VOICEVOX_SPEAKER_ID",
     ]
     with patch.dict(os.environ):
         for key in env_keys:
@@ -311,3 +312,40 @@ def test_live_cli_manage_container_toggle(
         with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
             main()
     mock_container_manager_cls.assert_not_called()
+
+
+@patch("youtube_tts.cli.context.VoicevoxClient")
+def test_live_cli_speaker_id_option(
+    mock_voicevox_client_cls: MagicMock,
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """--speaker-id オプションおよび環境変数の動作をテストします。"""
+    # 1. デフォルト (未指定時: speaker_id=3)
+    with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
+        main()
+    mock_voicevox_client_cls.assert_called_with(
+        base_url="http://127.0.0.1:50021", speaker_id=3
+    )
+
+    mock_voicevox_client_cls.reset_mock()
+
+    # 2. --speaker-id 8 指定時
+    with patch(
+        "sys.argv",
+        ["youtube_live_voicevox.py", "video123", "--speaker-id", "8"],
+    ):
+        main()
+    mock_voicevox_client_cls.assert_called_with(
+        base_url="http://127.0.0.1:50021", speaker_id=8
+    )
+
+    mock_voicevox_client_cls.reset_mock()
+
+    # 3. VOICEVOX_SPEAKER_ID=10 環境変数指定時
+    with patch.dict(os.environ, {"VOICEVOX_SPEAKER_ID": "10"}):
+        with patch("sys.argv", ["youtube_live_voicevox.py", "video123"]):
+            main()
+    mock_voicevox_client_cls.assert_called_with(
+        base_url="http://127.0.0.1:50021", speaker_id=10
+    )
+

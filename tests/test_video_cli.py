@@ -224,3 +224,20 @@ def test_video_cli_keyboard_interrupt_during_run(
     components["app_instance"].logger.info.assert_any_call(
         "ユーザーによって処理が中断されました。"
     )
+
+
+@patch("youtube_tts.cli.context.VoicevoxClient")
+def test_video_cli_speaker_id_option(
+    mock_voicevox_client_cls: MagicMock,
+    mock_cli_components: dict[str, Any],
+) -> None:
+    """--speaker-id オプションがVoicevoxClientに正しく渡されるか検証します。"""
+    with patch(
+        "sys.argv",
+        ["youtube_video_voicevox.py", "video123", "--speaker-id", "5"],
+    ):
+        main()
+    mock_voicevox_client_cls.assert_called_with(
+        base_url="http://127.0.0.1:50021", speaker_id=5
+    )
+
