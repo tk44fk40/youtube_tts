@@ -45,7 +45,23 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         except ValueError:
             pass
 
+    env_speaker_id = 3
+    if "VOICEVOX_SPEAKER_ID" in os.environ:
+        try:
+            env_speaker_id = int(os.environ["VOICEVOX_SPEAKER_ID"])
+        except ValueError:
+            pass
+
     parser = argparse.ArgumentParser(description=description)
+    parser.add_argument(
+        "--speaker-id",
+        type=int,
+        default=env_speaker_id,
+        help=(
+            "VOICEVOX の話者 ID（デフォルト: 3）。"
+            "環境変数 VOICEVOX_SPEAKER_ID でも指定可能です。"
+        ),
+    )
     parser.add_argument(
         "--speed",
         type=float,

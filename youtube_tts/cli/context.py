@@ -101,7 +101,12 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
         container_manager.ensure_started(logger=logger)
 
     voicevox_url = os.getenv("VOICEVOX_URL", "http://127.0.0.1:50021")
-    speaker_id = int(os.getenv("VOICEVOX_SPEAKER_ID", "3"))
+    speaker_id = getattr(args, "speaker_id", None)
+    if speaker_id is None:
+        try:
+            speaker_id = int(os.getenv("VOICEVOX_SPEAKER_ID", "3"))
+        except ValueError:
+            speaker_id = 3
     voicevox_client = VoicevoxClient(
         base_url=voicevox_url, speaker_id=speaker_id
     )
