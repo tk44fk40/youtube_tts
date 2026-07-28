@@ -24,7 +24,6 @@ from __future__ import annotations
 from .constants import (
     DEFAULT_OBS_HOST,
     DEFAULT_OBS_PORT,
-    ENV_OBS_WEBSOCKET_PASSWORD,
     LOG_PREFIX_OBS,
 )
 from .logger import get_logger
@@ -83,8 +82,9 @@ class ObsClient:
 
         if not self.password:
             logger.info(
-                f"{LOG_PREFIX_OBS} {ENV_OBS_WEBSOCKET_PASSWORD} "
-                "が設定されていません。OBSの更新をスキップします。"
+                f"{LOG_PREFIX_OBS} OBS WebSocket "
+                "パスワードが設定されていません。"
+                "OBSの更新をスキップします。"
             )
             return False
 
