@@ -23,14 +23,16 @@ from __future__ import annotations
 
 import requests
 
+from .constants import DEFAULT_SPEAKER_ID, DEFAULT_VOICEVOX_BASE_URL
+
 
 class VoicevoxClient:
     """VOICEVOX エンジンの REST API クライアントクラスです。"""
 
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1:50021",
-        speaker_id: int = 3,
+        base_url: str = DEFAULT_VOICEVOX_BASE_URL,
+        speaker_id: int = DEFAULT_SPEAKER_ID,
     ):
         """VoicevoxClient クラスを初期化します。
 

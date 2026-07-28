@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
+from youtube_tts.constants import LOG_PREFIX_QUOTA
 from youtube_tts.models import QuotaInfo, SpeechItem
 from youtube_tts.quota import get_quota_info
 
@@ -131,7 +132,7 @@ class QuotaMonitor:
                 )
                 quota_message = "ぴんぽーん！残念！クォータを超過しました。"
 
-            self.app.logger.info(f"[QUOTA] {quota_message}")
+            self.app.logger.info(f"{LOG_PREFIX_QUOTA} {quota_message}")
             self.enqueue_quota_message(quota_message)
 
             # 再生キューに入れた案内メッセージが処理されるまで少し待つ
@@ -156,7 +157,7 @@ class QuotaMonitor:
             if isinstance(quota_info, tuple):
                 quota_info = QuotaInfo(used=quota_info[0], limit=quota_info[1])
             self.app.logger.info(
-                f"[QUOTA] 使用量: {quota_info.used:,} / "
+                f"{LOG_PREFIX_QUOTA} 使用量: {quota_info.used:,} / "
                 f"{quota_info.limit:,} "
                 f"({quota_info.usage_percent:.2f}%), "
                 f"残量: {quota_info.remaining:,}"

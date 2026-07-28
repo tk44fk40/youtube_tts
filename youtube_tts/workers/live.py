@@ -20,6 +20,14 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
+from youtube_tts.constants import (
+    LOG_PREFIX_CHAT,
+    LOG_PREFIX_SKIP_NG,
+    LOG_PREFIX_SKIP_PAST,
+    LOG_PREFIX_SKIP_QUEUE,
+    LOG_PREFIX_TTS_TEST,
+)
+
 from ..live import YouTubeLiveChatClient
 from ..models import SpeechItem, VideoDetails, YouTubeMessage
 from .quota_monitor import QuotaMonitor
@@ -76,7 +84,7 @@ def live_worker(
     is_mine = video_details.is_owner(my_channel_id)
 
     if tts_test and is_mine:
-        app.logger.info(f"[TTS-TEST] {tts_test}")
+        app.logger.info(f"{LOG_PREFIX_TTS_TEST} {tts_test}")
         app.speak(tts_test)
 
     try:
@@ -160,7 +168,7 @@ def live_worker(
             if threshold_time is not None:
                 if message.published_at < threshold_time:
                     app.logger.debug(
-                        f"[SKIP(過去コメント)] {message.author_name}: "
+                        f"{LOG_PREFIX_SKIP_PAST} {message.author_name}: "
                         f"{message.message} "
                         f"(投稿日時: {message.published_at.isoformat()})"
                     )
@@ -170,15 +178,17 @@ def live_worker(
             msg_text = message.message
 
             if app.text_processor.contains_ng_word(msg_text):
-                app.logger.info(f"[SKIP(NG)] {author}: {msg_text}")
+                app.logger.info(f"{LOG_PREFIX_SKIP_NG} {author}: {msg_text}")
                 continue
 
-            app.logger.info(f"[CHAT] {author}: {msg_text}")
+            app.logger.info(f"{LOG_PREFIX_CHAT} {author}: {msg_text}")
             proc = app.text_processor
             author, msg_text = proc.normalize_comment(author, msg_text)
 
             if app.speech_queue.full():
-                app.logger.info(f"[SKIP(QUEUE)] {author}: {msg_text}")
+                app.logger.info(
+                    f"{LOG_PREFIX_SKIP_QUEUE} {author}: {msg_text}"
+                )
                 continue
 
             speech_item = SpeechItem.from_youtube_message(

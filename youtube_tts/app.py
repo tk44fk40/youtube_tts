@@ -25,6 +25,10 @@ from typing import Any
 
 from .audio import AudioPlayer
 from .config import AppConfig
+from .constants import (
+    DEFAULT_MAX_PROCESSED_MESSAGE_IDS,
+    DEFAULT_QUEUE_MAXSIZE,
+)
 from .container import VoicevoxContainerManager
 from .dictionary import TextProcessor
 from .logger import get_logger
@@ -34,8 +38,8 @@ from .queue import SpeechQueue
 from .voicevox import VoicevoxClient
 
 # 定数を定義します。
-QUEUE_MAXSIZE = 50
-MAX_PROCESSED_MESSAGE_IDS = 1000
+QUEUE_MAXSIZE = DEFAULT_QUEUE_MAXSIZE
+MAX_PROCESSED_MESSAGE_IDS = DEFAULT_MAX_PROCESSED_MESSAGE_IDS
 
 
 class YouTubeTtsApp:

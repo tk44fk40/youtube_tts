@@ -19,6 +19,7 @@ from __future__ import annotations
 from googleapiclient.errors import HttpError
 
 from .client import BaseYouTubeClient, logger
+from .constants import POLLING_INTERVAL_MIN_MS
 from .models import YouTubeMessage
 
 
@@ -135,7 +136,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         items = response.get("items", [])
         messages = [YouTubeMessage.from_dict(item) for item in items]
         next_page_token = response.get("nextPageToken")
-        polling_interval_min = 3000
+        polling_interval_min = POLLING_INTERVAL_MIN_MS
         polling_interval = max(
             response.get("pollingIntervalMillis", polling_interval_min),
             polling_interval_min,

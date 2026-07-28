@@ -23,6 +23,7 @@ from __future__ import annotations
 from googleapiclient.errors import HttpError
 
 from .client import BaseYouTubeClient, logger
+from .constants import POLLING_INTERVAL_MIN_MS
 from .models import YouTubeMessage
 
 
@@ -106,6 +107,6 @@ class YouTubeVideoClient(BaseYouTubeClient):
                 continue
 
         next_page_token = response.get("nextPageToken")
-        polling_interval = 3000
+        polling_interval = POLLING_INTERVAL_MIN_MS
         messages = [YouTubeMessage.from_dict(item) for item in items]
         return messages, next_page_token, polling_interval

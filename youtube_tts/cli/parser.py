@@ -17,6 +17,24 @@
 import argparse
 import os
 
+from youtube_tts.constants import (
+    DEFAULT_BACKLOG_COUNTS,
+    DEFAULT_BACKLOG_SECONDS,
+    DEFAULT_CHAT_INTERVAL,
+    DEFAULT_CHAT_LOG_FILE,
+    DEFAULT_MAX_SPEED,
+    DEFAULT_QUOTA_INTERVAL,
+    DEFAULT_SPEAKER_ID,
+    DEFAULT_SPEED_SCALE,
+    DEFAULT_STREAM_CHECK_INTERVAL,
+    ENV_VOICEVOX_AUTO_SPEED_BOOST,
+    ENV_VOICEVOX_DEVICE,
+    ENV_VOICEVOX_MAX_SPEED,
+    ENV_VOICEVOX_SPEAKER_ID,
+    ENV_VOICEVOX_SPEED_SCALE,
+    ENV_VOICEVOX_TTS_TEST,
+)
+
 
 def create_base_parser(description: str) -> argparse.ArgumentParser:
     """Live/Video 共通の引数を持つパーサーを作成します。
@@ -27,28 +45,28 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
     Returns:
         argparse.ArgumentParser: 構築されたベースパーサーオブジェクトです。
     """
-    env_speed = 1.0
-    if "VOICEVOX_SPEED_SCALE" in os.environ:
+    env_speed = DEFAULT_SPEED_SCALE
+    if ENV_VOICEVOX_SPEED_SCALE in os.environ:
         try:
-            env_speed = float(os.environ["VOICEVOX_SPEED_SCALE"])
+            env_speed = float(os.environ[ENV_VOICEVOX_SPEED_SCALE])
         except ValueError:
             pass
 
     env_auto_boost = os.getenv(
-        "VOICEVOX_AUTO_SPEED_BOOST", "false"
+        ENV_VOICEVOX_AUTO_SPEED_BOOST, "false"
     ).lower() in ("true", "1", "yes")
 
-    env_max_speed = 2.2
-    if "VOICEVOX_MAX_SPEED" in os.environ:
+    env_max_speed = DEFAULT_MAX_SPEED
+    if ENV_VOICEVOX_MAX_SPEED in os.environ:
         try:
-            env_max_speed = float(os.environ["VOICEVOX_MAX_SPEED"])
+            env_max_speed = float(os.environ[ENV_VOICEVOX_MAX_SPEED])
         except ValueError:
             pass
 
-    env_speaker_id = 3
-    if "VOICEVOX_SPEAKER_ID" in os.environ:
+    env_speaker_id = DEFAULT_SPEAKER_ID
+    if ENV_VOICEVOX_SPEAKER_ID in os.environ:
         try:
-            env_speaker_id = int(os.environ["VOICEVOX_SPEAKER_ID"])
+            env_speaker_id = int(os.environ[ENV_VOICEVOX_SPEAKER_ID])
         except ValueError:
             pass
 
@@ -58,8 +76,8 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         type=int,
         default=env_speaker_id,
         help=(
-            "VOICEVOX の話者 ID（デフォルト: 3）。"
-            "環境変数 VOICEVOX_SPEAKER_ID でも指定可能です。"
+            f"VOICEVOX の話者 ID（デフォルト: {DEFAULT_SPEAKER_ID}）。"
+            f"環境変数 {ENV_VOICEVOX_SPEAKER_ID} でも指定可能です。"
         ),
     )
     parser.add_argument(
@@ -67,8 +85,8 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         type=float,
         default=env_speed,
         help=(
-            "読み上げスピード（デフォルト: 1.0）。"
-            "環境変数 VOICEVOX_SPEED_SCALE でも指定可能です。"
+            f"読み上げスピード（デフォルト: {DEFAULT_SPEED_SCALE}）。"
+            f"環境変数 {ENV_VOICEVOX_SPEED_SCALE} でも指定可能です。"
         ),
     )
     parser.add_argument(
@@ -82,8 +100,9 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         type=float,
         default=env_max_speed,
         help=(
-            "自動スピードブースト時の最大速度（デフォルト: 2.2）。"
-            "最大2.2までに制限されます。"
+            "自動スピードブースト時の最大速度"
+            f"（デフォルト: {DEFAULT_MAX_SPEED}）。"
+            f"最大{DEFAULT_MAX_SPEED}までに制限されます。"
         ),
     )
     parser.add_argument(
@@ -95,7 +114,7 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
     parser.add_argument(
         "-d",
         "--device",
-        default=os.getenv("VOICEVOX_DEVICE"),
+        default=os.getenv(ENV_VOICEVOX_DEVICE),
         help="出力オーディオデバイス名またはIDを指定します。",
     )
     parser.add_argument(
@@ -112,21 +131,27 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
     parser.add_argument(
         "--chat-interval",
         type=float,
-        default=20.0,
-        help="コメント取得の最短時間（秒）を指定します。デフォルトは20秒です。",
+        default=DEFAULT_CHAT_INTERVAL,
+        help=(
+            "コメント取得の最短時間（秒）を指定します。"
+            f"デフォルトは{int(DEFAULT_CHAT_INTERVAL)}秒です。"
+        ),
     )
     parser.add_argument(
         "--chat-log",
-        default="chat_log.jsonl",
-        help="チャットログの保存先パスを指定します\n"
-        "（デフォルト: chat_log.jsonl）。",
+        default=DEFAULT_CHAT_LOG_FILE,
+        help=(
+            "チャットログの保存先パスを指定します\n"
+            f"（デフォルト: {DEFAULT_CHAT_LOG_FILE}）。"
+        ),
     )
     parser.add_argument(
         "--quota-interval",
         type=float,
-        default=180.0,
+        default=DEFAULT_QUOTA_INTERVAL,
         help=(
-            "使用量の取得の最短時間（秒）を指定します。デフォルトは180秒です。"
+            "使用量の取得の最短時間（秒）を指定します。"
+            f"デフォルトは{int(DEFAULT_QUOTA_INTERVAL)}秒です。"
         ),
     )
     parser.add_argument(
@@ -155,31 +180,31 @@ def create_live_parser() -> argparse.ArgumentParser:
         "--tts-test",
         nargs="?",
         const=_TTS_TEST_DEFAULT,
-        default=os.getenv("VOICEVOX_TTS_TEST") or None,
+        default=os.getenv(ENV_VOICEVOX_TTS_TEST) or None,
         metavar="TEXT",
         help=(
             "起動時に自分のライブ配信であれば指定したテキストを読み上げます。"
             f"テキストを省略した場合は「{_TTS_TEST_DEFAULT}」を使用します。"
-            "環境変数 VOICEVOX_TTS_TEST でも指定可能です。"
+            f"環境変数 {ENV_VOICEVOX_TTS_TEST} でも指定可能です。"
         ),
     )
     parser.add_argument(
         "--backlog-seconds",
         type=int,
-        default=10,
+        default=DEFAULT_BACKLOG_SECONDS,
         help=(
             "起動時に読み上げる過去コメントの遡り時間（秒）を指定します。"
             "-1を指定した場合は過去コメントをすべて読み上げます。"
-            "デフォルトは10秒です。"
+            f"デフォルトは{DEFAULT_BACKLOG_SECONDS}秒です。"
         ),
     )
     parser.add_argument(
         "--stream-check-interval",
         type=float,
-        default=180.0,
+        default=DEFAULT_STREAM_CHECK_INTERVAL,
         help=(
             "配信アクティブ状態チェックの最短時間(秒) を指定します。"
-            "デフォルトは180秒です。"
+            f"デフォルトは{int(DEFAULT_STREAM_CHECK_INTERVAL)}秒です。"
         ),
     )
     return parser
@@ -195,10 +220,10 @@ def create_video_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--backlog-counts",
         type=int,
-        default=100,
+        default=DEFAULT_BACKLOG_COUNTS,
         help=(
             "起動時に読み込む過去コメント（バックログ）の件数を指定します。"
-            "デフォルトは100件です。負数を指定すると制限なしになります。"
+            f"デフォルトは{DEFAULT_BACKLOG_COUNTS}件です。負数を指定すると制限なしになります。"
         ),
     )
     return parser

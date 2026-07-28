@@ -27,7 +27,11 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"
+from .constants import (
+    DEFAULT_CLIENT_SECRET_FILE,
+    DEFAULT_TOKEN_FILE,
+    YOUTUBE_SCOPE,
+)
 
 
 class YouTubeAuthenticator:
@@ -35,8 +39,8 @@ class YouTubeAuthenticator:
 
     def __init__(
         self,
-        client_secret_path: str | Path = "client_secret.json",
-        token_path: str | Path = "token.json",
+        client_secret_path: str | Path = DEFAULT_CLIENT_SECRET_FILE,
+        token_path: str | Path = DEFAULT_TOKEN_FILE,
         scopes: list[str] | None = None,
     ) -> None:
         """YouTubeAuthenticator クラスを初期化します。

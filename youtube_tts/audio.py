@@ -22,6 +22,7 @@ import subprocess
 import tempfile
 import threading
 
+from .constants import DEFAULT_SAMPLE_RATE
 from .logger import get_logger
 
 logger = get_logger()
@@ -45,7 +46,7 @@ class AudioPlayer:
 
         """
         self.default_device = default_device
-        self.target_sample_rate = 24000
+        self.target_sample_rate = DEFAULT_SAMPLE_RATE
         self.process = None
         self._lock = threading.Lock()
 

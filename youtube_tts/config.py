@@ -19,6 +19,18 @@ import os
 import unicodedata
 from pathlib import Path
 
+from .constants import (
+    DEFAULT_CHAT_LOG_PATH,
+    DEFAULT_DICTIONARY_PATH,
+    DEFAULT_MAX_SPEED,
+    DEFAULT_NG_WORDS_PATH,
+    DEFAULT_SPEED_SCALE,
+    DEFAULT_VOLUME_PATH,
+    DEFAULT_VOLUME_SCALE,
+    LOG_PREFIX_CONFIG,
+    MAX_VOLUME_SCALE,
+    MIN_VOLUME_SCALE,
+)
 from .logger import get_logger
 
 logger = get_logger()
@@ -45,10 +57,10 @@ class AppConfig:
 
     def __init__(
         self,
-        dictionary_path: str | Path = "dictionary.txt",
-        ng_words_path: str | Path = "ng_words.txt",
-        volume_path: str | Path = "volume.txt",
-        chat_log_path: str = "chat_log.jsonl",
+        dictionary_path: str | Path = DEFAULT_DICTIONARY_PATH,
+        ng_words_path: str | Path = DEFAULT_NG_WORDS_PATH,
+        volume_path: str | Path = DEFAULT_VOLUME_PATH,
+        chat_log_path: str = DEFAULT_CHAT_LOG_PATH,
     ) -> None:
         """設定情報を初期化し、各設定ファイルをロードします。
 
@@ -63,10 +75,10 @@ class AppConfig:
         self.volume_file: Path = Path(volume_path)
         self.chat_log_path: str = chat_log_path
 
-        self.volume_scale: float = 1.0
-        self.speed_scale: float = 1.0
+        self.volume_scale: float = DEFAULT_VOLUME_SCALE
+        self.speed_scale: float = DEFAULT_SPEED_SCALE
         self.auto_speed_boost: bool = False
-        self.max_speed: float = 2.2
+        self.max_speed: float = DEFAULT_MAX_SPEED
         self.replacements: dict[str, str] = {}
         self.ng_words: set[str] = set()
 
@@ -132,7 +144,7 @@ class AppConfig:
             if current_mtime != self._dictionary_mtime:
                 self._dictionary_mtime = current_mtime
                 self.replacements = self._load_replacements()
-                logger.info("[CONFIG] 辞書を再ロードしました。")
+                logger.info(f"{LOG_PREFIX_CONFIG} 辞書を再ロードしました。")
 
         # NGワードファイルをチェックします。
         if self.ng_word_file.exists():
@@ -140,7 +152,7 @@ class AppConfig:
             if current_mtime != self._ng_word_mtime:
                 self._ng_word_mtime = current_mtime
                 self.ng_words = self._load_ng_words()
-                logger.info("[CONFIG] NGワードを再ロードしました。")
+                logger.info(f"{LOG_PREFIX_CONFIG} NGワードを再ロードしました。")
 
         # 音量設定ファイルをチェックします。
         if self.volume_file.exists():
@@ -150,16 +162,17 @@ class AppConfig:
                 try:
                     with open(self.volume_file, "r", encoding="utf-8") as f:
                         val = float(f.read().strip())
-                    if 0.0 <= val <= 2.0:
+                    if MIN_VOLUME_SCALE <= val <= MAX_VOLUME_SCALE:
                         self.volume_scale = val
                         logger.info(
-                            f"[CONFIG] 音量スケールを更新しました: "
+                            f"{LOG_PREFIX_CONFIG} 音量スケールを更新しました: "
                             f"{self.volume_scale}"
                         )
                     else:
                         logger.info(
-                            "[CONFIG] 音量スケールが範囲外"
-                            f"（0.0 - 2.0）です: {val}"
+                            f"{LOG_PREFIX_CONFIG} 音量スケールが範囲外"
+                            f"（{MIN_VOLUME_SCALE} - "
+                            f"{MAX_VOLUME_SCALE}）です: {val}"
                         )
                 except OSError as e:
                     logger.warning(f"volume.txt の読み込みに失敗しました: {e}")
