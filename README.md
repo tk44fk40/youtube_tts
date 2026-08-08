@@ -193,7 +193,7 @@ uv run python3 youtube_voicevox.py -d 6
 | `--chat-log` | (None) | File path to save chat logs. | `"chat_log.jsonl"` |
 | `--backlog-seconds` | (None) | Time window (in seconds) to backtrack past comments at startup. If `-1` is specified, all past comments in the rolling buffer (up to 200) are read. *Only valid in Live Stream Mode.* | `10` |
 | `--backlog-counts` | (None) | Maximum number of past comments to fetch and read at startup in Archive/Video mode. If `-1` is specified, all past comments are read. *Only valid in Comment Mode.* | `100` |
-| `--quota-interval` | (None) | Minimum interval (in seconds) between quota checks. | `180.0` |
+| `--quota-interval` | (None) | Minimum interval (in seconds) between quota checks. | `600.0` |
 | `--stream-check-interval` | (None) | Interval (in seconds) to check stream active status. | `180.0` |
 | `--speed` | (None) | Read-aloud speed scale. Larger values are faster. Can also be set via env var `VOICEVOX_SPEED_SCALE`. | `1.0` |
 | `--auto-speed-boost` | (None) | Auto-boosts speaking speed when comments pile up in the queue. Can also be set via env var `VOICEVOX_AUTO_SPEED_BOOST`. | `False` |

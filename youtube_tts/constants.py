@@ -87,7 +87,7 @@ DEFAULT_OBS_PORT: int = 4455
 DEFAULT_CHAT_INTERVAL: float = 20.0
 
 # クォータ消費量監視のデフォルト最短間隔（秒）
-DEFAULT_QUOTA_INTERVAL: float = 180.0
+DEFAULT_QUOTA_INTERVAL: float = 600.0
 
 # 配信アクティブ状態チェックのデフォルト最短間隔（秒）
 DEFAULT_STREAM_CHECK_INTERVAL: float = 180.0

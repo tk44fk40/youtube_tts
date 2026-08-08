@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
-from youtube_tts.constants import LOG_PREFIX_QUOTA
+from youtube_tts.constants import DEFAULT_QUOTA_INTERVAL, LOG_PREFIX_QUOTA
 from youtube_tts.models import QuotaInfo, SpeechItem
 from youtube_tts.quota import get_quota_info
 
@@ -40,7 +40,7 @@ class QuotaMonitor:
         creds: Any | None,
         project_id: str | None,
         quota_talk: bool = False,
-        interval: float = 180.0,
+        interval: float = DEFAULT_QUOTA_INTERVAL,
     ) -> None:
         """初期化します。"""
         self.app = app

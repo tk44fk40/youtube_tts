@@ -21,6 +21,10 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from youtube_tts.constants import (
+    DEFAULT_BACKLOG_SECONDS,
+    DEFAULT_CHAT_INTERVAL,
+    DEFAULT_QUOTA_INTERVAL,
+    DEFAULT_STREAM_CHECK_INTERVAL,
     LOG_PREFIX_CHAT,
     LOG_PREFIX_SKIP_NG,
     LOG_PREFIX_SKIP_PAST,
@@ -37,12 +41,7 @@ if TYPE_CHECKING:
 
 
 def format_error_details(error: Exception) -> str:
-    """ログに出力するために例外の詳細を安全に整形します。"""
-    try:
-        return str(error)
-    except Exception:
-        pass
-
+    """例外オブジェクトからエラー詳細文字列を生成します。"""
     try:
         return repr(error)
     except Exception:
@@ -57,12 +56,12 @@ def live_worker(
     quota_check: bool = False,
     quota_talk: bool = False,
     tts_test: str | None = None,
-    chat_interval: float = 20.0,
-    quota_interval: float = 180.0,
-    stream_check_interval: float = 180.0,
+    chat_interval: float = DEFAULT_CHAT_INTERVAL,
+    quota_interval: float = DEFAULT_QUOTA_INTERVAL,
+    stream_check_interval: float = DEFAULT_STREAM_CHECK_INTERVAL,
     project_id: str | None = None,
     verbose: bool = False,
-    backlog_seconds: int = 10,
+    backlog_seconds: int = DEFAULT_BACKLOG_SECONDS,
 ) -> None:
     """YouTube Live チャットコメントの定期取得とキュー送信を行います。"""
     try:

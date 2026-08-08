@@ -20,6 +20,9 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from youtube_tts.constants import (
+    DEFAULT_BACKLOG_COUNTS,
+    DEFAULT_CHAT_INTERVAL,
+    DEFAULT_QUOTA_INTERVAL,
     LOG_PREFIX_COMMENT,
     LOG_PREFIX_SKIP_NG,
     LOG_PREFIX_SKIP_QUEUE,
@@ -52,11 +55,11 @@ def video_worker(
     creds: Any | None = None,
     quota_check: bool = False,
     quota_talk: bool = False,
-    quota_interval: float = 180.0,
+    quota_interval: float = DEFAULT_QUOTA_INTERVAL,
     project_id: str | None = None,
-    chat_interval: float = 20.0,
+    chat_interval: float = DEFAULT_CHAT_INTERVAL,
     verbose: bool = False,
-    backlog_counts: int = 100,
+    backlog_counts: int = DEFAULT_BACKLOG_COUNTS,
 ) -> None:
     """YouTube 動画コメントの定期取得を行い、キューへ送るワーカーです。"""
     quota_monitor = (

@@ -61,7 +61,7 @@ def test_obs_constants() -> None:
 def test_interval_and_backlog_constants() -> None:
     """3. インターバル・監視・バックログデフォルト値を検証します。"""
     assert constants.DEFAULT_CHAT_INTERVAL == 20.0
-    assert constants.DEFAULT_QUOTA_INTERVAL == 180.0
+    assert constants.DEFAULT_QUOTA_INTERVAL == 600.0
     assert constants.DEFAULT_STREAM_CHECK_INTERVAL == 180.0
     assert constants.DEFAULT_BACKLOG_SECONDS == 10
     assert constants.DEFAULT_BACKLOG_COUNTS == 100

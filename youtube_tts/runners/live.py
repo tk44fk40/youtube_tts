@@ -18,6 +18,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from youtube_tts.constants import (
+    DEFAULT_BACKLOG_SECONDS,
+    DEFAULT_CHAT_INTERVAL,
+    DEFAULT_QUOTA_INTERVAL,
+    DEFAULT_STREAM_CHECK_INTERVAL,
+)
 from youtube_tts.live import YouTubeLiveChatClient
 
 from .base import BaseRunner
@@ -38,12 +44,12 @@ class LiveRunner(BaseRunner):
         quota_check: bool = False,
         quota_talk: bool = False,
         tts_test: str | None = None,
-        chat_interval: float = 20.0,
-        quota_interval: float = 180.0,
-        stream_check_interval: float = 180.0,
+        chat_interval: float = DEFAULT_CHAT_INTERVAL,
+        quota_interval: float = DEFAULT_QUOTA_INTERVAL,
+        stream_check_interval: float = DEFAULT_STREAM_CHECK_INTERVAL,
         project_id: str | None = None,
         verbose: bool = False,
-        backlog_seconds: int = 10,
+        backlog_seconds: int = DEFAULT_BACKLOG_SECONDS,
     ) -> None:
         """初期化します。"""
         super().__init__(app)

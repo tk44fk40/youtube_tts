@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from youtube_live_voicevox import main
+from youtube_tts.constants import DEFAULT_QUOTA_INTERVAL
 
 
 @pytest.fixture(autouse=True)
@@ -101,7 +102,7 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
             "chat_log.jsonl",
             False,
             False,
-            180.0,
+            DEFAULT_QUOTA_INTERVAL,
             20.0,
         ),
         (
@@ -112,7 +113,7 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
             "chat_log.jsonl",
             False,
             False,
-            180.0,
+            DEFAULT_QUOTA_INTERVAL,
             20.0,
         ),
         (
@@ -123,7 +124,7 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
             "chat_log.jsonl",
             False,
             False,
-            180.0,
+            DEFAULT_QUOTA_INTERVAL,
             20.0,
         ),
         (
@@ -134,7 +135,7 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
             "custom_path.jsonl",
             False,
             False,
-            180.0,
+            DEFAULT_QUOTA_INTERVAL,
             20.0,
         ),
         (
