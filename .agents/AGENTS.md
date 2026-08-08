@@ -15,7 +15,7 @@
 
 ## 4. コード品質 & 自動検証
 - Python 3.12 準拠。
-- `uv run pyright` をエラー 0 件で通過すること。
+- `uv run basedpyright` をエラー 0 件で通過すること。
 - `uv run ruff check --fix .` および `uv run ruff format .` に準拠すること。
 - 除外ルール（カバレッジや Ruff ルール）の変更・追加は必ず事前承認を得ること。
 

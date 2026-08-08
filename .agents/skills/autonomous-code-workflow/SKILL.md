@@ -33,7 +33,7 @@ description: youtube_tts の開発ルール (.agents/AGENTS.md) に準拠し、I
 ユーザーへ提示前に以下の検証を実行し、エラー 0 件を実証：
 1. `uv run ruff check --fix .`
 2. `uv run ruff format .`
-3. `uv run pyright`
+3. `uv run basedpyright`
 4. `uv run pytest -v` (コミット直前は `uv run pytest -v --cov=.`)
 
 ### Step 5: セルフチェック ＆ エビデンスログ提示
