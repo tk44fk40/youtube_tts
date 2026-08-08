@@ -17,8 +17,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "basedpyright>=1.39.9",
     "callee>=0.3.1",
-    "pyright>=1.1.411",
+    "pre-commit>=4.6.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
@@ -60,7 +61,7 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.pyright]
+[tool.basedpyright]
 venvPath = "."
 venv = ".venv"
 pythonVersion = "3.12"
