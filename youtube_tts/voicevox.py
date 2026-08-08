@@ -57,9 +57,7 @@ class VoicevoxClient:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            raise RuntimeError(
-                f"VOICEVOXサーバーへの接続に失敗しました: {e}"
-            ) from e
+            raise RuntimeError(f"VOICEVOXサーバーへの接続に失敗しました: {e}") from e
 
     def synthesize(
         self,

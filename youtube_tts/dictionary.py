@@ -151,9 +151,7 @@ class TextProcessor:
 
         # 括弧なし・特定の代表的な顔文字を除去します。
         message = re.sub(r"m\([\s_]+\)m|m\(\._\.\)m", "", message)
-        message = re.sub(
-            r"(?<![a-zA-Z0-9])[tT]_[tT](?![a-zA-Z0-9])", "", message
-        )
+        message = re.sub(r"(?<![a-zA-Z0-9])[tT]_[tT](?![a-zA-Z0-9])", "", message)
         message = re.sub(
             r"(?<![a-zA-Z0-9])orz(?![a-zA-Z0-9])",
             "",

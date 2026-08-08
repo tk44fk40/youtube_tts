@@ -54,18 +54,14 @@ class BaseYouTubeClient:
         """
         if not hasattr(self, "_my_channel_id"):
             try:
-                response = (
-                    self.youtube.channels().list(part="id", mine=True).execute()
-                )
+                response = self.youtube.channels().list(part="id", mine=True).execute()
                 items = response.get("items", [])
                 if items:
                     self._my_channel_id = items[0]["id"]
                 else:
                     self._my_channel_id = None
             except Exception as ex:  # noqa: BLE001
-                logger.warning(
-                    f"自分のチャンネル ID の取得に失敗しました: {ex}"
-                )
+                logger.warning(f"自分のチャンネル ID の取得に失敗しました: {ex}")
                 self._my_channel_id = None
         return self._my_channel_id
 
@@ -145,9 +141,7 @@ class BaseYouTubeClient:
                     "URLを指定してください。"
                 )
             else:
-                logger.error(
-                    "指定された動画・配信へのアクセス権限がありません。"
-                )
+                logger.error("指定された動画・配信へのアクセス権限がありません。")
                 logger.error(
                     "  - メンバー限定配信、非公開、"
                     "または限定公開の動画ではないかご確認ください。"

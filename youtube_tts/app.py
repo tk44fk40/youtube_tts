@@ -110,12 +110,8 @@ class YouTubeTtsApp:
             self.audio_player.play_wav(wav_bytes)
         except Exception as e:
             self.logger.error("音声の合成または再生に失敗しました。")
-            self.logger.error(
-                "- VOICEVOX サーバーが起動しているか確認してください。"
-            )
-            self.logger.error(
-                "- 出力オーディオデバイスの設定を確認してください。"
-            )
+            self.logger.error("- VOICEVOX サーバーが起動しているか確認してください。")
+            self.logger.error("- 出力オーディオデバイスの設定を確認してください。")
             self.logger.debug(f"(エラー詳細: {e})")
 
     def is_and_mark_processed(self, message_id: str) -> bool:
@@ -191,8 +187,6 @@ class YouTubeTtsApp:
             try:
                 self.container_manager.stop_if_last(self.logger)
             except Exception as e:
-                self.logger.warning(
-                    f"コンテナ停止処理中にエラーが発生しました: {e}"
-                )
+                self.logger.warning(f"コンテナ停止処理中にエラーが発生しました: {e}")
 
         self.logger.info("クリーンアップが完了しました。")

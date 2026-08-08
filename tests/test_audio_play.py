@@ -75,9 +75,7 @@ def test_play_wav_commands(
         mock_process.wait.assert_called_once()
     else:
         assert mock_popen.call_args[1].get("stdin") == subprocess.PIPE
-        mock_process.communicate.assert_called_once_with(
-            input=b"dummy_wav_data"
-        )
+        mock_process.communicate.assert_called_once_with(input=b"dummy_wav_data")
 
 
 def test_play_wav_tempfile_unlink_error(
@@ -105,9 +103,7 @@ def test_play_wav_tempfile_unlink_error(
         player.play_wav(b"dummy_wav_data")
 
         called_args = [call[0][0] for call in mock_debug.call_args_list]
-        assert any(
-            "一時ファイルの削除に失敗しました" in arg for arg in called_args
-        )
+        assert any("一時ファイルの削除に失敗しました" in arg for arg in called_args)
 
 
 def test_play_wav_no_commands_raise_error(
@@ -194,9 +190,7 @@ def test_play_wav_interrupt_and_stop(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_process.poll.return_value = None
     mock_process.communicate.side_effect = KeyboardInterrupt()
 
-    monkeypatch.setattr(
-        subprocess, "Popen", lambda *args, **kwargs: mock_process
-    )
+    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: mock_process)
 
     player = AudioPlayer()
     with pytest.raises(KeyboardInterrupt):

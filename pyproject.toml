@@ -29,7 +29,7 @@ dev = [
 pythonpath = ["."]
 
 [tool.ruff]
-line-length = 80
+line-length = 88
 exclude = [
     ".agents",
     ".git",
@@ -39,27 +39,23 @@ exclude = [
     ".vscode",
     ".venv",
     "__pycache__",
-    "build"
+    "build",
 ]
 
-[tool.ruff.lint.pycodestyle]
-max-doc-length = 80
-
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "D"]
-extend-select = ["W505"]
-ignore = ["D415"]
-# E (pycodestyle - Errors) : Pythonの標準スタイルガイド（PEP 8）に基づくエラーをチェックします。
-# F (Pyflakes) : コードのスタイルではなく、論理的なバグやエラーをチェックします。
-# I (isort) : インポート文（import ...）の並び順やグループ分けをチェック・整理します。
-# W (pycodestyle - Warnings) : コメントやDocstringを含むPEP 8準拠の警告項目をチェックします。
-# W505 : Docstring / コメント行の長さ（デフォルトでは無効なので明示）
-# 補足: W505 を指定しても日本語は Unicode ポイントでカウントされるので、
-# 全角2桁換算で80桁を超えていても警告は出ない。
-# → 途中に空白を挟むと検出される
-# D (pydocstyle) : Docstring関連ルール
-# D415 : Docstring 末尾に半角ピリオドがない場合の警告を無効化
-# 補足: 日本語のDocstringでは不要な警告です。
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "D",   # pydocstyle
+]
+ignore = [
+    "E501",  # 行長オーバー警告は ruff format に任せる
+    "D415",  # Docstring 末尾の半角ピリオド必須チェックを無効化 (日本語用)
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -67,3 +63,7 @@ convention = "google"
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportMissingImports = false
+reportAttributeAccessIssue = false

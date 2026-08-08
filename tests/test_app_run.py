@@ -179,9 +179,7 @@ def test_run_video_signal_handling(app: Any) -> None:
     """Run 内のシグナルハンドラの動作を検証します。"""
     mock_video_client = MagicMock()
     app.stop_event.set()
-    runner = VideoRunner(
-        app=app, video_client=mock_video_client, video_id="video123"
-    )
+    runner = VideoRunner(app=app, video_client=mock_video_client, video_id="video123")
     with (
         patch("signal.signal") as mock_signal,
         patch("threading.Thread"),
@@ -200,9 +198,7 @@ def test_run_video_signal_value_error(app: Any) -> None:
     """Run 内のシグナル登録エラー時の挙動を検証します。"""
     mock_video_client = MagicMock()
     app.stop_event.set()
-    runner = VideoRunner(
-        app=app, video_client=mock_video_client, video_id="vid"
-    )
+    runner = VideoRunner(app=app, video_client=mock_video_client, video_id="vid")
     with (
         patch("signal.signal", side_effect=ValueError("Not in main thread")),
         patch("threading.Thread"),
@@ -214,9 +210,7 @@ def test_run_video_signal_value_error(app: Any) -> None:
 def test_run_video_worker_exception(app: Any) -> None:
     """video_worker 実行時の例外が正しくキャッチされるかを検証します。"""
     mock_video_client = MagicMock()
-    runner = VideoRunner(
-        app=app, video_client=mock_video_client, video_id="vid"
-    )
+    runner = VideoRunner(app=app, video_client=mock_video_client, video_id="vid")
     with (
         patch("threading.Thread"),
         patch(

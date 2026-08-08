@@ -47,9 +47,7 @@ DEFAULT_MAX_SPEED: float = 2.2
 DEFAULT_CONTAINER_NAME: str = "voicevox-engine"
 
 # VOICEVOX Engine コンテナのデフォルトイメージ名
-DEFAULT_CONTAINER_IMAGE: str = (
-    "docker.io/voicevox/voicevox_engine:cpu-latest"
-)
+DEFAULT_CONTAINER_IMAGE: str = "docker.io/voicevox/voicevox_engine:cpu-latest"
 
 # VOICEVOX Engine コンテナのバインドポート番号
 DEFAULT_CONTAINER_PORT: int = 50021

@@ -52,9 +52,7 @@ def calculate_playback_speed(
         return base_speed
 
     rate_at_base = CHAR_RATE_PER_SECOND_BASE * base_speed
-    estimated_duration = (
-        remaining_chars / rate_at_base if rate_at_base > 0 else 0.0
-    )
+    estimated_duration = remaining_chars / rate_at_base if rate_at_base > 0 else 0.0
     max_speed = min(max_speed_limit, MAX_SPEED_SCALE)
 
     if base_speed >= max_speed:
@@ -93,17 +91,13 @@ def playback_worker(app: YouTubeTtsApp) -> None:
         speed = base_speed
 
         if app.config.auto_speed_boost and remaining_chars > 0:
-            max_speed_limit = getattr(
-                app.config, "max_speed", DEFAULT_MAX_SPEED
-            )
+            max_speed_limit = getattr(app.config, "max_speed", DEFAULT_MAX_SPEED)
             speed = calculate_playback_speed(
                 base_speed=base_speed,
                 remaining_chars=remaining_chars,
                 max_speed_limit=max_speed_limit,
             )
-            app.logger.info(
-                f"{LOG_PREFIX_TALK} {text} (Speed: {speed:.2f}x)"
-            )
+            app.logger.info(f"{LOG_PREFIX_TALK} {text} (Speed: {speed:.2f}x)")
         else:
             app.logger.info(f"{LOG_PREFIX_TALK} {text}")
 

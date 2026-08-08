@@ -19,8 +19,9 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
 class VoicevoxContainerStateManager:
@@ -84,12 +85,10 @@ class VoicevoxContainerStateManager:
         if not self.state_file_path.exists():
             return []
         try:
-            with open(self.state_file_path, "r", encoding="utf-8") as f:
+            with open(self.state_file_path, encoding="utf-8") as f:
                 data = json.load(f)
                 pids = data.get("pids", [])
-                active_pids = [
-                    pid for pid in pids if self.is_process_alive(pid)
-                ]
+                active_pids = [pid for pid in pids if self.is_process_alive(pid)]
                 return active_pids
         except Exception:
             return []

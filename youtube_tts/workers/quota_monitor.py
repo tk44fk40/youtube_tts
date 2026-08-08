@@ -127,9 +127,7 @@ class QuotaMonitor:
                     f"{reset_str}頃までお待ち下さい。"
                 )
             except Exception as ex:  # noqa: BLE001
-                self.app.logger.warning(
-                    f"リセット予定時刻の取得に失敗しました: {ex}"
-                )
+                self.app.logger.warning(f"リセット予定時刻の取得に失敗しました: {ex}")
                 quota_message = "ぴんぽーん！残念！クォータを超過しました。"
 
             self.app.logger.info(f"{LOG_PREFIX_QUOTA} {quota_message}")

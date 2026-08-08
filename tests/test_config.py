@@ -72,9 +72,7 @@ def test_config_reload_on_change(tmp_path: Path) -> None:
     config.reload_if_changed()
 
 
-def test_config_volume_invalid(
-    tmp_path: Path, caplog: LogCaptureFixture
-) -> None:
+def test_config_volume_invalid(tmp_path: Path, caplog: LogCaptureFixture) -> None:
     """音量設定ファイルに不正な値がある場合の挙動を検証します。"""
     vol_file = tmp_path / "volume.txt"
     vol_file.write_text("1.0")
@@ -93,8 +91,7 @@ def test_config_volume_invalid(
         config.reload_if_changed()
     assert config.volume_scale == 1.0
     assert any(
-        "volume.txt の値が無効です" in record.message
-        for record in caplog.records
+        "volume.txt の値が無効です" in record.message for record in caplog.records
     )
     caplog.clear()
 
@@ -104,9 +101,7 @@ def test_config_volume_invalid(
     with caplog.at_level("INFO"):
         config.reload_if_changed()
     assert config.volume_scale == 1.0
-    assert any(
-        "音量スケールが範囲外" in record.message for record in caplog.records
-    )
+    assert any("音量スケールが範囲外" in record.message for record in caplog.records)
 
 
 def test_config_dictionary_invalid(tmp_path: Path) -> None:
@@ -151,9 +146,7 @@ def test_config_ng_words_missing_and_empty_lines(tmp_path: Path) -> None:
     assert config.ng_words == {"spam"}
 
 
-def test_config_load_os_errors(
-    tmp_path: Path, caplog: LogCaptureFixture
-) -> None:
+def test_config_load_os_errors(tmp_path: Path, caplog: LogCaptureFixture) -> None:
     """ファイル読み込み時にOSエラーが発生した場合の挙動を検証します。"""
     import time
     from unittest.mock import patch
@@ -183,13 +176,8 @@ def test_config_load_os_errors(
     combined_output = "\n".join(record.message for record in caplog.records)
 
     assert "辞書のロードに失敗しました: Permission Denied" in combined_output
-    assert (
-        "NGワードのロードに失敗しました: Permission Denied" in combined_output
-    )
-    assert (
-        "volume.txt の読み込みに失敗しました: Permission Denied"
-        in combined_output
-    )
+    assert "NGワードのロードに失敗しました: Permission Denied" in combined_output
+    assert "volume.txt の読み込みに失敗しました: Permission Denied" in combined_output
 
 
 def test_config_files_not_exists(tmp_path: Path) -> None:

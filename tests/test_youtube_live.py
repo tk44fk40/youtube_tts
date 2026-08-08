@@ -18,9 +18,7 @@ from youtube_tts.live import YouTubeLiveChatClient
 
 
 @pytest.fixture
-def mock_client() -> Generator[
-    tuple[YouTubeLiveChatClient, MagicMock], None, None
-]:
+def mock_client() -> Generator[tuple[YouTubeLiveChatClient, MagicMock], None, None]:
     """認証モックとサービスモックを内包したクライアントを生成します。
 
     Yields:
@@ -65,8 +63,7 @@ def test_get_my_channel_id_failure(
     with caplog.at_level("WARNING"):
         assert client.get_my_channel_id() is None
     assert any(
-        "自分のチャンネル ID の取得に失敗しました" in r.message
-        for r in caplog.records
+        "自分のチャンネル ID の取得に失敗しました" in r.message for r in caplog.records
     )
 
 
@@ -169,9 +166,7 @@ def test_get_current_live_video_id_http_error(
     """配信一覧取得時の API エラー例外が再スローされることを検証します。"""
     client, mock_service = mock_client
     resp = Response({"status": 403, "reason": "Forbidden"})
-    mock_service.liveBroadcasts().list().execute.side_effect = HttpError(
-        resp, b"Err"
-    )
+    mock_service.liveBroadcasts().list().execute.side_effect = HttpError(resp, b"Err")
 
     with pytest.raises(HttpError):
         client.get_current_live_video_id()

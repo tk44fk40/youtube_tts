@@ -34,7 +34,7 @@ def test_process_register_unregister(tmp_path: Path) -> None:
     count = manager.register_process()
     assert count == 1
 
-    with open(state_file, "r", encoding="utf-8") as f:
+    with open(state_file, encoding="utf-8") as f:
         data = json.load(f)
         assert os.getpid() in data["pids"]
 

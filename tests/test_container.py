@@ -170,9 +170,7 @@ def test_ensure_started_server_already_ready(mock_run, tmp_path) -> None:
         state_file_path=state_file,
     )
 
-    with patch.object(
-        VoicevoxContainerManager, "is_server_ready", return_value=True
-    ):
+    with patch.object(VoicevoxContainerManager, "is_server_ready", return_value=True):
         res = manager.ensure_started()
         assert res is True
         mock_run.assert_not_called()
@@ -211,9 +209,7 @@ def test_is_container_running_and_exists(mock_run, tmp_path) -> None:
         "is_container_cmd_available",
         return_value=True,
     ):
-        mock_run.return_value = MagicMock(
-            stdout="voicevox-engine\nother-container\n"
-        )
+        mock_run.return_value = MagicMock(stdout="voicevox-engine\nother-container\n")
         assert manager.is_container_running() is True
         assert manager.is_container_exists() is True
 
@@ -239,9 +235,7 @@ def test_ensure_started_flows(mock_run, tmp_path) -> None:
 
     # コマンド利用不可 (logger あり/なし)
     with (
-        patch.object(
-            VoicevoxContainerManager, "is_server_ready", return_value=False
-        ),
+        patch.object(VoicevoxContainerManager, "is_server_ready", return_value=False),
         patch.object(
             VoicevoxContainerManager,
             "is_container_cmd_available",
@@ -307,9 +301,7 @@ def test_ensure_started_flows(mock_run, tmp_path) -> None:
 
     # タイムアウト (logger あり/なし)
     with (
-        patch.object(
-            VoicevoxContainerManager, "is_server_ready", return_value=False
-        ),
+        patch.object(VoicevoxContainerManager, "is_server_ready", return_value=False),
         patch.object(
             VoicevoxContainerManager,
             "is_container_cmd_available",

@@ -60,7 +60,8 @@ def main() -> None:
     app.logger.info(f"video_id: {video_id}")
 
     obs_source_name = os.getenv("OBS_BROWSER_SOURCE_NAME", "チャット")
-    app.obs_client.update_chat_url(obs_source_name, chat_url)
+    if app.obs_client:
+        app.obs_client.update_chat_url(obs_source_name, chat_url)
 
     runner = LiveRunner(
         app=app,

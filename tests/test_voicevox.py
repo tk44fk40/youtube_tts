@@ -35,9 +35,7 @@ def test_get_speakers_connection_error() -> None:
 
     with patch("requests.get") as mock_get:
         # サーバーへの接続が拒否された状況をシミュレートします
-        mock_get.side_effect = requests.exceptions.ConnectionError(
-            "Connection refused"
-        )
+        mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
 
         with pytest.raises(RuntimeError) as excinfo:
             client.get_speakers()

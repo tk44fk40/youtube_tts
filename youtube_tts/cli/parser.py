@@ -52,9 +52,11 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         except ValueError:
             pass
 
-    env_auto_boost = os.getenv(
-        ENV_VOICEVOX_AUTO_SPEED_BOOST, "false"
-    ).lower() in ("true", "1", "yes")
+    env_auto_boost = os.getenv(ENV_VOICEVOX_AUTO_SPEED_BOOST, "false").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
 
     env_max_speed = DEFAULT_MAX_SPEED
     if ENV_VOICEVOX_MAX_SPEED in os.environ:

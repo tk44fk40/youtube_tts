@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -13,7 +13,7 @@ from youtube_tts.workers.live import live_worker
 
 def test_live_worker_success(app: Any, mock_live_client: MagicMock) -> None:
     """正常にチャットを取得し、コメントキューが更新されるかを検証します。"""
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
 
     def fetch_side_effect(*args, **kwargs):
         app.stop_event.set()
@@ -190,9 +190,7 @@ def test_live_worker_filters(
         assert actual_qsize == expect_qsize
 
 
-def test_live_worker_tts_test_triggered(
-    app: Any, mock_live_client: MagicMock
-) -> None:
+def test_live_worker_tts_test_triggered(app: Any, mock_live_client: MagicMock) -> None:
     """tts_test 有効かつ自配信時のテスト発声実行を検証します。"""
 
     def fetch_side_effect(*args, **kwargs):

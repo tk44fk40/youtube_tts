@@ -20,9 +20,7 @@ def test_quota_info() -> None:
     assert quota.limit == 10000
     assert quota.remaining == 7000
     assert quota.usage_percent == 30.0
-    assert quota.speech_text == (
-        "ぴんぽーん！クォータ使用量は 3000 ユニットです。"
-    )
+    assert quota.speech_text == ("ぴんぽーん！クォータ使用量は 3000 ユニットです。")
 
 
 def test_super_chat_details() -> None:
@@ -116,7 +114,7 @@ def test_speech_item() -> None:
         author_name="Alice",
         author_id="a",
         message="Hello",
-        published_at=datetime.datetime.now(datetime.timezone.utc),
+        published_at=datetime.datetime.now(datetime.UTC),
     )
     item = SpeechItem.from_youtube_message(msg, "アリス", "ハロー")
     assert item.author == "アリス"

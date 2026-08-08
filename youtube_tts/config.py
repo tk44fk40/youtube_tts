@@ -100,7 +100,7 @@ class AppConfig:
         """
         replacements: dict[str, str] = {}
         try:
-            with open(self.dictionary_file, "r", encoding="utf-8") as f:
+            with open(self.dictionary_file, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line or "=" not in line:
@@ -122,7 +122,7 @@ class AppConfig:
         """
         ng_words: set[str] = set()
         try:
-            with open(self.ng_word_file, "r", encoding="utf-8") as f:
+            with open(self.ng_word_file, encoding="utf-8") as f:
                 for line in f:
                     word = line.strip()
                     if not word:
@@ -160,7 +160,7 @@ class AppConfig:
             if current_mtime != self._volume_mtime:
                 self._volume_mtime = current_mtime
                 try:
-                    with open(self.volume_file, "r", encoding="utf-8") as f:
+                    with open(self.volume_file, encoding="utf-8") as f:
                         val = float(f.read().strip())
                     if MIN_VOLUME_SCALE <= val <= MAX_VOLUME_SCALE:
                         self.volume_scale = val

@@ -63,9 +63,7 @@ def main() -> None:
         except ValueError:
             pass
 
-    parser = argparse.ArgumentParser(
-        description="VOICEVOX 発声テストスクリプト"
-    )
+    parser = argparse.ArgumentParser(description="VOICEVOX 発声テストスクリプト")
     parser.add_argument(
         "-t",
         "--text",
@@ -185,7 +183,7 @@ def main() -> None:
     except Exception as e:  # noqa: BLE001
         logger.error(f"ファイルの保存に失敗しました: {e}")
 
-    if not args.no_play:
+    if not args.no_play and player is not None:
         logger.info(
             f"再生中... (サンプリングレート: "
             f"{target_sample_rate or player.target_sample_rate}Hz)"

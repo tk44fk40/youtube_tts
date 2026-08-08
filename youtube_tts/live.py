@@ -87,9 +87,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
             status = item.get("status", {}).get("lifeCycleStatus")
             if status == "live":
                 vid = item.get("id")
-                chat_url = (
-                    f"https://www.youtube.com/live_chat?v={vid}&is_popout=1"
-                )
+                chat_url = f"https://www.youtube.com/live_chat?v={vid}&is_popout=1"
                 return vid, chat_url
 
         raise RuntimeError(
@@ -178,8 +176,7 @@ class YouTubeLiveChatClient(BaseYouTubeClient):
         active_chat = details.get("activeLiveChatId")
         if not active_chat:
             logger.info(
-                "activeLiveChatId が見つかりません。"
-                "配信が終了した可能性があります。"
+                "activeLiveChatId が見つかりません。配信が終了した可能性があります。"
             )
             return False
 

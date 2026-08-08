@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -14,9 +14,7 @@ from youtube_tts.models import (
 from youtube_tts.workers.live import live_worker
 
 
-def test_live_worker_stream_inactive(
-    app: Any, mock_live_client: MagicMock
-) -> None:
+def test_live_worker_stream_inactive(app: Any, mock_live_client: MagicMock) -> None:
     """配信非アクティブ時のループ終了を検証します。"""
     mock_live_client.fetch_chat_messages.return_value = (
         [],
@@ -85,7 +83,7 @@ def test_live_worker_success_with_dataclasses(
         title="My Title",
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mock_live_client.fetch_chat_messages.return_value = (
         [
             YouTubeMessage(

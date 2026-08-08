@@ -13,9 +13,7 @@ from httplib2 import Response
 from youtube_tts.models import SpeechItem
 from youtube_tts.workers.live import live_worker
 
-_QUOTA_EXCEEDED_CONTENT = (
-    b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
-)
+_QUOTA_EXCEEDED_CONTENT = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
 
 
 def _create_quota_exceeded_error() -> HttpError:
@@ -24,9 +22,7 @@ def _create_quota_exceeded_error() -> HttpError:
     return HttpError(resp, _QUOTA_EXCEEDED_CONTENT)
 
 
-def test_live_worker_quota_exceeded(
-    app: Any, mock_live_client: MagicMock
-) -> None:
+def test_live_worker_quota_exceeded(app: Any, mock_live_client: MagicMock) -> None:
     """クォータ超過エラー（403）発生時の待機状態遷移を検証します。"""
     ex = _create_quota_exceeded_error()
     mock_live_client.fetch_chat_messages.side_effect = ex

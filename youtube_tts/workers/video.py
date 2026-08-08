@@ -75,8 +75,7 @@ def video_worker(
     )
 
     app.logger.info(
-        "初期コメントのバックログをロードしています "
-        f"(制限: {backlog_counts})..."
+        f"初期コメントのバックログをロードしています (制限: {backlog_counts})..."
     )
     backlog_items = []
     page_token = None
@@ -86,9 +85,7 @@ def video_worker(
         if remaining_to_fetch is not None and remaining_to_fetch <= 0:
             break
         max_results = (
-            min(remaining_to_fetch, 100)
-            if remaining_to_fetch is not None
-            else 100
+            min(remaining_to_fetch, 100) if remaining_to_fetch is not None else 100
         )
 
         error_occurred = None
@@ -136,9 +133,7 @@ def video_worker(
             continue
 
         app.logger.info(f"{LOG_PREFIX_COMMENT} {author}: {msg_text}")
-        author, msg_text = app.text_processor.normalize_comment(
-            author, msg_text
-        )
+        author, msg_text = app.text_processor.normalize_comment(author, msg_text)
 
         if app.speech_queue.full():
             app.logger.info(f"{LOG_PREFIX_SKIP_QUEUE} {author}: {msg_text}")
@@ -192,25 +187,17 @@ def video_worker(
 
             if app.text_processor.contains_ng_word(msg_text):
                 if verbose:
-                    app.logger.info(
-                        f"{LOG_PREFIX_SKIP_NG} {author}: {msg_text}"
-                    )
+                    app.logger.info(f"{LOG_PREFIX_SKIP_NG} {author}: {msg_text}")
                 continue
 
             app.logger.info(f"{LOG_PREFIX_COMMENT} {author}: {msg_text}")
-            author, msg_text = app.text_processor.normalize_comment(
-                author, msg_text
-            )
+            author, msg_text = app.text_processor.normalize_comment(author, msg_text)
 
             if app.speech_queue.full():
-                app.logger.info(
-                    f"{LOG_PREFIX_SKIP_QUEUE} {author}: {msg_text}"
-                )
+                app.logger.info(f"{LOG_PREFIX_SKIP_QUEUE} {author}: {msg_text}")
                 continue
 
-            speech_item = SpeechItem.from_youtube_message(
-                message, author, msg_text
-            )
+            speech_item = SpeechItem.from_youtube_message(message, author, msg_text)
             app.speech_queue.put(speech_item)
 
         if quota_monitor:

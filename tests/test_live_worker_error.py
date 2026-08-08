@@ -28,9 +28,7 @@ def _create_http_403_error(
     return HttpError(resp, content)
 
 
-def test_live_worker_generic_exception(
-    app: Any, mock_live_client: MagicMock
-) -> None:
+def test_live_worker_generic_exception(app: Any, mock_live_client: MagicMock) -> None:
     """一般例外発生時のリトライと終了動作を検証します。"""
     mock_live_client.fetch_chat_messages.side_effect = Exception(
         "Generic Network Error"
@@ -113,9 +111,7 @@ def test_live_worker_fetch_error_decode_error(
     """HttpError の content デコード失敗時処理を検証します。"""
     ex = _create_http_403_error(b"not_quota")
     mock_content = MagicMock()
-    mock_content.decode.side_effect = UnicodeDecodeError(
-        "utf-8", b"", 0, 1, "reason"
-    )
+    mock_content.decode.side_effect = UnicodeDecodeError("utf-8", b"", 0, 1, "reason")
     ex.content = mock_content
     mock_live_client.fetch_chat_messages.side_effect = ex
 

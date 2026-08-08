@@ -75,9 +75,7 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
 
     if ENV_VOICEVOX_VOLUME_SCALE in os.environ:
         try:
-            config.volume_scale = float(
-                os.environ[ENV_VOICEVOX_VOLUME_SCALE]
-            )
+            config.volume_scale = float(os.environ[ENV_VOICEVOX_VOLUME_SCALE])
         except Exception:
             pass
 
@@ -99,8 +97,7 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
 
             device_info = sd.query_devices(dev_id, "output")
             logger.info(
-                f"出力デバイス: {device_info['name']} "
-                f"(ID: {device_info['index']})"
+                f"出力デバイス: {device_info['name']} (ID: {device_info['index']})"
             )
         except Exception as e:
             logger.warning(f"デバイス情報の取得に失敗しました: {e}")
@@ -109,9 +106,7 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
 
     # VOICEVOX Engine コンテナの自動起動・管理処理
     no_manage = getattr(args, "no_manage_container", False)
-    env_manage = os.getenv(
-        ENV_VOICEVOX_MANAGE_CONTAINER, "true"
-    ).lower()
+    env_manage = os.getenv(ENV_VOICEVOX_MANAGE_CONTAINER, "true").lower()
     manage_container = not no_manage and env_manage not in (
         "false",
         "0",
@@ -132,9 +127,7 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
             )
         except ValueError:
             speaker_id = DEFAULT_SPEAKER_ID
-    voicevox_client = VoicevoxClient(
-        base_url=voicevox_url, speaker_id=speaker_id
-    )
+    voicevox_client = VoicevoxClient(base_url=voicevox_url, speaker_id=speaker_id)
 
     try:
         voicevox_client.get_speakers()
@@ -162,9 +155,7 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
 
     obs_password = os.getenv(ENV_OBS_WEBSOCKET_PASSWORD)
     obs_host = os.getenv(ENV_OBS_WEBSOCKET_HOST, DEFAULT_OBS_HOST)
-    obs_port = int(
-        os.getenv(ENV_OBS_WEBSOCKET_PORT, str(DEFAULT_OBS_PORT))
-    )
+    obs_port = int(os.getenv(ENV_OBS_WEBSOCKET_PORT, str(DEFAULT_OBS_PORT)))
 
     obs_client = ObsClient(host=obs_host, port=obs_port, password=obs_password)
 
@@ -174,8 +165,7 @@ def create_app_context(args: Any) -> tuple[YouTubeTtsApp, Any, str | None]:
             project_id = get_project_id()
         except Exception as e:
             logger.warning(
-                "クォータチェックを有効にできませんでした "
-                f"(project_id 取得失敗): {e}"
+                f"クォータチェックを有効にできませんでした (project_id 取得失敗): {e}"
             )
             args.quota_check = False
             args.quota_talk = False

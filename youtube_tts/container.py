@@ -137,9 +137,7 @@ class VoicevoxContainerManager:
                 text=True,
                 check=False,
             )
-            names = [
-                line.strip() for line in res.stdout.splitlines() if line.strip()
-            ]
+            names = [line.strip() for line in res.stdout.splitlines() if line.strip()]
             return self.container_name in names
         except Exception:
             return False
@@ -165,9 +163,7 @@ class VoicevoxContainerManager:
                 text=True,
                 check=False,
             )
-            names = [
-                line.strip() for line in res.stdout.splitlines() if line.strip()
-            ]
+            names = [line.strip() for line in res.stdout.splitlines() if line.strip()]
             return self.container_name in names
         except Exception:
             return False
@@ -238,12 +234,9 @@ class VoicevoxContainerManager:
         # 2. コンテナコマンド（Podman/Docker）が使えるか判定
         if not self.is_container_cmd_available():
             if logger:
+                logger.warning(f"コンテナ '{self.container_cmd}' が利用不可です。")
                 logger.warning(
-                    f"コンテナ '{self.container_cmd}' が利用不可です。"
-                )
-                logger.warning(
-                    "自動起動をスキップします。"
-                    "VOICEVOX を別途起動してください。"
+                    "自動起動をスキップします。VOICEVOX を別途起動してください。"
                 )
             return False
 
@@ -263,9 +256,7 @@ class VoicevoxContainerManager:
         else:
             if logger:
                 logger.warning("VOICEVOX コンテナを作成・起動しています。")
-                logger.warning(
-                    "初回はイメージ取得に時間を要する場合があります..."
-                )
+                logger.warning("初回はイメージ取得に時間を要する場合があります...")
             cmd = [
                 self.container_cmd,
                 "run",
@@ -305,9 +296,7 @@ class VoicevoxContainerManager:
         remaining_count = self.unregister_process()
         if remaining_count == 0 and self.is_container_running():
             if logger:
-                logger.info(
-                    f"プロセス終了のため '{self.container_name}' を停止中..."
-                )
+                logger.info(f"プロセス終了のため '{self.container_name}' を停止中...")
             subprocess.run(
                 [self.container_cmd, "stop", self.container_name],
                 check=False,

@@ -97,6 +97,9 @@ class ObsClient:
             )
             return False
 
+        if self._obsws is None or self._obs_requests is None:
+            return False
+
         try:
             ws = self._obsws(self.host, self.port, self.password)
             ws.connect()
@@ -110,9 +113,7 @@ class ObsClient:
             logger.info(f"URL: {url}")
             return True
         except Exception as e:  # noqa: BLE001
-            logger.error(
-                f"{LOG_PREFIX_OBS} チャットURL設定失敗 (エラー詳細: {e})"
-            )
+            logger.error(f"{LOG_PREFIX_OBS} チャットURL設定失敗 (エラー詳細: {e})")
             logger.error(
                 "※OBS Studioが起動しているか、"
                 f"およびWebSocketサーバー(ポート{DEFAULT_OBS_PORT})の"

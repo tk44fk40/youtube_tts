@@ -44,9 +44,7 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
     """主要コンポーネントを一括でモック化し、標準的な初期値を設定します。"""
     with (
         patch("youtube_tts.cli.context.YouTubeAuthenticator") as mock_auth,
-        patch(
-            "youtube_live_voicevox.YouTubeLiveChatClient"
-        ) as mock_live_client,
+        patch("youtube_live_voicevox.YouTubeLiveChatClient") as mock_live_client,
         patch("youtube_tts.cli.context.YouTubeTtsApp") as mock_app_class,
         patch("youtube_tts.cli.context.AudioPlayer") as mock_audio_player_class,
         patch("sounddevice.query_devices") as mock_query,
@@ -349,4 +347,3 @@ def test_live_cli_speaker_id_option(
     mock_voicevox_client_cls.assert_called_with(
         base_url="http://127.0.0.1:50021", speaker_id=10
     )
-

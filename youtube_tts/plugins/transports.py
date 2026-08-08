@@ -120,9 +120,7 @@ class StdioTransport(BaseTransport):
         if process.stdin is None or process.stdout is None:
             raise RuntimeError("サブプロセスのパイプが利用できません。")
 
-        payload_bytes = (
-            json.dumps(asdict(message)) + "\n"
-        ).encode("utf-8")
+        payload_bytes = (json.dumps(asdict(message)) + "\n").encode("utf-8")
 
         try:
             process.stdin.write(payload_bytes)
@@ -140,7 +138,7 @@ class StdioTransport(BaseTransport):
                     "応答フォーマットが不正です。JSON 辞書が期待されます。"
                 )
             return response_data
-        except asyncio.TimeoutError:
+        except TimeoutError as err:
             logger.error(
                 "STDIO プラグインタイムアウト",
                 extra={"plugin_name": self._manifest.name},
@@ -149,7 +147,7 @@ class StdioTransport(BaseTransport):
             raise TimeoutError(
                 f"プラグイン '{self._manifest.name}' が "
                 f"{timeout_seconds} 秒でタイムアウトしました。"
-            )
+            ) from err
 
     async def close(self) -> None:
         """サブプロセスを終了し, タスクの完了を待ちます。"""
@@ -162,7 +160,7 @@ class StdioTransport(BaseTransport):
                 await asyncio.wait_for(
                     self._process.wait(), timeout=DEFAULT_PROCESS_WAIT_TIMEOUT
                 )
-            except (asyncio.TimeoutError, ProcessLookupError):
+            except (TimeoutError, ProcessLookupError):
                 if self._process.returncode is None:
                     self._process.kill()
         self._process = None
@@ -220,7 +218,7 @@ class HttpTransport(BaseTransport):
             return res_json
         except (ValueError, TimeoutError):
             raise
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as err:
             logger.error(
                 "HTTP プラグインタイムアウト",
                 extra={"plugin_name": self._manifest.name},
@@ -228,7 +226,7 @@ class HttpTransport(BaseTransport):
             raise TimeoutError(
                 f"プラグイン '{self._manifest.name}' の "
                 "HTTP リクエストがタイムアウトしました。"
-            )
+            ) from err
         except Exception as err:
             logger.error(
                 "HTTP プラグインリクエスト失敗",
@@ -237,9 +235,7 @@ class HttpTransport(BaseTransport):
                     "error": str(err),
                 },
             )
-            raise RuntimeError(
-                f"HTTP プラグインリクエストエラー: {err}"
-            ) from err
+            raise RuntimeError(f"HTTP プラグインリクエストエラー: {err}") from err
 
     async def close(self) -> None:
         """内部の HTTP クライアントをクローズします。"""

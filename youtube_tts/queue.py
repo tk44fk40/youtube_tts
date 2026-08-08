@@ -41,9 +41,7 @@ class SpeechQueue:
         with self._lock:
             self._char_count += item.char_count
 
-    def get(
-        self, block: bool = True, timeout: float | None = None
-    ) -> SpeechItem:
+    def get(self, block: bool = True, timeout: float | None = None) -> SpeechItem:
         """キューからアイテムを取得し、滞留文字数を減算します。"""
         item = self._queue.get(block=block, timeout=timeout)
         with self._lock:

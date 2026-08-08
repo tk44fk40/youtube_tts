@@ -1,6 +1,5 @@
 """PluginManager およびプラグイントランスポートのテストモジュールです。"""
 
-import asyncio
 import json
 import sys
 from pathlib import Path
@@ -92,7 +91,7 @@ async def test_plugin_manager_scan_invalid_manifest(tmp_path: Path) -> None:
     )
     pm.scan_plugins()
     assert pm.get_plugin_names() == []
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         pm._load_plugin(manifest_file)
 
 
@@ -249,7 +248,7 @@ async def test_stdio_plugin_process_kill_on_terminate_timeout(
     )
     transport = StdioTransport(manifest)
     mock_process = mocker.MagicMock()
-    mock_process.wait = mocker.AsyncMock(side_effect=asyncio.TimeoutError())
+    mock_process.wait = mocker.AsyncMock(side_effect=TimeoutError())
     type(mock_process).returncode = mocker.PropertyMock(return_value=None)
 
     transport._process = mock_process
@@ -275,7 +274,7 @@ async def test_stdio_plugin_process_kill_not_called_if_returncode_set(
     )
     transport = StdioTransport(manifest)
     mock_process = mocker.MagicMock()
-    mock_process.wait = mocker.AsyncMock(side_effect=asyncio.TimeoutError())
+    mock_process.wait = mocker.AsyncMock(side_effect=TimeoutError())
     type(mock_process).returncode = mocker.PropertyMock(side_effect=[None, 0])
 
     transport._process = mock_process
@@ -325,9 +324,7 @@ async def test_stdio_plugin_timeout_and_errors(tmp_path: Path) -> None:
     transport = StdioTransport(manifest)
     msg = PluginMessage(request_id="1", action="test")
 
-    with pytest.raises(
-        ValueError, match="マニフェストのコマンドリストが空です"
-    ):
+    with pytest.raises(ValueError, match="マニフェストのコマンドリストが空です"):
         await transport.send_and_receive(msg, DEFAULT_TEST_TIMEOUT)
 
     # [検証目的 2]: 無応答で TimeoutError になるか検証
@@ -367,9 +364,7 @@ async def test_http_plugin_execution(mocker: MockerFixture) -> None:
         url="http://localhost:8000/api",
     )
     transport = HttpTransport(manifest)
-    msg = PluginMessage(
-        request_id="req-123", action="greet", data={"name": "Alice"}
-    )
+    msg = PluginMessage(request_id="req-123", action="greet", data={"name": "Alice"})
 
     mock_post = mocker.patch("httpx.AsyncClient.post")
     request = httpx.Request("POST", "http://localhost:8000/api")
@@ -400,9 +395,7 @@ async def test_http_plugin_non_dict_response(mocker: MockerFixture) -> None:
 
     mock_post = mocker.patch("httpx.AsyncClient.post")
     request = httpx.Request("POST", "http://localhost:8000/api")
-    mock_post.return_value = Response(
-        200, json=[1, 2, 3], request=request
-    )
+    mock_post.return_value = Response(200, json=[1, 2, 3], request=request)
 
     with pytest.raises(ValueError, match="JSON 辞書である必要があります"):
         await transport.send_and_receive(msg, DEFAULT_TEST_TIMEOUT)
@@ -548,9 +541,7 @@ async def test_stdio_plugin_reuse_process_and_no_pipes(
     transport._process = mock_process
 
     msg = PluginMessage(request_id="1", action="test")
-    with pytest.raises(
-        RuntimeError, match="サブプロセスのパイプが利用できません"
-    ):
+    with pytest.raises(RuntimeError, match="サブプロセスのパイプが利用できません"):
         await transport.send_and_receive(msg, DEFAULT_TEST_TIMEOUT)
 
 

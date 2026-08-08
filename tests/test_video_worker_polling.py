@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -178,7 +178,7 @@ def test_video_worker_success_with_dataclasses(
 ) -> None:
     """データクラス返却時のキャスト回避を検証します。"""
     call_count = 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     def fetch_side_effect(video_id, page_token=None, max_results=100):
         nonlocal call_count

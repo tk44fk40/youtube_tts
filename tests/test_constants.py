@@ -34,22 +34,10 @@ def test_voicevox_constants() -> None:
     )
     assert constants.DEFAULT_CONTAINER_PORT == 50021
     assert constants.DEFAULT_CONTAINER_HOST == "127.0.0.1"
-    assert (
-        constants.DEFAULT_LOCK_FILE_PATH
-        == "/tmp/youtube_tts_voicevox_runners.lock"
-    )
-    assert (
-        constants.DEFAULT_STATE_FILE_PATH
-        == "/tmp/youtube_tts_voicevox_runners.json"
-    )
-    assert (
-        constants.DEFAULT_CONTAINER_LOCK_FILE
-        == constants.DEFAULT_LOCK_FILE_PATH
-    )
-    assert (
-        constants.DEFAULT_CONTAINER_STATE_FILE
-        == constants.DEFAULT_STATE_FILE_PATH
-    )
+    assert constants.DEFAULT_LOCK_FILE_PATH == "/tmp/youtube_tts_voicevox_runners.lock"
+    assert constants.DEFAULT_STATE_FILE_PATH == "/tmp/youtube_tts_voicevox_runners.json"
+    assert constants.DEFAULT_CONTAINER_LOCK_FILE == constants.DEFAULT_LOCK_FILE_PATH
+    assert constants.DEFAULT_CONTAINER_STATE_FILE == constants.DEFAULT_STATE_FILE_PATH
 
 
 def test_obs_constants() -> None:
@@ -115,18 +103,13 @@ def test_env_constants() -> None:
     """6. 環境変数名定数を検証します。"""
     assert constants.ENV_VOICEVOX_URL == "VOICEVOX_URL"
     assert constants.ENV_VOICEVOX_SPEED_SCALE == "VOICEVOX_SPEED_SCALE"
-    assert (
-        constants.ENV_VOICEVOX_AUTO_SPEED_BOOST == "VOICEVOX_AUTO_SPEED_BOOST"
-    )
+    assert constants.ENV_VOICEVOX_AUTO_SPEED_BOOST == "VOICEVOX_AUTO_SPEED_BOOST"
     assert constants.ENV_VOICEVOX_MAX_SPEED == "VOICEVOX_MAX_SPEED"
     assert constants.ENV_VOICEVOX_VOLUME_SCALE == "VOICEVOX_VOLUME_SCALE"
     assert constants.ENV_VOICEVOX_SPEAKER_ID == "VOICEVOX_SPEAKER_ID"
     assert constants.ENV_VOICEVOX_DEVICE == "VOICEVOX_DEVICE"
     assert constants.ENV_VOICEVOX_TTS_TEST == "VOICEVOX_TTS_TEST"
-    assert (
-        constants.ENV_VOICEVOX_MANAGE_CONTAINER
-        == "VOICEVOX_MANAGE_CONTAINER"
-    )
+    assert constants.ENV_VOICEVOX_MANAGE_CONTAINER == "VOICEVOX_MANAGE_CONTAINER"
     assert constants.ENV_VOICEVOX_AUTHOR_SUFFIX == "VOICEVOX_AUTHOR_SUFFIX"
     assert constants.ENV_CONTAINER_CMD == "CONTAINER_CMD"
     assert constants.ENV_OBS_WEBSOCKET_HOST == "OBS_WEBSOCKET_HOST"
@@ -137,20 +120,17 @@ def test_env_constants() -> None:
 def test_oauth_scope_constants() -> None:
     """7. OAuth2 スコープ定数を検証します。"""
     assert (
-        constants.YOUTUBE_SCOPE
-        == "https://www.googleapis.com/auth/youtube.force-ssl"
+        constants.YOUTUBE_SCOPE == "https://www.googleapis.com/auth/youtube.force-ssl"
     )
     assert (
-        constants.MONITORING_SCOPE
-        == "https://www.googleapis.com/auth/monitoring.read"
+        constants.MONITORING_SCOPE == "https://www.googleapis.com/auth/monitoring.read"
     )
 
 
 def test_message_and_calculation_constants() -> None:
     """8. メッセージ・再生スピード計算定数を検証します。"""
     assert (
-        constants.DEFAULT_TTS_TEST_MESSAGE
-        == "ぴんぽーん！チャット読上げのテストなのだ"
+        constants.DEFAULT_TTS_TEST_MESSAGE == "ぴんぽーん！チャット読上げのテストなのだ"
     )
     assert constants.CHAR_RATE_PER_SECOND_BASE == 6.0
     assert constants.BOOST_DURATION_MIN == 10.0

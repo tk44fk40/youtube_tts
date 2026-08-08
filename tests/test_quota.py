@@ -63,9 +63,7 @@ def _build_quota_mocks(
 def test_get_project_id_missing_file(tmp_path: Path) -> None:
     """認証キーファイルがない場合のエラー発生を検証します。"""
     missing_file = tmp_path / "non_existent.json"
-    with pytest.raises(
-        RuntimeError, match="non_existent.json が見つかりません。"
-    ):
+    with pytest.raises(RuntimeError, match="non_existent.json が見つかりません。"):
         get_project_id(missing_file)
 
 

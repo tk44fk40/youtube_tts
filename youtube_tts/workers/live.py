@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from youtube_tts.constants import (
@@ -96,9 +96,7 @@ def live_worker(
         return
 
     if backlog_seconds >= 0:
-        threshold_time = datetime.now(timezone.utc) - timedelta(
-            seconds=backlog_seconds
-        )
+        threshold_time = datetime.now(UTC) - timedelta(seconds=backlog_seconds)
     else:
         threshold_time = None
 
@@ -185,14 +183,10 @@ def live_worker(
             author, msg_text = proc.normalize_comment(author, msg_text)
 
             if app.speech_queue.full():
-                app.logger.info(
-                    f"{LOG_PREFIX_SKIP_QUEUE} {author}: {msg_text}"
-                )
+                app.logger.info(f"{LOG_PREFIX_SKIP_QUEUE} {author}: {msg_text}")
                 continue
 
-            speech_item = SpeechItem.from_youtube_message(
-                message, author, msg_text
-            )
+            speech_item = SpeechItem.from_youtube_message(message, author, msg_text)
             app.speech_queue.put(speech_item)
 
         now = time.time()

@@ -68,7 +68,7 @@ def get_project_id(
     if not path.exists():
         raise RuntimeError(f"{path.name} が見つかりません。")
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
     for key in ["installed", "web"]:
@@ -104,9 +104,7 @@ def get_quota_info(creds: Any, project_id: str) -> QuotaInfo:
     try:
         tz_la = ZoneInfo("America/Los_Angeles")
         now_la = datetime.now(tz_la)
-        today_start_la = now_la.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        today_start_la = now_la.replace(hour=0, minute=0, second=0, microsecond=0)
         start_sec = int(today_start_la.timestamp())
         end_sec = int(now_la.timestamp())
         if start_sec >= end_sec:
@@ -150,9 +148,7 @@ def get_quota_info(creds: Any, project_id: str) -> QuotaInfo:
         limit_interval = monitoring_v3.TimeInterval(
             {
                 "end_time": {"seconds": end_sec},
-                "start_time": {
-                    "seconds": max(start_sec - 3600, end_sec - 3600)
-                },
+                "start_time": {"seconds": max(start_sec - 3600, end_sec - 3600)},
             }
         )
         limit_filter = (
@@ -174,8 +170,7 @@ def get_quota_info(creds: Any, project_id: str) -> QuotaInfo:
                 break
     except Exception as e:  # noqa: BLE001
         logger.debug(
-            "クォータ上限値の取得に失敗しました"
-            f"（デフォルト値を使用します）: {e}"
+            f"クォータ上限値の取得に失敗しました（デフォルト値を使用します）: {e}"
         )
 
     return QuotaInfo(used=total_used, limit=quota_limit)

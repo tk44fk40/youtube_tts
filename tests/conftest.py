@@ -14,9 +14,7 @@ from unittest.mock import MagicMock
 
 if "sounddevice" not in sys.modules:
     mock_sd = MagicMock()
-    mock_sd.query_devices = MagicMock(
-        return_value={"name": "test_device", "index": 6}
-    )
+    mock_sd.query_devices = MagicMock(return_value={"name": "test_device", "index": 6})
     sys.modules["sounddevice"] = mock_sd
 
 import pytest
@@ -95,9 +93,7 @@ def dummy_stereo_wav_bytes() -> bytes:
 
 
 @pytest.fixture
-def mock_app_dependencies() -> tuple[
-    AppConfig, MagicMock, MagicMock, logging.Logger
-]:
+def mock_app_dependencies() -> tuple[AppConfig, MagicMock, MagicMock, logging.Logger]:
     """アプリケーションが依存するコンポーネントのモックを生成します。
 
     Returns:
@@ -121,9 +117,7 @@ def mock_app_dependencies() -> tuple[
 
 @pytest.fixture
 def app(
-    mock_app_dependencies: tuple[
-        AppConfig, MagicMock, MagicMock, logging.Logger
-    ],
+    mock_app_dependencies: tuple[AppConfig, MagicMock, MagicMock, logging.Logger],
 ) -> YouTubeTtsApp:
     """テスト対象となる YouTubeTtsApp インスタンスを生成します。
 

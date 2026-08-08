@@ -24,9 +24,7 @@ def test_list_speakers_success() -> None:
     ]
     with patch("builtins.print") as mock_print:
         list_speakers(mock_client)
-        mock_print.assert_any_call(
-            f"{'ID':<6} | {'話者名':<15} | {'スタイル':<15}"
-        )
+        mock_print.assert_any_call(f"{'ID':<6} | {'話者名':<15} | {'スタイル':<15}")
 
 
 def test_list_speakers_failure() -> None:
@@ -113,7 +111,7 @@ def test_voicevox_test_main(
 
     open_mock = mock_open()
     if save_fail:
-        open_mock.side_effect = IOError("Save error")
+        open_mock.side_effect = OSError("Save error")
 
     with (
         patch.dict(os.environ, env_vars),

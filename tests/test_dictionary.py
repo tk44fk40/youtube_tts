@@ -57,9 +57,7 @@ def test_normalize_comment(mock_config: MagicMock) -> None:
     assert processor.normalize_author("@Taro") == "Taroさん"
 
     # メッセージの正規化を検証します。
-    msg = (
-        "こんにちは！ http://example.com/test 😄 wwwww youtubeでgoogleを見よう"
-    )
+    msg = "こんにちは！ http://example.com/test 😄 wwwww youtubeでgoogleを見よう"
     # URLの除去、😄（絵文字）の除去、
     # wwwwwを ' わら ' に変換、
     # googleを 'グーグル' に変換
@@ -198,10 +196,7 @@ def test_normalize_message_stamps_and_kaomoji(mock_config: MagicMock) -> None:
     processor = TextProcessor(mock_config)
 
     assert processor.normalize_message(":face-purple-crying:") == ""
-    assert (
-        processor.normalize_message("こんにちは！:custom_stamp:")
-        == "こんにちは!"
-    )
+    assert processor.normalize_message("こんにちは！:custom_stamp:") == "こんにちは!"
     assert processor.normalize_message(":emoji-1: 元気？ :emoji-2:") == "元気?"
 
     # 括弧付き顔文字の除去を行います。
@@ -211,22 +206,10 @@ def test_normalize_message_stamps_and_kaomoji(mock_config: MagicMock) -> None:
     assert processor.normalize_message("おめでとう(*^-^*)") == "おめでとう"
 
     # 通常の括弧表記は残ります。
-    assert (
-        processor.normalize_message("りんご(林檎)を食べる")
-        == "りんご(林檎)を食べる"
-    )
-    assert (
-        processor.normalize_message("会議は水曜日(水)です")
-        == "会議は水曜日(水)です"
-    )
-    assert (
-        processor.normalize_message("これはテストです(笑)")
-        == "これはテストです(笑)"
-    )
-    assert (
-        processor.normalize_message("通常コメント(Taro)")
-        == "通常コメント(Taro)"
-    )
+    assert processor.normalize_message("りんご(林檎)を食べる") == "りんご(林檎)を食べる"
+    assert processor.normalize_message("会議は水曜日(水)です") == "会議は水曜日(水)です"
+    assert processor.normalize_message("これはテストです(笑)") == "これはテストです(笑)"
+    assert processor.normalize_message("通常コメント(Taro)") == "通常コメント(Taro)"
 
     # 括弧なしの顔文字の除去を行います。
     assert processor.normalize_message("すみませんm(_ _)m") == "すみません"

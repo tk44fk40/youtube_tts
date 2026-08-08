@@ -69,8 +69,7 @@ class AudioPlayer:
                                 break
             except Exception as e:  # noqa: BLE001
                 logger.debug(
-                    "pactl によるデフォルトサンプリングレート"
-                    f"取得に失敗しました: {e}"
+                    f"pactl によるデフォルトサンプリングレート取得に失敗しました: {e}"
                 )
 
     def query_devices(
@@ -195,9 +194,7 @@ class AudioPlayer:
                     self.process.kill()
                     self.process.wait()
                 except Exception as e:  # noqa: BLE001
-                    logger.debug(
-                        f"古いプロセスの強制終了中にエラーが発生しました: {e}"
-                    )
+                    logger.debug(f"古いプロセスの強制終了中にエラーが発生しました: {e}")
             if use_stdin:
                 self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
             else:
@@ -220,8 +217,7 @@ class AudioPlayer:
                     os.unlink(temp_file_path)
                 except Exception as e:  # noqa: BLE001
                     logger.debug(
-                        "一時ファイルの削除に失敗しました: "
-                        f"{temp_file_path}, {e}"
+                        f"一時ファイルの削除に失敗しました: {temp_file_path}, {e}"
                     )
 
     def stop(self) -> None:

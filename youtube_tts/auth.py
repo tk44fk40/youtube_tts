@@ -22,6 +22,7 @@ YouTubeAuthenticator クラスを提供します。
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -114,4 +115,4 @@ class YouTubeAuthenticator:
             with open(self.token_path, "w", encoding="utf-8") as token_file:
                 token_file.write(creds.to_json())
 
-        return creds
+        return cast(Credentials, creds)

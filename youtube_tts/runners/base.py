@@ -17,7 +17,7 @@
 import signal
 import threading
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from youtube_tts.app import YouTubeTtsApp
@@ -34,11 +34,9 @@ class BaseRunner(ABC):
         """
         self.app = app
 
-    def _handle_signal(self, signum: int, frame: any) -> None:
+    def _handle_signal(self, signum: int, frame: Any) -> None:
         """シグナル受信時のハンドラです。"""
-        self.app.logger.info(
-            "シグナルを受信しました。シャットダウンしています..."
-        )
+        self.app.logger.info("シグナルを受信しました。シャットダウンしています...")
         self.app.stop_event.set()
 
     @abstractmethod
@@ -56,9 +54,7 @@ class BaseRunner(ABC):
 
         from youtube_tts.workers.playback import playback_worker
 
-        playback_thread = threading.Thread(
-            target=lambda: playback_worker(self.app)
-        )
+        playback_thread = threading.Thread(target=lambda: playback_worker(self.app))
         playback_thread.start()
 
         try:

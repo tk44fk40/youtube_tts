@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -130,9 +131,7 @@ def test_video_cli_chat_log_option(mock_cli_components: dict[str, Any]) -> None:
 def test_video_cli_auth_failure(mock_cli_components: dict[str, Any]) -> None:
     """認証失敗時に終了コード1で終了することを検証します。"""
     components = mock_cli_components
-    components["auth_instance"].get_credentials.side_effect = Exception(
-        "Auth Failure"
-    )
+    components["auth_instance"].get_credentials.side_effect = Exception("Auth Failure")
 
     with patch("sys.exit", side_effect=SystemExit(1)) as mock_exit:
         with pytest.raises(SystemExit) as exc_info:
@@ -180,9 +179,7 @@ def test_video_cli_env_variables_and_failures(
         main()
 
     # 文字列のデバイスIDがそのまま渡されることを検証
-    components["audio_player_class"].assert_called_with(
-        default_device="device_str"
-    )
+    components["audio_player_class"].assert_called_with(default_device="device_str")
     # 例外時にもプロセスが正常終了（キャッチログ出力）していることを検証
     components["runner_instance"].run.assert_called_once()
 
@@ -195,9 +192,7 @@ def test_video_cli_keyboard_interrupt_during_context(
     ステータスコード130で終了することを検証します。
     """
     components = mock_cli_components
-    components[
-        "auth_instance"
-    ].get_credentials.side_effect = KeyboardInterrupt()
+    components["auth_instance"].get_credentials.side_effect = KeyboardInterrupt()
 
     with patch("sys.exit", side_effect=SystemExit(130)) as mock_exit:
         with pytest.raises(SystemExit) as exc_info:
@@ -240,4 +235,3 @@ def test_video_cli_speaker_id_option(
     mock_voicevox_client_cls.assert_called_with(
         base_url="http://127.0.0.1:50021", speaker_id=5
     )
-

@@ -42,8 +42,7 @@ class PluginManager:
         self._plugins.clear()
         if not self._plugins_dir.exists() or not self._plugins_dir.is_dir():
             logger.info(
-                "プラグインディレクトリが存在しないか、"
-                "ディレクトリではありません",
+                "プラグインディレクトリが存在しないか、ディレクトリではありません",
                 extra={"path": str(self._plugins_dir)},
             )
             return
@@ -72,7 +71,7 @@ class PluginManager:
         Raises:
             ValueError: サポートされていないトランスポート種別の場合。
         """
-        with open(manifest_path, "r", encoding="utf-8") as f:
+        with open(manifest_path, encoding="utf-8") as f:
             raw_data = json.load(f)
 
         if not isinstance(raw_data, dict):
@@ -86,9 +85,7 @@ class PluginManager:
         elif manifest.transport == TRANSPORT_HTTP:
             transport = HttpTransport(manifest)
         else:
-            raise ValueError(
-                f"未対応トランスポート種別: {manifest.transport}"
-            )
+            raise ValueError(f"未対応トランスポート種別: {manifest.transport}")
 
         self._plugins[manifest.name] = (manifest, transport)
         logger.info(
@@ -129,14 +126,10 @@ class PluginManager:
 
         manifest, transport = self._plugins[plugin_name]
         request_id = str(uuid.uuid4())
-        message = PluginMessage(
-            request_id=request_id, action=action, data=data or {}
-        )
+        message = PluginMessage(request_id=request_id, action=action, data=data or {})
 
         try:
-            return await transport.send_and_receive(
-                message, manifest.timeout_seconds
-            )
+            return await transport.send_and_receive(message, manifest.timeout_seconds)
         except Exception as err:
             logger.error(
                 "プラグイン実行エラーを安全に捕捉しました",

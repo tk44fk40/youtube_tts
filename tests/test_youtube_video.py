@@ -19,9 +19,7 @@ from youtube_tts.video import YouTubeVideoClient
 
 
 @pytest.fixture
-def mock_client() -> Generator[
-    tuple[YouTubeVideoClient, MagicMock], None, None
-]:
+def mock_client() -> Generator[tuple[YouTubeVideoClient, MagicMock], None, None]:
     """認証モックとサービスモックを内包したクライアントを生成します。
 
     Yields:
@@ -126,9 +124,7 @@ def test_fetch_comment_threads_http_error(
     client, mock_service = mock_client
     resp = Response({"status": 403, "reason": "Forbidden"})
     content = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
-    mock_service.commentThreads().list().execute.side_effect = HttpError(
-        resp, content
-    )
+    mock_service.commentThreads().list().execute.side_effect = HttpError(resp, content)
 
     with pytest.raises(HttpError), caplog.at_level("ERROR"):
         client.fetch_comment_threads("vid")
@@ -176,9 +172,7 @@ def test_fetch_comment_threads_parse_error(
 
     assert len(items) == 1
     assert items[0].id == "c_ok"
-    assert any(
-        "コメントのパースに失敗しました" in r.message for r in caplog.records
-    )
+    assert any("コメントのパースに失敗しました" in r.message for r in caplog.records)
 
 
 @pytest.mark.parametrize("verbose", [False, True])

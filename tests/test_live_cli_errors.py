@@ -42,9 +42,7 @@ def mock_cli_components() -> Generator[dict[str, Any], None, None]:
     """主要コンポーネントを一括でモック化し、標準的な初期値を設定します。"""
     with (
         patch("youtube_tts.cli.context.YouTubeAuthenticator") as mock_auth,
-        patch(
-            "youtube_live_voicevox.YouTubeLiveChatClient"
-        ) as mock_live_client,
+        patch("youtube_live_voicevox.YouTubeLiveChatClient") as mock_live_client,
         patch("youtube_tts.cli.context.YouTubeTtsApp") as mock_app_class,
         patch("youtube_tts.cli.context.AudioPlayer") as mock_audio_player_class,
         patch("sounddevice.query_devices") as mock_query,
@@ -101,9 +99,7 @@ def test_live_cli_auth_failure(
 ) -> None:
     """認証に失敗した場合、ステータスコード1で終了することを検証します。"""
     components = mock_cli_components
-    components["auth_instance"].get_credentials.side_effect = Exception(
-        "Auth Failure"
-    )
+    components["auth_instance"].get_credentials.side_effect = Exception("Auth Failure")
 
     argv = ["youtube_live_voicevox.py"] + argv_extra + ["video123"]
     with pytest.raises(SystemExit) as exc_info:
@@ -135,9 +131,7 @@ def test_live_cli_device_string_and_query_failure(
 ) -> None:
     """デバイス名指定かつ sounddevice 例外時の処理継続を検証します。"""
     components = mock_cli_components
-    components["query_devices"].side_effect = RuntimeError(
-        "Device query failed"
-    )
+    components["query_devices"].side_effect = RuntimeError("Device query failed")
 
     argv = [
         "youtube_live_voicevox.py",
@@ -159,9 +153,7 @@ def test_live_cli_get_speakers_failure(
     mock_voicevox_client_get_speakers: MagicMock,
 ) -> None:
     """VOICEVOX 接続確認失敗時の処理継続を検証します。"""
-    mock_voicevox_client_get_speakers.side_effect = RuntimeError(
-        "Connection refused"
-    )
+    mock_voicevox_client_get_speakers.side_effect = RuntimeError("Connection refused")
     components = mock_cli_components
 
     with patch("sys.argv", ["youtube_live_voicevox.py", "-v", "video123"]):
@@ -214,9 +206,7 @@ def test_live_cli_keyboard_interrupt_during_context(
 ) -> None:
     """コンテキスト生成中に KeyboardInterrupt が発生した場合の終了検証です。"""
     components = mock_cli_components
-    components[
-        "auth_instance"
-    ].get_credentials.side_effect = KeyboardInterrupt()
+    components["auth_instance"].get_credentials.side_effect = KeyboardInterrupt()
 
     with patch("sys.exit", side_effect=SystemExit(130)) as mock_exit:
         with pytest.raises(SystemExit) as exc_info:

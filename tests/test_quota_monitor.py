@@ -85,9 +85,7 @@ def test_handle_exceeded_error_talk_exception(mock_sleep):
     # empty を返すようにしてループを即抜けるようにする
     app.speech_queue.empty.return_value = True
 
-    monitor = QuotaMonitor(
-        app=app, creds=None, project_id=None, quota_talk=True
-    )
+    monitor = QuotaMonitor(app=app, creds=None, project_id=None, quota_talk=True)
 
     # is_quota_exceeded_error は True を返す
     monitor.is_quota_exceeded_error = MagicMock(return_value=True)
@@ -114,13 +112,9 @@ def test_handle_exceeded_error_wait_drain(mock_sleep):
     # ただし SpeechQueue を使うとキューに積まれたメッセージが残るため、
     # empty() は False となり続ける。time.time() 側で抜ける必要がある。
 
-    monitor = QuotaMonitor(
-        app=app, creds=None, project_id=None, quota_talk=True
-    )
+    monitor = QuotaMonitor(app=app, creds=None, project_id=None, quota_talk=True)
     monitor.is_quota_exceeded_error = MagicMock(return_value=True)
-    monitor.get_next_reset_time = MagicMock(
-        return_value=datetime(2026, 7, 1, 15, 30)
-    )
+    monitor.get_next_reset_time = MagicMock(return_value=datetime(2026, 7, 1, 15, 30))
     monitor.format_reset_time = MagicMock(return_value="今日の15時30分")
 
     with patch("time.time", side_effect=[100.0, 100.1, 105.1]):
@@ -132,9 +126,7 @@ def test_handle_exceeded_error_wait_drain(mock_sleep):
 def test_handle_exceeded_error_no_talk():
     """quota_talk が False 時にメッセージ非追加で True 返却を検証します。"""
     app = MagicMock()
-    monitor = QuotaMonitor(
-        app=app, creds=None, project_id=None, quota_talk=False
-    )
+    monitor = QuotaMonitor(app=app, creds=None, project_id=None, quota_talk=False)
     monitor.is_quota_exceeded_error = MagicMock(return_value=True)
 
     assert monitor.handle_exceeded_error(Exception("test")) is True
