@@ -121,33 +121,38 @@ To use the YouTube Data API v3, retrieve the credentials file (`client_secret.js
 <details>
 <summary><b>Detailed Steps (Click to expand)</b></summary>
 
-##### 1. Create a Google Cloud Project
-1. Access [Google Cloud Console](https://console.cloud.google.com/) and log in with your Google account.
-2. Click the project selection menu at the top-left, and create a **"New Project"** (name it as you like).
+##### Step 1. Create a Google Cloud Project
+(1) Access [Google Cloud Console](https://console.cloud.google.com/) and log in with your Google account.
+(2) Click the project selection menu at the top-left, and create a **"New Project"** (name it as you like).
 
-##### 2. Enable YouTube Data API v3
-1. Verify that your newly created project is selected.
-2. From the top-left menu, choose **"APIs & Services"** > **"Library"**.
-3. Enter `YouTube Data API v3` in the search bar, select it, and click **"Enable"**.
+##### Step 2. Enable YouTube Data API v3
+(1) Verify that your newly created project is selected.
+(2) From the top-left menu, choose **"APIs & Services"** > **"Library"**.
+(3) Enter `YouTube Data API v3` in the search bar, select it, and click **"Enable"**.
 
-##### 3. Configure OAuth Consent Screen (If creating for the first time)
-1. Select **"OAuth consent screen"** from the left menu.
-2. Select **"External"** for User Type, and click **"Create"**.
-3. Fill in the **"App information"** (App name, User support email) and **"Developer contact information"** (Email address), then click **"Save and Continue"**.
-4. Skip the "Scopes" screen by clicking **"Save and Continue"**.
-5. On the "Test users" screen, click **"+ ADD USERS"** and add the Google account you intend to use for streaming, then click **"Save and Continue"**.
-6. Finally, click **"Back to Dashboard"**.
+##### Step 3. Enable Cloud Monitoring API (Optional: If using Quota Monitoring)
+(1) Similarly, navigate to **"APIs & Services"** > **"Library"**.
+(2) Enter `Cloud Monitoring API` in the search bar, select it, and click **"Enable"**.
+*Note: Using the quota monitoring features (`--quota-check`, `--quota-talk`, etc.) also requires linking a billing account to your GCP project.*
 
-##### 4. Create and Download OAuth Client ID
-1. Select **"Credentials"** from the left menu.
-2. Click **"+ Create Credentials"** at the top, and select **"OAuth client ID"**.
-3. Select **"Desktop app"** for Application type.
-4. Enter a name (e.g., `YouTube TTS`) and click **"Create"**.
-5. Your created item will appear under "OAuth 2.0 Client IDs". Click the **Download icon (Download JSON)** on the far right to save the file.
+##### Step 4. Configure OAuth Consent Screen (If creating for the first time)
+(1) Select **"OAuth consent screen"** from the left menu.
+(2) Select **"External"** for User Type, and click **"Create"**.
+(3) Fill in the **"App information"** (App name, User support email) and **"Developer contact information"** (Email address), then click **"Save and Continue"**.
+(4) Skip the "Scopes" screen by clicking **"Save and Continue"**.
+(5) On the "Test users" screen, click **"+ ADD USERS"** and add the Google account you intend to use for streaming, then click **"Save and Continue"**.
+(6) Finally, click **"Back to Dashboard"**.
 
-##### 5. Place the File
-1. Rename the downloaded JSON file to **`client_secret.json`**.
-2. Place it in the root directory of this project (where `youtube_voicevox.py` is located).
+##### Step 5. Create and Download OAuth Client ID
+(1) Select **"Credentials"** from the left menu.
+(2) Click **"+ Create Credentials"** at the top, and select **"OAuth client ID"**.
+(3) Select **"Desktop app"** for Application type.
+(4) Enter a name (e.g., `YouTube TTS`) and click **"Create"**.
+(5) Your created item will appear under "OAuth 2.0 Client IDs". Click the **Download icon (Download JSON)** on the far right to save the file.
+
+##### Step 6. Place the File
+(1) Rename the downloaded JSON file to **`client_secret.json`**.
+(2) Place it in the root directory of this project (where `youtube_voicevox.py` is located).
 
 </details>
 
